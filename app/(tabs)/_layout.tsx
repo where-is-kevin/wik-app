@@ -62,9 +62,9 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="KevinGPT"
+        name="AskKevin"
         options={{
-          title: 'KevinGPT',
+          title: 'AskKevin',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="chat.bubble" color={color} />,
         }}
       />
