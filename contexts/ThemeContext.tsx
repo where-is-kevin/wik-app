@@ -27,6 +27,9 @@ type ThemeColors = {
   tabIconDefault: string;
   tabIconSelected: string;
   buttonText: string;
+  onboarding_gray: string;
+  onboarding_option_dark: string;
+  onboarding_option_white: string;
 };
 
 // Define the themes
@@ -40,6 +43,9 @@ const themes = {
     lime: "#CCFF3A",
     horizontal_line: "#6F6F76",
     border_gray: "#E5E5E6",
+    onboarding_gray: "#F2F2F3",
+    onboarding_option_dark: "#4A4A4F",
+    onboarding_option_white: "#FFF",
     background: "#fff",
     tint: tintColorLight,
     icon: "#687076",
@@ -56,6 +62,9 @@ const themes = {
     lime: "#CCFF3A",
     horizontal_line: "#6F6F76",
     border_gray: "#E5E5E6",
+    onboarding_gray: "#F2F2F3",
+    onboarding_option_dark: "#4A4A4F",
+    onboarding_option_white: "#FFF",
     background: "#151718",
     tint: tintColorDark,
     icon: "#9BA1A6",

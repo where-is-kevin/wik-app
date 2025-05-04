@@ -16,6 +16,7 @@ import { StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import GoogleSvg from "@/components/SvgComponents/GoogleSvg";
+import { useRouter } from "expo-router";
 
 interface SignInScreenProps {
   // Add any props here if needed
@@ -25,9 +26,11 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
   const [email, setEmail] = useState<string>("contact@whereskevin.com");
   const [password, setPassword] = useState<string>("***********");
   const { colors } = useTheme();
+  const router = useRouter();
 
   const handleSignIn = (): void => {
     console.log("Signing in with:", { email, password });
+    router.replace("/(onboarding)");
   };
 
   const handleForgotPassword = (): void => {

@@ -86,7 +86,7 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
 
 const styles = StyleSheet.create({
   label: {
-    fontSize: scaleFontSize(16),
+    fontSize: scaleFontSize(15),
     marginBottom: verticalScale(4),
   },
   inputContainer: {
@@ -95,14 +95,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E5E6",
     borderRadius: 8,
-    shadowColor: "rgba(10, 13, 18, 0.05)",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   inputContainerFocused: {
     borderColor: "#5953FF",
