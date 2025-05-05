@@ -30,6 +30,7 @@ type ThemeColors = {
   onboarding_gray: string;
   onboarding_option_dark: string;
   onboarding_option_white: string;
+  input_border: string;
 };
 
 // Define the themes
@@ -46,6 +47,7 @@ const themes = {
     onboarding_gray: "#F2F2F3",
     onboarding_option_dark: "#4A4A4F",
     onboarding_option_white: "#FFF",
+    input_border: "#D6D6D9",
     background: "#fff",
     tint: tintColorLight,
     icon: "#687076",
@@ -65,6 +67,7 @@ const themes = {
     onboarding_gray: "#F2F2F3",
     onboarding_option_dark: "#4A4A4F",
     onboarding_option_white: "#FFF",
+    input_border: "#D6D6D9",
     background: "#151718",
     tint: tintColorDark,
     icon: "#9BA1A6",

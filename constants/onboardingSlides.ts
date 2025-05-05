@@ -1,21 +1,28 @@
 
 
 export type OnboardingSelections = {
-    [key: string]: number;
-  }
+  [key: string]: number | undefined;
+}
 export type Condition = {
     key: string;
     value: number;
   }
   
 export type OnboardingStep = {
-    key: string;
+  key: string;
+  title: string;
+  subtitle: string;
+  type: "logo-selection" | "option-list" | "personal-form" | "card-swipe";
+  options: string[];
+  condition?: Condition;
+  // For card-swipe type, we'll add additional data
+  cards?: {
+    id: string;
     title: string;
-    subtitle: string;
-    type: "logo-selection" | "option-list";
-    options: string[];
-    condition?: Condition;
-  }
+    description: string;
+    imageUrl: string;
+  }[];
+}
 export const onboardingSteps: OnboardingStep[] = [
     {
       key: "userType",
@@ -177,4 +184,45 @@ export const onboardingSteps: OnboardingStep[] = [
       ],
       condition: { key: "userType", value: 1 },
     },
+    {
+      key: "personalDetails",
+      title: "Your Personal Details",
+      subtitle: "Tell us a bit about yourself",
+      type: "personal-form" as const,
+      options: [],
+      condition: { key: "userType", value: 1 }, // Only for personal users
+    },
+    {
+      key: "travelPreferences",
+      title: "Swipe on Your Travel Preferences",
+      subtitle: "Swipe right for places you'd like to visit",
+      type: "card-swipe" as const,
+      options: [], // Not used for card swipe
+      cards: [
+        {
+          id: "beach1",
+          title: "Tropical Beach Paradise",
+          description: "White sand beaches and crystal clear water",
+          imageUrl: "https://picsum.photos/id/1036/300/200", // Placeholder
+        },
+        {
+          id: "mountain1",
+          title: "Mountain Adventure",
+          description: "Breathtaking views and hiking trails",
+          imageUrl: "https://picsum.photos/id/1016/300/200", // Placeholder
+        },
+        {
+          id: "city1",
+          title: "Urban Exploration",
+          description: "City life, museums, and fine dining",
+          imageUrl: "https://picsum.photos/id/1029/300/200", // Placeholder
+        },
+        {
+          id: "historical1",
+          title: "Historical Journey",
+          description: "Ancient ruins and cultural heritage",
+          imageUrl: "https://picsum.photos/id/1024/300/200", // Placeholder
+        },
+      ],
+    }
   ];

@@ -25,6 +25,11 @@ import {
 import { useTheme } from "@/contexts/ThemeContext";
 import ArrowLeftSvg from "@/components/SvgComponents/ArrowLeftSvg";
 import NextButton from "@/components/Button/NextButton";
+import {
+  OnboardingForm,
+  PersonalFormData,
+} from "@/components/Onboarding/OnboardingForm";
+import { SwipeCards } from "@/components/Onboarding/SwipeCards";
 
 const OnboardingScreen = () => {
   const router = useRouter();
@@ -32,6 +37,15 @@ const OnboardingScreen = () => {
   const [selections, setSelections] = useState<OnboardingSelections>({});
   const [filteredSteps, setFilteredSteps] = useState<OnboardingStep[]>([]);
   const [totalSteps, setTotalSteps] = useState<number>(MAX_PATH_STEPS);
+  const [personalFormData, setPersonalFormData] = useState<PersonalFormData>({
+    fullName: "",
+    email: "",
+    phone: "",
+    address: "",
+  });
+  const [swipeLikes, setSwipeLikes] = useState<string[]>([]);
+  const [swipeSkips, setSwipeSkips] = useState<string[]>([]);
+  const [swipeDislikes, setSwipeDislikes] = useState<string[]>([]);
   const { colors } = useTheme();
 
   const stepData = filteredSteps[currentStepIndex];
@@ -56,6 +70,41 @@ const OnboardingScreen = () => {
     }
   }, [selections]);
 
+  const handleFormChange = (formData: PersonalFormData) => {
+    setPersonalFormData(formData);
+
+    // Consider the form valid if at least name and email are filled
+    const isFormValid =
+      formData.fullName.trim() !== "" && formData.email.trim() !== "";
+
+    // Update the selections state to enable/disable the Next button
+    if (stepData) {
+      setSelections({
+        ...selections,
+        // Use 1 for valid form, 0 for invalid form (instead of undefined)
+        [stepData.key]: isFormValid ? 1 : 0,
+      });
+    }
+  };
+
+  const handleSwipeRight = (item: any) => {
+    setSwipeLikes([...swipeLikes, item.id]);
+  };
+
+  const handleSwipeLeft = (item: any) => {
+    setSwipeDislikes([...swipeDislikes, item.id]);
+  };
+
+  const handleSwipeComplete = () => {
+    // Update the selections to allow progressing to the next step
+    if (stepData) {
+      setSelections({
+        ...selections,
+        [stepData.key]: 1,
+      });
+    }
+  };
+
   const handleSelection = (index: number) => {
     if (stepData) {
       setSelections({
@@ -63,6 +112,10 @@ const OnboardingScreen = () => {
         [stepData.key]: index,
       });
     }
+  };
+
+  const handleSwipeDown = (item: any) => {
+    setSwipeSkips([...swipeSkips, item.id]);
   };
 
   const handleLogoSelection = (index: number) => {
@@ -81,12 +134,21 @@ const OnboardingScreen = () => {
   const handleNext = async () => {
     // If we're on the last step, complete onboarding
     if (currentStepIndex === filteredSteps.length - 1) {
-      // Save all selections
+      // Save all selections and additional data
       try {
         await AsyncStorage.setItem("onboardingComplete", "true");
+
+        // Save selections along with form data and swipe preferences
+        const completeData = {
+          selections,
+          personalDetails: personalFormData,
+          likes: swipeLikes,
+          dislikes: swipeDislikes,
+        };
+
         await AsyncStorage.setItem(
-          "onboardingSelections",
-          JSON.stringify(selections)
+          "onboardingData",
+          JSON.stringify(completeData)
         );
 
         // Navigate to main app
@@ -98,6 +160,44 @@ const OnboardingScreen = () => {
       // Otherwise, go to next step
       setCurrentStepIndex(currentStepIndex + 1);
     }
+  };
+
+  // Add this new render function for the personal form step
+  const renderPersonalForm = () => {
+    if (!stepData) return null;
+
+    return (
+      <CustomView style={styles.content}>
+        <CustomText style={styles.optionsTitle}>{stepData.subtitle}</CustomText>
+        <CustomText fontFamily="Inter-SemiBold" style={styles.optionsSubtitle}>
+          {stepData.title}
+        </CustomText>
+
+        <OnboardingForm
+          formData={personalFormData}
+          onFormChange={handleFormChange}
+        />
+      </CustomView>
+    );
+  };
+
+  // Add this new render function for the card swipe step
+  const renderCardSwipe = () => {
+    if (!stepData || !stepData.cards) return null;
+
+    return (
+      <CustomView style={styles.content}>
+        <CustomView style={styles.swipeContainer}>
+          <SwipeCards
+            data={stepData.cards}
+            onSwipeLeft={handleSwipeLeft}
+            onSwipeRight={handleSwipeRight}
+            onComplete={handleSwipeComplete}
+            onSwipeDown={handleSwipeDown}
+          />
+        </CustomView>
+      </CustomView>
+    );
   };
 
   const handleBack = () => {
@@ -192,24 +292,30 @@ const OnboardingScreen = () => {
           </CustomTouchable>
         </CustomView>
       )}
-      {stepData && stepData.type === "logo-selection"
-        ? renderLogoSelection()
-        : renderOptionList()}
+
+      {stepData && stepData.type === "logo-selection" && renderLogoSelection()}
+      {stepData && stepData.type === "option-list" && renderOptionList()}
+      {stepData && stepData.type === "personal-form" && renderPersonalForm()}
+      {stepData && stepData.type === "card-swipe" && renderCardSwipe()}
 
       <CustomView style={styles.footer}>
-        {stepData && stepData.type !== "logo-selection" && (
-          <NextButton
-            onPress={handleNext}
-            customStyles={
-              currentSelection === undefined ? styles.nextButtonDisabled : {}
-            }
-            bgColor={colors.lime}
-            title={
-              currentStepIndex === filteredSteps.length - 1 ? "Finish" : "Next"
-            }
-            disabled={currentSelection === undefined}
-          />
-        )}
+        {stepData &&
+          stepData.type !== "logo-selection" &&
+          stepData.type !== "card-swipe" && (
+            <NextButton
+              onPress={handleNext}
+              customStyles={
+                currentSelection === undefined ? styles.nextButtonDisabled : {}
+              }
+              bgColor={colors.lime}
+              title={
+                currentStepIndex === filteredSteps.length - 1
+                  ? "Finish"
+                  : "Next"
+              }
+              disabled={currentSelection === undefined}
+            />
+          )}
 
         <CustomView style={styles.progressContainer}>
           <OnboardingProgressBar
@@ -235,9 +341,8 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: horizontalScale(24),
-    justifyContent: "center",
     alignItems: "center",
-    paddingTop: verticalScale(10),
+    paddingTop: verticalScale(16),
   },
   logoContent: {
     flex: 1,
@@ -265,7 +370,8 @@ const styles = StyleSheet.create({
   },
   optionsSubtitle: {
     fontSize: scaleFontSize(18),
-    marginBottom: verticalScale(28),
+    height: 58,
+    marginBottom: verticalScale(23),
     textAlign: "center",
   },
   title: {
@@ -275,6 +381,8 @@ const styles = StyleSheet.create({
   },
   optionsContainer: {
     width: "100%",
+    justifyContent: "center",
+    flex: 1,
   },
   selectionButton: {
     width: "100%",
@@ -303,5 +411,11 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     alignItems: "center",
+  },
+  swipeContainer: {
+    flex: 1,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

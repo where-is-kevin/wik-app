@@ -43,7 +43,6 @@ const styles = StyleSheet.create({
   },
   fillBar: {
     height: "100%",
-    backgroundColor: "#3478F6", // Active blue color
     borderRadius: 4,
   },
 });
