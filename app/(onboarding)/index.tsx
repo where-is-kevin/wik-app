@@ -144,6 +144,7 @@ const OnboardingScreen = () => {
           personalDetails: personalFormData,
           likes: swipeLikes,
           dislikes: swipeDislikes,
+          skips: swipeSkips,
         };
 
         await AsyncStorage.setItem(
