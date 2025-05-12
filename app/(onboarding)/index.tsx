@@ -38,10 +38,12 @@ const OnboardingScreen = () => {
   const [filteredSteps, setFilteredSteps] = useState<OnboardingStep[]>([]);
   const [totalSteps, setTotalSteps] = useState<number>(MAX_PATH_STEPS);
   const [personalFormData, setPersonalFormData] = useState<PersonalFormData>({
-    fullName: "",
+    firstName: "",
+    lastName: "",
     email: "",
-    phone: "",
-    address: "",
+    home: "",
+    travelDestination: "",
+    profileImage: null,
   });
   const [swipeLikes, setSwipeLikes] = useState<string[]>([]);
   const [swipeSkips, setSwipeSkips] = useState<string[]>([]);
@@ -75,7 +77,9 @@ const OnboardingScreen = () => {
 
     // Consider the form valid if at least name and email are filled
     const isFormValid =
-      formData.fullName.trim() !== "" && formData.email.trim() !== "";
+      formData.firstName.trim() !== "" &&
+      formData.lastName.trim() !== "" &&
+      formData.email.trim() !== "";
 
     // Update the selections state to enable/disable the Next button
     if (stepData) {
@@ -98,10 +102,16 @@ const OnboardingScreen = () => {
   const handleSwipeComplete = () => {
     // Update the selections to allow progressing to the next step
     if (stepData) {
+      // First update selections
       setSelections({
         ...selections,
         [stepData.key]: 1,
       });
+
+      // Then navigate to the next step (which should be the final slide)
+      setTimeout(() => {
+        setCurrentStepIndex(currentStepIndex + 1);
+      }, 300); // Small delay for better UX
     }
   };
 
@@ -161,44 +171,6 @@ const OnboardingScreen = () => {
       // Otherwise, go to next step
       setCurrentStepIndex(currentStepIndex + 1);
     }
-  };
-
-  // Add this new render function for the personal form step
-  const renderPersonalForm = () => {
-    if (!stepData) return null;
-
-    return (
-      <CustomView style={styles.content}>
-        <CustomText style={styles.optionsTitle}>{stepData.subtitle}</CustomText>
-        <CustomText fontFamily="Inter-SemiBold" style={styles.optionsSubtitle}>
-          {stepData.title}
-        </CustomText>
-
-        <OnboardingForm
-          formData={personalFormData}
-          onFormChange={handleFormChange}
-        />
-      </CustomView>
-    );
-  };
-
-  // Add this new render function for the card swipe step
-  const renderCardSwipe = () => {
-    if (!stepData || !stepData.cards) return null;
-
-    return (
-      <CustomView style={styles.content}>
-        <CustomView style={styles.swipeContainer}>
-          <SwipeCards
-            data={stepData.cards}
-            onSwipeLeft={handleSwipeLeft}
-            onSwipeRight={handleSwipeRight}
-            onComplete={handleSwipeComplete}
-            onSwipeDown={handleSwipeDown}
-          />
-        </CustomView>
-      </CustomView>
-    );
   };
 
   const handleBack = () => {
@@ -282,6 +254,75 @@ const OnboardingScreen = () => {
     );
   };
 
+  // Add this new render function for the personal form step
+  const renderPersonalForm = () => {
+    if (!stepData) return null;
+
+    return (
+      <CustomView style={styles.content}>
+        <CustomText
+          fontFamily="Inter-SemiBold"
+          style={[styles.formTitle, { color: colors.label_dark }]}
+        >
+          {stepData.subtitle}
+        </CustomText>
+        <CustomText
+          style={[styles.formSubtitle, { color: colors.gray_regular }]}
+        >
+          {stepData.title}
+        </CustomText>
+
+        <OnboardingForm
+          formData={personalFormData}
+          onFormChange={handleFormChange}
+        />
+      </CustomView>
+    );
+  };
+
+  // Add this new render function for the card swipe step
+  const renderCardSwipe = () => {
+    if (!stepData || !stepData.cards) return null;
+
+    return (
+      <CustomView style={styles.content}>
+        <CustomView style={styles.swipeContainer}>
+          <SwipeCards
+            data={stepData.cards}
+            onSwipeLeft={handleSwipeLeft}
+            onSwipeRight={handleSwipeRight}
+            onComplete={handleSwipeComplete}
+            onSwipeDown={handleSwipeDown}
+          />
+        </CustomView>
+      </CustomView>
+    );
+  };
+
+  const renderFinalSlide = () => {
+    return <CustomView />;
+  };
+
+  // New combined render function using switch statement
+  const renderStepContent = () => {
+    if (!stepData) return null;
+
+    switch (stepData.type) {
+      case "logo-selection":
+        return renderLogoSelection();
+      case "option-list":
+        return renderOptionList();
+      case "personal-form":
+        return renderPersonalForm();
+      case "card-swipe":
+        return renderCardSwipe();
+      case "final-slide":
+        return renderFinalSlide();
+      default:
+        return null;
+    }
+  };
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -294,10 +335,7 @@ const OnboardingScreen = () => {
         </CustomView>
       )}
 
-      {stepData && stepData.type === "logo-selection" && renderLogoSelection()}
-      {stepData && stepData.type === "option-list" && renderOptionList()}
-      {stepData && stepData.type === "personal-form" && renderPersonalForm()}
-      {stepData && stepData.type === "card-swipe" && renderCardSwipe()}
+      {renderStepContent()}
 
       <CustomView style={styles.footer}>
         {stepData &&
@@ -375,6 +413,16 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(23),
     textAlign: "center",
   },
+  formTitle: {
+    fontSize: scaleFontSize(18),
+    textAlign: "center",
+    marginBottom: verticalScale(8),
+  },
+  formSubtitle: {
+    fontSize: scaleFontSize(14),
+    marginBottom: verticalScale(24),
+    textAlign: "center",
+  },
   title: {
     fontSize: scaleFontSize(18),
     marginBottom: verticalScale(8),
@@ -418,5 +466,6 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
+    paddingBottom: verticalScale(30),
   },
 });

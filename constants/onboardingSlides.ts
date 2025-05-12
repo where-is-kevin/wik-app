@@ -12,7 +12,7 @@ export type OnboardingStep = {
   key: string;
   title: string;
   subtitle: string;
-  type: "logo-selection" | "option-list" | "personal-form" | "card-swipe";
+  type: "logo-selection" | "option-list" | "personal-form" | "card-swipe" | "final-slide";
   options: string[];
   condition?: Condition;
   // For card-swipe type, we'll add additional data
@@ -186,8 +186,8 @@ export const onboardingSteps: OnboardingStep[] = [
     },
     {
       key: "personalDetails",
-      title: "Your Personal Details",
-      subtitle: "Tell us a bit about yourself",
+      title: "You will be able to change this info later",
+      subtitle: "Finalise setting up your profile",
       type: "personal-form" as const,
       options: [],
       condition: { key: "userType", value: 1 }, // Only for personal users
@@ -224,5 +224,12 @@ export const onboardingSteps: OnboardingStep[] = [
           imageUrl: "https://picsum.photos/id/1024/300/200", // Placeholder
         },
       ],
-    }
+    },
+    {
+      key: "finalSlide",
+      title: "You are all set!",
+      subtitle: "You can now start exploring",
+      type: "final-slide" as const,
+      options: [],
+    },
   ];

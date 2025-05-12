@@ -6,6 +6,7 @@ import {
   Animated,
   PanResponder,
   Dimensions,
+  ImageBackground,
 } from "react-native";
 import CustomText from "@/components/CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -14,6 +15,7 @@ import {
   scaleFontSize,
   verticalScale,
 } from "@/utilities/scaling";
+import SendSvg from "../SvgComponents/SengSvg";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
@@ -32,7 +34,7 @@ interface SwipeCardsProps {
   data: CardData[];
   onSwipeLeft: (item: CardData) => void;
   onSwipeRight: (item: CardData) => void;
-  onSwipeDown: (item: CardData) => void; // New prop for swipe down action
+  onSwipeDown: (item: CardData) => void;
   onComplete: () => void;
 }
 
@@ -40,7 +42,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   data,
   onSwipeLeft,
   onSwipeRight,
-  onSwipeDown, // Add the new prop
+  onSwipeDown,
   onComplete,
 }) => {
   const { colors } = useTheme();
@@ -53,29 +55,10 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     extrapolate: "clamp",
   });
 
-  // New interpolation for card scaling when swiping down
+  // Interpolation for card scaling when swiping down
   const scaleDown = position.y.interpolate({
     inputRange: [0, SCREEN_HEIGHT / 4],
     outputRange: [1, 0.8],
-    extrapolate: "clamp",
-  });
-
-  const likeOpacity = position.x.interpolate({
-    inputRange: [0, SCREEN_WIDTH / 4],
-    outputRange: [0, 1],
-    extrapolate: "clamp",
-  });
-
-  const dislikeOpacity = position.x.interpolate({
-    inputRange: [-SCREEN_WIDTH / 4, 0],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
-
-  // New interpolation for SKIP label when swiping down
-  const skipOpacity = position.y.interpolate({
-    inputRange: [0, SCREEN_HEIGHT / 8],
-    outputRange: [0, 1],
     extrapolate: "clamp",
   });
 
@@ -103,7 +86,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
         } else if (gesture.dx < -SWIPE_THRESHOLD) {
           forceSwipe("left");
         } else if (gesture.dy > SWIPE_DOWN_THRESHOLD) {
-          // Handle swipe down
           forceSwipe("down");
         } else {
           resetPosition();
@@ -136,11 +118,11 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     } else if (direction === "left") {
       onSwipeLeft(item);
     } else if (direction === "down") {
-      onSwipeDown(item); // Call the new callback
+      onSwipeDown(item);
     }
 
     position.setValue({ x: 0, y: 0 });
-
+    console.log(cardIndex, data.length - 1);
     if (cardIndex === data.length - 1) {
       // We've gone through all cards
       onComplete();
@@ -187,52 +169,75 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
               style={[
                 styles.cardStyle,
                 {
-                  borderColor: colors.input_border,
-                  backgroundColor: colors.background,
                   transform: [
                     { translateX: position.x },
                     { translateY: position.y },
                     { rotate },
-                    { scale: scaleDown }, // Apply scale when swiping down
+                    { scale: scaleDown },
                   ],
+                  // Make sure the card has a high zIndex to appear above the progress bar
+                  zIndex: 999,
                 },
               ]}
               {...panResponder.panHandlers}
             >
-              <Animated.View
-                style={[styles.likeContainer, { opacity: likeOpacity }]}
+              <ImageBackground
+                source={{ uri: item.imageUrl }}
+                style={styles.cardImage}
+                imageStyle={styles.imageBackground}
               >
-                <CustomText style={styles.likeText}>LIKE</CustomText>
-              </Animated.View>
-              <Animated.View
-                style={[styles.dislikeContainer, { opacity: dislikeOpacity }]}
-              >
-                <CustomText style={styles.dislikeText}>NOPE</CustomText>
-              </Animated.View>
-              {/* New Skip label for swipe down */}
-              <Animated.View
-                style={[styles.skipContainer, { opacity: skipOpacity }]}
-              >
-                <CustomText style={styles.skipText}>SKIP</CustomText>
-              </Animated.View>
+                {/* VENUE badge */}
+                <View style={styles.venueBadge}>
+                  <CustomText
+                    fontFamily="Inter-SemiBold"
+                    style={[styles.venueText, { color: colors.card_purple }]}
+                  >
+                    VENUE
+                  </CustomText>
+                </View>
 
-              <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
-              <View style={styles.cardContent}>
-                <CustomText
-                  fontFamily="Inter-SemiBold"
-                  style={[styles.cardTitle, { color: colors.label_dark }]}
-                >
-                  {item.title}
-                </CustomText>
-                <CustomText
-                  style={[
-                    styles.cardDescription,
-                    { color: colors.gray_regular },
-                  ]}
-                >
-                  {item.description}
-                </CustomText>
-              </View>
+                {/* Content overlay on the image */}
+                <View style={styles.cardContent}>
+                  <CustomText
+                    fontFamily="Inter-SemiBold"
+                    style={[styles.cardTitle, { color: colors.background }]}
+                  >
+                    {item.title}
+                  </CustomText>
+
+                  <CustomText
+                    fontFamily="Inter-SemiBold"
+                    style={[styles.cardTitle, { color: colors.background }]}
+                  >
+                    {item.description || item.title}
+                  </CustomText>
+
+                  <CustomText
+                    fontFamily="Inter-SemiBold"
+                    style={[styles.priceText, { color: colors.lime }]}
+                  >
+                    £45{" "}
+                    <CustomText
+                      fontFamily="Inter-SemiBold"
+                      style={[styles.perPersonText, { color: colors.lime }]}
+                    >
+                      /person
+                    </CustomText>
+                  </CustomText>
+
+                  <CustomText
+                    fontFamily="Inter-SemiBold"
+                    style={[styles.addressText, { color: colors.background }]}
+                  >
+                    Address
+                  </CustomText>
+
+                  {/* Send icon */}
+                  <View style={styles.sendIconContainer}>
+                    <SendSvg />
+                  </View>
+                </View>
+              </ImageBackground>
             </Animated.View>
           );
         }
@@ -245,8 +250,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
               style={[
                 styles.cardStyle,
                 {
-                  borderColor: colors.input_border,
-                  backgroundColor: colors.background,
                   opacity: nextCardOpacity,
                   transform: [{ scale: nextCardScale }],
                   top: 10,
@@ -254,23 +257,24 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                 },
               ]}
             >
-              <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
-              <View style={styles.cardContent}>
-                <CustomText
-                  fontFamily="Inter-SemiBold"
-                  style={[styles.cardTitle, { color: colors.label_dark }]}
-                >
-                  {item.title}
-                </CustomText>
-                <CustomText
-                  style={[
-                    styles.cardDescription,
-                    { color: colors.gray_regular },
-                  ]}
-                >
-                  {item.description}
-                </CustomText>
-              </View>
+              {/* Using ImageBackground for the next card too */}
+              <ImageBackground
+                source={{ uri: item.imageUrl }}
+                style={styles.cardImage}
+                imageStyle={styles.imageBackground}
+              >
+                <View style={styles.cardContent}>
+                  <CustomText
+                    fontFamily="Inter-SemiBold"
+                    style={styles.cardTitle}
+                  >
+                    {item.title}
+                  </CustomText>
+                  <CustomText style={styles.cardDescription}>
+                    {item.description}
+                  </CustomText>
+                </View>
+              </ImageBackground>
             </Animated.View>
           );
         }
@@ -297,71 +301,66 @@ const styles = StyleSheet.create({
   cardStyle: {
     position: "absolute",
     width: "100%",
-    height: "100%",
-    borderRadius: 20,
+    height: "100%", // For 2:3 ratio (width:height), height = width * (3/2)
+    borderRadius: 16,
     overflow: "hidden",
+    // Ensure cards render above other elements when dragging
+    elevation: 5, // for Android
+    shadowColor: "#000", // for iOS
+    shadowOffset: { width: 0, height: 2 }, // for iOS
+    shadowOpacity: 0.3, // for iOS
+    shadowRadius: 3, // for iOS
   },
   cardImage: {
     width: "100%",
     height: "100%",
+    justifyContent: "space-between",
+  },
+  imageBackground: {
     resizeMode: "cover",
   },
+  venueBadge: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: horizontalScale(8),
+    paddingVertical: verticalScale(6),
+    borderRadius: 12,
+    alignSelf: "flex-start",
+    marginLeft: horizontalScale(12),
+    marginTop: verticalScale(16),
+  },
+  venueText: {
+    fontSize: scaleFontSize(10),
+  },
   cardContent: {
-    padding: horizontalScale(15),
+    padding: horizontalScale(12),
+    paddingBottom: verticalScale(16),
   },
   cardTitle: {
-    fontSize: scaleFontSize(18),
-    marginBottom: verticalScale(8),
+    fontSize: scaleFontSize(24),
+    marginBottom: verticalScale(6),
   },
   cardDescription: {
+    fontSize: scaleFontSize(16),
+    color: "#FFFFFF",
+    marginBottom: verticalScale(10),
+  },
+  priceText: {
+    fontSize: scaleFontSize(24),
+    marginTop: verticalScale(6),
+    marginBottom: verticalScale(6),
+  },
+  perPersonText: {
+    fontSize: scaleFontSize(12),
+  },
+  addressText: {
     fontSize: scaleFontSize(14),
+    marginTop: verticalScale(6),
   },
-  likeContainer: {
+  sendIconContainer: {
     position: "absolute",
-    top: 50,
-    right: 40,
-    zIndex: 1,
-    transform: [{ rotate: "15deg" }],
-    borderWidth: 2,
-    borderColor: "#4CD964",
-    padding: 10,
-    borderRadius: 5,
-  },
-  likeText: {
-    color: "#4CD964",
-    fontSize: scaleFontSize(24),
-    fontWeight: "bold",
-  },
-  dislikeContainer: {
-    position: "absolute",
-    top: 50,
-    left: 40,
-    zIndex: 1,
-    transform: [{ rotate: "-15deg" }],
-    borderWidth: 2,
-    borderColor: "#FF3B30",
-    padding: 10,
-    borderRadius: 5,
-  },
-  dislikeText: {
-    color: "#FF3B30",
-    fontSize: scaleFontSize(24),
-    fontWeight: "bold",
-  },
-  // New styles for the skip container
-  skipContainer: {
-    position: "absolute",
-    top: 50,
-    alignSelf: "center",
-    zIndex: 1,
-    borderWidth: 2,
-    borderColor: "#007AFF",
-    padding: 10,
-    borderRadius: 5,
-  },
-  skipText: {
-    color: "#007AFF",
-    fontSize: scaleFontSize(24),
-    fontWeight: "bold",
+    bottom: verticalScale(16),
+    right: horizontalScale(12),
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

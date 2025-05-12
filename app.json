@@ -52,7 +52,13 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-speech-recognition"
+      "expo-speech-recognition",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app needs access to your photos to set your profile picture."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

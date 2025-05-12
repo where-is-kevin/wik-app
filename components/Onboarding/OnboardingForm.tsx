@@ -1,12 +1,12 @@
-import React, { useState } from "react";
-import { StyleSheet, View, TextInput, ScrollView } from "react-native";
-import CustomText from "@/components/CustomText";
+import React from "react";
+import { StyleSheet } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import CustomView from "@/components/CustomView";
+import CustomTextInput from "@/components/TextInput/CustomTextInput";
 import { useTheme } from "@/contexts/ThemeContext";
-import {
-  horizontalScale,
-  scaleFontSize,
-  verticalScale,
-} from "@/utilities/scaling";
+import { verticalScale } from "@/utilities/scaling";
+import AddImageButton from "../Button/AddImageButton";
+import * as ImagePicker from "expo-image-picker";
 
 interface PersonalDetailsFormProps {
   onFormChange: (formData: PersonalFormData) => void;
@@ -14,10 +14,12 @@ interface PersonalDetailsFormProps {
 }
 
 export interface PersonalFormData {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  phone: string;
-  address: string;
+  home: string;
+  travelDestination: string;
+  profileImage: string | null;
 }
 
 export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
@@ -33,94 +35,96 @@ export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
     });
   };
 
-  return (
-    <ScrollView style={styles.container}>
-      <View style={styles.formGroup}>
-        <CustomText style={[styles.label, { color: colors.label_dark }]}>
-          Full Name
-        </CustomText>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.onboarding_gray,
-              borderColor: colors.input_border,
-              color: colors.label_dark,
-            },
-          ]}
-          value={formData.fullName}
-          onChangeText={(text) => handleChange("fullName", text)}
-          placeholder="Enter your full name"
-          placeholderTextColor={colors.gray_regular}
-        />
-      </View>
+  const handleImageSelection = async () => {
+    // Request permission to access the media library
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-      <View style={styles.formGroup}>
-        <CustomText style={[styles.label, { color: colors.label_dark }]}>
-          Email Address
-        </CustomText>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.onboarding_gray,
-              borderColor: colors.input_border,
-              color: colors.label_dark,
-            },
-          ]}
+    if (status !== "granted") {
+      alert("Sorry, we need camera roll permissions to make this work!");
+      return;
+    }
+
+    // Launch the image picker
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      // Update form data with the selected image URI
+      onFormChange({
+        ...formData,
+        profileImage: result.assets[0].uri,
+      });
+    }
+  };
+
+  return (
+    <KeyboardAwareScrollView
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      enableOnAndroid={true}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      extraScrollHeight={20}
+      enableAutomaticScroll={true}
+      extraHeight={10}
+      scrollEnabled={true}
+    >
+      <AddImageButton
+        onPress={handleImageSelection}
+        imageUri={formData.profileImage}
+      />
+      <CustomView style={styles.formGroup}>
+        <CustomTextInput
+          label="First name"
+          value={formData.firstName}
+          onChangeText={(text) => handleChange("firstName", text)}
+          placeholder="Enter your first name"
+          autoCapitalize="words"
+        />
+      </CustomView>
+      <CustomView style={styles.formGroup}>
+        <CustomTextInput
+          label="Last name"
+          value={formData.lastName}
+          onChangeText={(text) => handleChange("lastName", text)}
+          placeholder="Enter your last name"
+          autoCapitalize="words"
+        />
+      </CustomView>
+
+      <CustomView style={styles.formGroup}>
+        <CustomTextInput
+          label="Email"
           value={formData.email}
           onChangeText={(text) => handleChange("email", text)}
           placeholder="Enter your email address"
-          placeholderTextColor={colors.gray_regular}
           keyboardType="email-address"
           autoCapitalize="none"
         />
-      </View>
+      </CustomView>
 
-      <View style={styles.formGroup}>
-        <CustomText style={[styles.label, { color: colors.label_dark }]}>
-          Phone Number
-        </CustomText>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.onboarding_gray,
-              borderColor: colors.input_border,
-              color: colors.label_dark,
-            },
-          ]}
-          value={formData.phone}
-          onChangeText={(text) => handleChange("phone", text)}
-          placeholder="Enter your phone number"
-          placeholderTextColor={colors.gray_regular}
-          keyboardType="phone-pad"
+      <CustomView style={styles.formGroup}>
+        <CustomTextInput
+          label="Phone Number"
+          value={formData.home}
+          onChangeText={(text) => handleChange("home", text)}
+          placeholder="Enter your home address"
         />
-      </View>
+      </CustomView>
 
-      <View style={styles.formGroup}>
-        <CustomText style={[styles.label, { color: colors.label_dark }]}>
-          Address
-        </CustomText>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.onboarding_gray,
-              borderColor: colors.input_border,
-              color: colors.label_dark,
-            },
-            styles.multilineInput,
-          ]}
-          value={formData.address}
-          onChangeText={(text) => handleChange("address", text)}
-          placeholder="Enter your address"
-          placeholderTextColor={colors.gray_regular}
-          multiline
-          numberOfLines={3}
+      <CustomView style={styles.formGroup}>
+        <CustomTextInput
+          label="Travel destination"
+          value={formData.travelDestination}
+          onChangeText={(text) => handleChange("travelDestination", text)}
+          placeholder="Enter your travel destination"
         />
-      </View>
-    </ScrollView>
+      </CustomView>
+    </KeyboardAwareScrollView>
   );
 };
 
@@ -128,22 +132,10 @@ const styles = StyleSheet.create({
   container: {
     width: "100%",
   },
+  contentContainer: {
+    paddingBottom: verticalScale(30), // Extra padding at the bottom for keyboard
+  },
   formGroup: {
-    marginBottom: verticalScale(20),
-  },
-  label: {
-    fontSize: scaleFontSize(14),
-    marginBottom: verticalScale(8),
-  },
-  input: {
-    fontSize: scaleFontSize(16),
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: verticalScale(12),
-    paddingHorizontal: horizontalScale(16),
-  },
-  multilineInput: {
-    height: verticalScale(100),
-    textAlignVertical: "top",
+    marginBottom: verticalScale(12),
   },
 });
