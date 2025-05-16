@@ -7,6 +7,7 @@ import {
   PanResponder,
   Dimensions,
   ImageBackground,
+  ActivityIndicator,
 } from "react-native";
 import CustomText from "@/components/CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -20,7 +21,7 @@ import SendSvg from "../SvgComponents/SengSvg";
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;
-const SWIPE_DOWN_THRESHOLD = 0.25 * SCREEN_HEIGHT;
+const SWIPE_UP_THRESHOLD = 0.25 * SCREEN_HEIGHT; // Changed from DOWN to UP
 const SWIPE_OUT_DURATION = 250;
 
 interface CardData {
@@ -34,7 +35,7 @@ interface SwipeCardsProps {
   data: CardData[];
   onSwipeLeft: (item: CardData) => void;
   onSwipeRight: (item: CardData) => void;
-  onSwipeDown: (item: CardData) => void;
+  onSwipeUp: (item: CardData) => void; // Changed from onSwipeDown to onSwipeUp
   onComplete: () => void;
 }
 
@@ -42,7 +43,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   data,
   onSwipeLeft,
   onSwipeRight,
-  onSwipeDown,
+  onSwipeUp, // Changed from onSwipeDown to onSwipeUp
   onComplete,
 }) => {
   const { colors } = useTheme();
@@ -55,10 +56,10 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     extrapolate: "clamp",
   });
 
-  // Interpolation for card scaling when swiping down
-  const scaleDown = position.y.interpolate({
-    inputRange: [0, SCREEN_HEIGHT / 4],
-    outputRange: [1, 0.8],
+  // Interpolation for card scaling when swiping up (changed from down to up)
+  const scaleUp = position.y.interpolate({
+    inputRange: [-SCREEN_HEIGHT / 4, 0],
+    outputRange: [0.8, 1],
     extrapolate: "clamp",
   });
 
@@ -85,8 +86,9 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
           forceSwipe("right");
         } else if (gesture.dx < -SWIPE_THRESHOLD) {
           forceSwipe("left");
-        } else if (gesture.dy > SWIPE_DOWN_THRESHOLD) {
-          forceSwipe("down");
+        } else if (gesture.dy < -SWIPE_UP_THRESHOLD) {
+          // Changed to check for negative dy (up swipe)
+          forceSwipe("up"); // Changed from "down" to "up"
         } else {
           resetPosition();
         }
@@ -94,14 +96,15 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     })
   ).current;
 
-  const forceSwipe = (direction: "left" | "right" | "down") => {
+  const forceSwipe = (direction: "left" | "right" | "up") => {
+    // Changed "down" to "up"
     const x =
       direction === "right"
         ? SCREEN_WIDTH
         : direction === "left"
         ? -SCREEN_WIDTH
         : 0;
-    const y = direction === "down" ? SCREEN_HEIGHT : 0;
+    const y = direction === "up" ? -SCREEN_HEIGHT : 0; // Changed from positive (down) to negative (up)
 
     Animated.timing(position, {
       toValue: { x, y },
@@ -110,25 +113,42 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     }).start(() => onSwipeComplete(direction));
   };
 
-  const onSwipeComplete = (direction: "left" | "right" | "down") => {
+  const onSwipeComplete = (direction: "left" | "right" | "up") => {
+    // Changed "down" to "up"
     const item = data[cardIndex];
 
+    // Process the swipe action first
     if (direction === "right") {
       onSwipeRight(item);
     } else if (direction === "left") {
       onSwipeLeft(item);
-    } else if (direction === "down") {
-      onSwipeDown(item);
+    } else if (direction === "up") {
+      // Changed from "down" to "up"
+      onSwipeUp(item); // Changed from onSwipeDown to onSwipeUp
     }
 
-    position.setValue({ x: 0, y: 0 });
-    console.log(cardIndex, data.length - 1);
-    if (cardIndex === data.length - 1) {
-      // We've gone through all cards
-      onComplete();
-    } else {
-      setCardIndex(cardIndex + 1);
-    }
+    // Only reset position AFTER the animation completes
+    // Use functional update to ensure we're working with the latest state
+    setCardIndex((prevIndex) => {
+      const nextIndex = prevIndex + 1;
+
+      // Check if we've gone through all cards
+      if (nextIndex >= data.length) {
+        // Call onComplete after a small delay to allow the last card to finish animating off screen
+        setTimeout(() => {
+          // Now reset position after the card is off-screen
+          position.setValue({ x: 0, y: 0 });
+          onComplete();
+        }, 300); // Match this with SWIPE_OUT_DURATION for best results
+      } else {
+        // For normal card transitions, reset position after a small delay
+        setTimeout(() => {
+          position.setValue({ x: 0, y: 0 });
+        }, 100);
+      }
+
+      return nextIndex;
+    });
   };
 
   const resetPosition = () => {
@@ -139,21 +159,15 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     }).start();
   };
 
-  if (cardIndex >= data.length) {
-    return (
-      <View style={styles.emptyCardsContainer}>
-        <CustomText
-          style={{ color: colors.label_dark, fontSize: scaleFontSize(18) }}
-        >
-          No more cards!
-        </CustomText>
-      </View>
-    );
-  }
-
   const renderCards = () => {
     if (cardIndex >= data.length) {
-      return null;
+      return (
+        <Animated.View
+          style={[styles.emptyCardsContainer, styles.transitionContainer]}
+        >
+          <ActivityIndicator color={colors.link_blue} size={"large"} />
+        </Animated.View>
+      );
     }
 
     return data
@@ -173,7 +187,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                     { translateX: position.x },
                     { translateY: position.y },
                     { rotate },
-                    { scale: scaleDown },
+                    { scale: scaleUp }, // Changed from scaleDown to scaleUp
                   ],
                   // Make sure the card has a high zIndex to appear above the progress bar
                   zIndex: 999,
@@ -288,6 +302,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 };
 
 const styles = StyleSheet.create({
+  // Styles remain unchanged
   container: {
     flex: 1,
     justifyContent: "center",
@@ -301,15 +316,14 @@ const styles = StyleSheet.create({
   cardStyle: {
     position: "absolute",
     width: "100%",
-    height: "100%", // For 2:3 ratio (width:height), height = width * (3/2)
+    height: "100%",
     borderRadius: 16,
     overflow: "hidden",
-    // Ensure cards render above other elements when dragging
-    elevation: 5, // for Android
-    shadowColor: "#000", // for iOS
-    shadowOffset: { width: 0, height: 2 }, // for iOS
-    shadowOpacity: 0.3, // for iOS
-    shadowRadius: 3, // for iOS
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
   },
   cardImage: {
     width: "100%",
@@ -362,5 +376,11 @@ const styles = StyleSheet.create({
     right: horizontalScale(12),
     justifyContent: "center",
     alignItems: "center",
+  },
+  transitionContainer: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    opacity: 0.5,
   },
 });

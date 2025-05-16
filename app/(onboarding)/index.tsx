@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, SafeAreaView, Image } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { StyleSheet, SafeAreaView } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { OnboardingOption } from "@/components/Onboarding/OnboardingOption";
@@ -30,9 +29,14 @@ import {
   PersonalFormData,
 } from "@/components/Onboarding/OnboardingForm";
 import { SwipeCards } from "@/components/Onboarding/SwipeCards";
+import SwipeCardTooltips from "@/components/Tooltips/SwipeCardTooltips";
+import LottieView from "lottie-react-native";
+import OnboardingAnimationStart from "@/assets/animations/onboarding-animation-start.json";
+import OnboardingAnimationEnd from "@/assets/animations/onboarding-animation-end.json";
 
 const OnboardingScreen = () => {
   const router = useRouter();
+  const { colors } = useTheme();
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [selections, setSelections] = useState<OnboardingSelections>({});
   const [filteredSteps, setFilteredSteps] = useState<OnboardingStep[]>([]);
@@ -48,7 +52,7 @@ const OnboardingScreen = () => {
   const [swipeLikes, setSwipeLikes] = useState<string[]>([]);
   const [swipeSkips, setSwipeSkips] = useState<string[]>([]);
   const [swipeDislikes, setSwipeDislikes] = useState<string[]>([]);
-  const { colors } = useTheme();
+  const [showTutorial, setShowTutorial] = useState<boolean>(true);
 
   const stepData = filteredSteps[currentStepIndex];
   const currentSelection = stepData ? selections[stepData.key] : undefined;
@@ -66,6 +70,7 @@ const OnboardingScreen = () => {
     });
 
     setFilteredSteps(newFilteredSteps);
+
     if (selections.userType !== undefined) {
       const path = selections.userType === 0 ? "business" : "personal";
       setTotalSteps(getTotalStepsForPath(path));
@@ -75,17 +80,14 @@ const OnboardingScreen = () => {
   const handleFormChange = (formData: PersonalFormData) => {
     setPersonalFormData(formData);
 
-    // Consider the form valid if at least name and email are filled
     const isFormValid =
       formData.firstName.trim() !== "" &&
       formData.lastName.trim() !== "" &&
       formData.email.trim() !== "";
 
-    // Update the selections state to enable/disable the Next button
     if (stepData) {
       setSelections({
         ...selections,
-        // Use 1 for valid form, 0 for invalid form (instead of undefined)
         [stepData.key]: isFormValid ? 1 : 0,
       });
     }
@@ -99,20 +101,25 @@ const OnboardingScreen = () => {
     setSwipeDislikes([...swipeDislikes, item.id]);
   };
 
+  const handleSwipeUp = (item: any) => {
+    setSwipeSkips([...swipeSkips, item.id]);
+  };
+
   const handleSwipeComplete = () => {
-    // Update the selections to allow progressing to the next step
     if (stepData) {
-      // First update selections
       setSelections({
         ...selections,
         [stepData.key]: 1,
       });
 
-      // Then navigate to the next step (which should be the final slide)
       setTimeout(() => {
         setCurrentStepIndex(currentStepIndex + 1);
-      }, 300); // Small delay for better UX
+      }, 500);
     }
+  };
+
+  const handleTutorialComplete = () => {
+    setShowTutorial(false);
   };
 
   const handleSelection = (index: number) => {
@@ -124,31 +131,22 @@ const OnboardingScreen = () => {
     }
   };
 
-  const handleSwipeDown = (item: any) => {
-    setSwipeSkips([...swipeSkips, item.id]);
-  };
-
   const handleLogoSelection = (index: number) => {
-    // Set the selection first
     setSelections({
       ...selections,
       [stepData!.key]: index,
     });
 
-    // Navigate to the next step after a short delay
     setTimeout(() => {
       setCurrentStepIndex(1);
     }, 150);
   };
 
   const handleNext = async () => {
-    // If we're on the last step, complete onboarding
     if (currentStepIndex === filteredSteps.length - 1) {
-      // Save all selections and additional data
       try {
         await AsyncStorage.setItem("onboardingComplete", "true");
 
-        // Save selections along with form data and swipe preferences
         const completeData = {
           selections,
           personalDetails: personalFormData,
@@ -162,13 +160,11 @@ const OnboardingScreen = () => {
           JSON.stringify(completeData)
         );
 
-        // Navigate to main app
         router.push("/(tabs)");
       } catch (error) {
         console.error("Failed to save onboarding data", error);
       }
     } else {
-      // Otherwise, go to next step
       setCurrentStepIndex(currentStepIndex + 1);
     }
   };
@@ -179,28 +175,29 @@ const OnboardingScreen = () => {
     }
   };
 
-  // Render the logo selection layout
   const renderLogoSelection = () => {
     if (!stepData) return null;
 
     return (
       <CustomView style={styles.logoContent}>
-        <CustomView style={styles.logoContainer}>
-          <Image
-            source={require("../../assets/images/intro-image.png")}
+        <CustomView>
+          <LottieView
+            source={OnboardingAnimationStart}
+            autoPlay
+            loop
             style={styles.logo}
           />
-        </CustomView>
 
-        <CustomText
-          fontFamily="Inter-SemiBold"
-          style={[styles.title, { color: colors.label_dark }]}
-        >
-          {stepData.title}
-        </CustomText>
-        <CustomText style={[styles.subtitle, { color: colors.gray_regular }]}>
-          {stepData.subtitle}
-        </CustomText>
+          <CustomText
+            fontFamily="Inter-SemiBold"
+            style={[styles.title, { color: colors.label_dark }]}
+          >
+            {stepData.title}
+          </CustomText>
+          <CustomText style={[styles.subtitle, { color: colors.gray_regular }]}>
+            {stepData.subtitle}
+          </CustomText>
+        </CustomView>
 
         <CustomView style={styles.optionsContainer}>
           {stepData.options.map((option, index) => (
@@ -229,7 +226,6 @@ const OnboardingScreen = () => {
     );
   };
 
-  // Render the option list layout
   const renderOptionList = () => {
     if (!stepData) return null;
 
@@ -254,7 +250,6 @@ const OnboardingScreen = () => {
     );
   };
 
-  // Add this new render function for the personal form step
   const renderPersonalForm = () => {
     if (!stepData) return null;
 
@@ -280,7 +275,6 @@ const OnboardingScreen = () => {
     );
   };
 
-  // Add this new render function for the card swipe step
   const renderCardSwipe = () => {
     if (!stepData || !stepData.cards) return null;
 
@@ -291,19 +285,42 @@ const OnboardingScreen = () => {
             data={stepData.cards}
             onSwipeLeft={handleSwipeLeft}
             onSwipeRight={handleSwipeRight}
+            onSwipeUp={handleSwipeUp}
             onComplete={handleSwipeComplete}
-            onSwipeDown={handleSwipeDown}
           />
+
+          {showTutorial && (
+            <SwipeCardTooltips onComplete={handleTutorialComplete} />
+          )}
         </CustomView>
       </CustomView>
     );
   };
 
   const renderFinalSlide = () => {
-    return <CustomView />;
+    return (
+      <CustomView style={styles.contentEnd}>
+        <LottieView
+          source={OnboardingAnimationEnd}
+          autoPlay
+          loop
+          style={styles.logoEnd}
+        />
+        <CustomText
+          fontFamily="Inter-SemiBold"
+          style={[styles.endTitle, { color: colors.label_dark }]}
+        >
+          {stepData.title}
+        </CustomText>
+        <CustomText
+          style={[styles.endSubtitle, { color: colors.gray_regular }]}
+        >
+          {stepData.subtitle}
+        </CustomText>
+      </CustomView>
+    );
   };
 
-  // New combined render function using switch statement
   const renderStepContent = () => {
     if (!stepData) return null;
 
@@ -323,16 +340,17 @@ const OnboardingScreen = () => {
     }
   };
 
+  const isNextButtonDisabled =
+    currentSelection === undefined && stepData?.type !== "final-slide";
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      {currentStepIndex > 0 && (
-        <CustomView style={styles.header}>
-          <CustomTouchable onPress={handleBack}>
-            <ArrowLeftSvg />
-          </CustomTouchable>
-        </CustomView>
+      {currentStepIndex > 0 && stepData?.type !== "final-slide" && (
+        <CustomTouchable style={styles.header} onPress={handleBack}>
+          <ArrowLeftSvg />
+        </CustomTouchable>
       )}
 
       {renderStepContent()}
@@ -344,7 +362,7 @@ const OnboardingScreen = () => {
             <NextButton
               onPress={handleNext}
               customStyles={
-                currentSelection === undefined ? styles.nextButtonDisabled : {}
+                isNextButtonDisabled ? styles.nextButtonDisabled : {}
               }
               bgColor={colors.lime}
               title={
@@ -352,10 +370,9 @@ const OnboardingScreen = () => {
                   ? "Finish"
                   : "Next"
               }
-              disabled={currentSelection === undefined}
+              disabled={isNextButtonDisabled}
             />
           )}
-
         <CustomView style={styles.progressContainer}>
           <OnboardingProgressBar
             steps={totalSteps}
@@ -389,17 +406,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  logoContainer: {
-    marginBottom: verticalScale(28),
+  contentEnd: {
+    flex: 1,
+    paddingHorizontal: horizontalScale(24),
+    alignItems: "center",
+    justifyContent: "center",
   },
   logo: {
-    width: 216,
-    height: 296,
-    resizeMode: "contain",
+    width: 273,
+    height: 273,
+  },
+  logoEnd: {
+    width: 327,
+    height: 327,
+  },
+  title: {
+    fontSize: scaleFontSize(18),
+    marginBottom: verticalScale(8),
+    textAlign: "center",
   },
   subtitle: {
     fontSize: scaleFontSize(14),
-    marginBottom: verticalScale(28),
     textAlign: "center",
   },
   optionsTitle: {
@@ -423,9 +450,13 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(24),
     textAlign: "center",
   },
-  title: {
+  endTitle: {
     fontSize: scaleFontSize(18),
     marginBottom: verticalScale(8),
+    textAlign: "center",
+  },
+  endSubtitle: {
+    fontSize: scaleFontSize(14),
     textAlign: "center",
   },
   optionsContainer: {
@@ -444,7 +475,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#D6D6D9",
   },
-  personalButton: {},
   selectedButton: {
     borderColor: "#000",
   },

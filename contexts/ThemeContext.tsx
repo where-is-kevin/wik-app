@@ -22,6 +22,7 @@ type ThemeColors = {
   horizontal_line: string;
   border_gray: string;
   background: string;
+  overlay: string;
   tint: string;
   icon: string;
   tabIconDefault: string;
@@ -51,6 +52,7 @@ const themes = {
     input_border: "#D6D6D9",
     card_purple: "#2D51FF",
     background: "#fff",
+    overlay: "rgba(0,0,0,0)",
     tint: tintColorLight,
     icon: "#687076",
     tabIconDefault: "#687076",
@@ -72,6 +74,7 @@ const themes = {
     input_border: "#D6D6D9",
     card_purple: "#2D51FF",
     background: "#151718",
+    overlay: "rgba(0,0,0,0)",
     tint: tintColorDark,
     icon: "#9BA1A6",
     tabIconDefault: "#9BA1A6",
