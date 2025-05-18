@@ -9,6 +9,7 @@ export default function OnboardingLayout() {
       }}
     >
       <Stack.Screen name="index" />
+      <Stack.Screen name="event-details/[eventId]" />
     </Stack>
   );
 }

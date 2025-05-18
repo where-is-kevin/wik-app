@@ -12,15 +12,15 @@ import {
 } from "@/utilities/scaling";
 import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
-import { StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { Dimensions, Platform, StyleSheet } from "react-native";
 import GoogleSvg from "@/components/SvgComponents/GoogleSvg";
 import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface SignInScreenProps {
   // Add any props here if needed
 }
+const windowHeight = Dimensions.get("window").height;
 
 const SignInScreen: React.FC<SignInScreenProps> = () => {
   const [email, setEmail] = useState<string>("contact@whereskevin.com");
@@ -47,109 +47,97 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
-      <KeyboardAwareScrollView
-        style={styles.keyboardAwareScrollView}
-        contentContainerStyle={styles.scrollViewContent}
-        enableOnAndroid={true}
-        bounces={false}
-        enableAutomaticScroll={true}
-        keyboardShouldPersistTaps="handled"
-        extraScrollHeight={10}
-        showsVerticalScrollIndicator={false}
-        resetScrollToCoords={{ x: 0, y: 0 }}
-      >
-        <CustomView style={styles.content}>
-          <CustomView style={styles.logoContainer}>
-            <LoginLogoSvg />
-          </CustomView>
-          {/* Form */}
-          <CustomView style={styles.form}>
-            <CustomView style={styles.inputContainer}>
-              <CustomTextInput
-                label="Email"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                placeholder="Enter your email"
-              />
-
-              <CustomTextInput
-                label="Password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={true}
-                placeholder="Enter your password"
-              />
-            </CustomView>
-            <CustomTouchable
-              style={styles.forgotPasswordContainer}
-              onPress={handleForgotPassword}
-            >
-              <CustomText
-                fontFamily="Inter-SemiBold"
-                style={[styles.forgotPasswordText, { color: colors.link_blue }]}
-              >
-                Forgot password?
-              </CustomText>
-            </CustomTouchable>
-
-            <CustomTouchable
-              bgColor={colors.lime}
-              style={styles.signInButton}
-              onPress={handleSignIn}
-            >
-              <CustomText
-                fontFamily="Inter-SemiBold"
-                style={[styles.signInButtonText, { color: colors.label_dark }]}
-              >
-                Sign in
-              </CustomText>
-            </CustomTouchable>
-
-            <CustomView style={styles.signUpContainer}>
-              <CustomText
-                style={[styles.notMemberText, { color: colors.gray_regular }]}
-              >
-                Not a member?{" "}
-              </CustomText>
-              <CustomTouchable onPress={handleSignUp}>
-                <CustomText
-                  style={[styles.signUpText, { color: colors.link_blue }]}
-                  fontFamily="Inter-SemiBold"
-                >
-                  Sign up
-                </CustomText>
-              </CustomTouchable>
-            </CustomView>
-
-            <CustomView
-              bgColor={colors.horizontal_line}
-              style={commonStyles.horizontalLine}
-            />
-            <CustomText
-              style={[styles.otherWaysText, { color: colors.gray_regular }]}
-            >
-              Other ways to Sign in
-            </CustomText>
-
-            <CustomTouchable
-              style={[styles.googleButton, { borderColor: colors.border_gray }]}
-              onPress={handleGoogleSignIn}
-            >
-              <GoogleSvg />
-              <CustomText
-                fontFamily="Inter-SemiBold"
-                style={[
-                  styles.googleButtonText,
-                  { color: colors.horizontal_line },
-                ]}
-              >
-                Sign in with Google
-              </CustomText>
-            </CustomTouchable>
-          </CustomView>
+      <CustomView style={styles.content}>
+        <CustomView style={styles.logoContainer}>
+          <LoginLogoSvg />
         </CustomView>
-      </KeyboardAwareScrollView>
+        {/* Form */}
+        <CustomView style={styles.form}>
+          <CustomView style={styles.inputContainer}>
+            <CustomTextInput
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              placeholder="Enter your email"
+            />
+
+            <CustomTextInput
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={true}
+              placeholder="Enter your password"
+            />
+          </CustomView>
+          <CustomTouchable
+            style={styles.forgotPasswordContainer}
+            onPress={handleForgotPassword}
+          >
+            <CustomText
+              fontFamily="Inter-SemiBold"
+              style={[styles.forgotPasswordText, { color: colors.link_blue }]}
+            >
+              Forgot password?
+            </CustomText>
+          </CustomTouchable>
+
+          <CustomTouchable
+            bgColor={colors.lime}
+            style={styles.signInButton}
+            onPress={handleSignIn}
+          >
+            <CustomText
+              fontFamily="Inter-SemiBold"
+              style={[styles.signInButtonText, { color: colors.label_dark }]}
+            >
+              Sign in
+            </CustomText>
+          </CustomTouchable>
+
+          <CustomView style={styles.signUpContainer}>
+            <CustomText
+              style={[styles.notMemberText, { color: colors.gray_regular }]}
+            >
+              Not a member?{" "}
+            </CustomText>
+            <CustomTouchable onPress={handleSignUp}>
+              <CustomText
+                style={[styles.signUpText, { color: colors.link_blue }]}
+                fontFamily="Inter-SemiBold"
+              >
+                Sign up
+              </CustomText>
+            </CustomTouchable>
+          </CustomView>
+
+          <CustomView
+            bgColor={colors.horizontal_line}
+            style={commonStyles.horizontalLine}
+          />
+          <CustomText
+            style={[styles.otherWaysText, { color: colors.gray_regular }]}
+          >
+            Other ways to Sign in
+          </CustomText>
+
+          <CustomTouchable
+            style={[styles.googleButton, { borderColor: colors.border_gray }]}
+            onPress={handleGoogleSignIn}
+          >
+            <GoogleSvg />
+            <CustomText
+              fontFamily="Inter-SemiBold"
+              style={[
+                styles.googleButtonText,
+                { color: colors.horizontal_line },
+              ]}
+            >
+              Sign in with Google
+            </CustomText>
+          </CustomTouchable>
+        </CustomView>
+      </CustomView>
     </SafeAreaView>
   );
 };
@@ -168,7 +156,14 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: horizontalScale(24),
-    justifyContent: "center",
+    ...Platform.select({
+      ios: {
+        justifyContent: "center",
+      },
+      android: {
+        paddingTop: windowHeight * 0.11,
+      },
+    }),
   },
   form: {
     width: "100%",

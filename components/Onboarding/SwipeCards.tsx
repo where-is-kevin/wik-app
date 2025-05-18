@@ -9,6 +9,7 @@ import {
   ImageBackground,
   ActivityIndicator,
 } from "react-native";
+import { useRouter } from "expo-router";
 import CustomText from "@/components/CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
@@ -17,38 +18,47 @@ import {
   verticalScale,
 } from "@/utilities/scaling";
 import SendSvg from "../SvgComponents/SengSvg";
+import CustomTouchable from "../CustomTouchableOpacity";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;
-const SWIPE_UP_THRESHOLD = 0.25 * SCREEN_HEIGHT; // Changed from DOWN to UP
+const SWIPE_UP_THRESHOLD = 0.25 * SCREEN_HEIGHT;
 const SWIPE_OUT_DURATION = 250;
+const TAP_DURATION_THRESHOLD = 200;
 
 interface CardData {
   id: string;
   title: string;
   description: string;
   imageUrl: string;
+  price?: string;
 }
 
 interface SwipeCardsProps {
   data: CardData[];
   onSwipeLeft: (item: CardData) => void;
   onSwipeRight: (item: CardData) => void;
-  onSwipeUp: (item: CardData) => void; // Changed from onSwipeDown to onSwipeUp
+  onSwipeUp: (item: CardData) => void;
   onComplete: () => void;
+  onCardTap?: (item: CardData) => void;
 }
 
 export const SwipeCards: React.FC<SwipeCardsProps> = ({
   data,
   onSwipeLeft,
   onSwipeRight,
-  onSwipeUp, // Changed from onSwipeDown to onSwipeUp
+  onSwipeUp,
   onComplete,
+  onCardTap,
 }) => {
   const { colors } = useTheme();
+  const router = useRouter();
   const [cardIndex, setCardIndex] = React.useState(0);
   const position = useRef(new Animated.ValueXY()).current;
+  // Track touch start time and position to distinguish between tap and swipe
+  const touchStartTime = useRef<number>(0);
+  const touchStartPosition = useRef({ x: 0, y: 0 });
 
   const rotate = position.x.interpolate({
     inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
@@ -56,7 +66,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     extrapolate: "clamp",
   });
 
-  // Interpolation for card scaling when swiping up (changed from down to up)
   const scaleUp = position.y.interpolate({
     inputRange: [-SCREEN_HEIGHT / 4, 0],
     outputRange: [0.8, 1],
@@ -75,20 +84,47 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     extrapolate: "clamp",
   });
 
+  const handleCardTap = (item: CardData) => {
+    if (onCardTap) {
+      onCardTap(item);
+    } else {
+      router.push(`/event-details/${item.id}`);
+    }
+  };
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
+      onPanResponderGrant: (evt) => {
+        touchStartTime.current = Date.now();
+        touchStartPosition.current = {
+          x: evt.nativeEvent.locationX,
+          y: evt.nativeEvent.locationY,
+        };
+      },
       onPanResponderMove: (event, gesture) => {
         position.setValue({ x: gesture.dx, y: gesture.dy });
       },
       onPanResponderRelease: (event, gesture) => {
+        const touchDuration = Date.now() - touchStartTime.current;
+        const distanceMoved = Math.sqrt(
+          Math.pow(gesture.dx, 2) + Math.pow(gesture.dy, 2)
+        );
+
+        // If it's a short touch with minimal movement, consider it a tap
+        if (touchDuration < TAP_DURATION_THRESHOLD && distanceMoved < 10) {
+          const item = data[cardIndex];
+          handleCardTap(item);
+          return;
+        }
+
+        // Handle swipes
         if (gesture.dx > SWIPE_THRESHOLD) {
           forceSwipe("right");
         } else if (gesture.dx < -SWIPE_THRESHOLD) {
           forceSwipe("left");
         } else if (gesture.dy < -SWIPE_UP_THRESHOLD) {
-          // Changed to check for negative dy (up swipe)
-          forceSwipe("up"); // Changed from "down" to "up"
+          forceSwipe("up");
         } else {
           resetPosition();
         }
@@ -97,14 +133,13 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   ).current;
 
   const forceSwipe = (direction: "left" | "right" | "up") => {
-    // Changed "down" to "up"
     const x =
       direction === "right"
         ? SCREEN_WIDTH
         : direction === "left"
         ? -SCREEN_WIDTH
         : 0;
-    const y = direction === "up" ? -SCREEN_HEIGHT : 0; // Changed from positive (down) to negative (up)
+    const y = direction === "up" ? -SCREEN_HEIGHT : 0;
 
     Animated.timing(position, {
       toValue: { x, y },
@@ -114,7 +149,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   };
 
   const onSwipeComplete = (direction: "left" | "right" | "up") => {
-    // Changed "down" to "up"
     const item = data[cardIndex];
 
     // Process the swipe action first
@@ -123,12 +157,10 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     } else if (direction === "left") {
       onSwipeLeft(item);
     } else if (direction === "up") {
-      // Changed from "down" to "up"
-      onSwipeUp(item); // Changed from onSwipeDown to onSwipeUp
+      onSwipeUp(item);
     }
 
     // Only reset position AFTER the animation completes
-    // Use functional update to ensure we're working with the latest state
     setCardIndex((prevIndex) => {
       const nextIndex = prevIndex + 1;
 
@@ -139,7 +171,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
           // Now reset position after the card is off-screen
           position.setValue({ x: 0, y: 0 });
           onComplete();
-        }, 300); // Match this with SWIPE_OUT_DURATION for best results
+        }, 300);
       } else {
         // For normal card transitions, reset position after a small delay
         setTimeout(() => {
@@ -187,9 +219,8 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                     { translateX: position.x },
                     { translateY: position.y },
                     { rotate },
-                    { scale: scaleUp }, // Changed from scaleDown to scaleUp
+                    { scale: scaleUp },
                   ],
-                  // Make sure the card has a high zIndex to appear above the progress bar
                   zIndex: 999,
                 },
               ]}
@@ -230,7 +261,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                     fontFamily="Inter-SemiBold"
                     style={[styles.priceText, { color: colors.lime }]}
                   >
-                    £45{" "}
+                    {item.price || "£45"}{" "}
                     <CustomText
                       fontFamily="Inter-SemiBold"
                       style={[styles.perPersonText, { color: colors.lime }]}
@@ -247,9 +278,13 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                   </CustomText>
 
                   {/* Send icon */}
-                  <View style={styles.sendIconContainer}>
+                  <CustomTouchable
+                    bgColor={colors.overlay}
+                    style={styles.sendIconContainer}
+                    onPress={() => console.log("share")}
+                  >
                     <SendSvg />
-                  </View>
+                  </CustomTouchable>
                 </View>
               </ImageBackground>
             </Animated.View>
@@ -302,7 +337,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 };
 
 const styles = StyleSheet.create({
-  // Styles remain unchanged
   container: {
     flex: 1,
     justifyContent: "center",

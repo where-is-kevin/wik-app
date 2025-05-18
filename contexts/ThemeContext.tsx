@@ -33,6 +33,7 @@ type ThemeColors = {
   onboarding_option_white: string;
   input_border: string;
   card_purple: string;
+  event_gray: string;
 };
 
 // Define the themes
@@ -53,6 +54,7 @@ const themes = {
     card_purple: "#2D51FF",
     background: "#fff",
     overlay: "rgba(0,0,0,0)",
+    event_gray: "#A3A3A8",
     tint: tintColorLight,
     icon: "#687076",
     tabIconDefault: "#687076",
@@ -75,6 +77,7 @@ const themes = {
     card_purple: "#2D51FF",
     background: "#151718",
     overlay: "rgba(0,0,0,0)",
+    event_gray: "#A3A3A8",
     tint: tintColorDark,
     icon: "#9BA1A6",
     tabIconDefault: "#9BA1A6",

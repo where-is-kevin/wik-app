@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, SafeAreaView } from "react-native";
+import { StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { OnboardingOption } from "@/components/Onboarding/OnboardingOption";
@@ -33,6 +33,8 @@ import SwipeCardTooltips from "@/components/Tooltips/SwipeCardTooltips";
 import LottieView from "lottie-react-native";
 import OnboardingAnimationStart from "@/assets/animations/onboarding-animation-start.json";
 import OnboardingAnimationEnd from "@/assets/animations/onboarding-animation-end.json";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 
 const OnboardingScreen = () => {
   const router = useRouter();
@@ -347,6 +349,7 @@ const OnboardingScreen = () => {
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
+      <StatusBar style="dark" />
       {currentStepIndex > 0 && stepData?.type !== "final-slide" && (
         <CustomTouchable style={styles.header} onPress={handleBack}>
           <ArrowLeftSvg />
