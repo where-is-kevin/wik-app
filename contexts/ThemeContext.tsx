@@ -34,6 +34,9 @@ type ThemeColors = {
   input_border: string;
   card_purple: string;
   event_gray: string;
+  profile_name_black: string;
+  text_white: string;
+  opacity_lime: string;
 };
 
 // Define the themes
@@ -44,7 +47,9 @@ const themes = {
     label_dark: "#131314",
     focus_input: "#4D4DFF",
     link_blue: "#493CFA",
+    text_white: "#FFFF",
     lime: "#CCFF3A",
+    opacity_lime: "#E5FF99",
     horizontal_line: "#6F6F76",
     border_gray: "#E5E5E6",
     onboarding_gray: "#F2F2F3",
@@ -55,6 +60,7 @@ const themes = {
     background: "#fff",
     overlay: "rgba(0,0,0,0)",
     event_gray: "#A3A3A8",
+    profile_name_black: "#0B2E34",
     tint: tintColorLight,
     icon: "#687076",
     tabIconDefault: "#687076",
@@ -67,7 +73,9 @@ const themes = {
     label_dark: "#131314",
     focus_input: "#4D4DFF",
     link_blue: "#493CFA",
+    text_white: "#FFFF",
     lime: "#CCFF3A",
+    opacity_lime: "#E5FF99",
     horizontal_line: "#6F6F76",
     border_gray: "#E5E5E6",
     onboarding_gray: "#F2F2F3",
@@ -78,6 +86,7 @@ const themes = {
     background: "#151718",
     overlay: "rgba(0,0,0,0)",
     event_gray: "#A3A3A8",
+    profile_name_black: "#0B2E34",
     tint: tintColorDark,
     icon: "#9BA1A6",
     tabIconDefault: "#9BA1A6",

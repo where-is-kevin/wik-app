@@ -43,7 +43,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="dash"
+        name="profile"
         options={{
           tabBarIcon: ({ color, focused }) => (
             <IconWithTopBorder focused={focused}>
