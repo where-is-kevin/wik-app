@@ -11,14 +11,21 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "This app requires access to the microphone to record audio."
-      }
+        "NSMicrophoneUsageDescription": "This app requires access to the microphone to record audio.",
+        "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.itsamejms.wikapp"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.itsamejms.wikapp"
     },
     "web": {
       "bundler": "metro",
@@ -40,6 +47,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "cb192ef1-a64d-4586-b178-4c4aaed12fbc"
+      }
+    },
+    "owner": "itsamejms"
   }
 }
