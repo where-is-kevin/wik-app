@@ -36,3 +36,21 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+
+# npm global packages
+*.tgz
+
+# Expo Managed Workflow Build Artifacts
+.expo-shared/
+
+# Android Studio
+android/
+
+# iOS
+ios/
+
+# Expo development server cache
+.expo-dev-client/
+
+
+.env

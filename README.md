@@ -10,3 +10,5 @@ The where is kevin react native application.
 - `npm install --global eas-cli && eas init --id cb192ef1-a64d-4586-b178-4c4aaed12fbc` to install eas-cli and initialize the project
 - `npx eas build --platform web` to build the app for web
 - `npx eas deploy --platform web` to deploy the app for web
+- `npx expo export --platform web` to export the app for web
+- `npx eas deploy` to deploy the app for web
