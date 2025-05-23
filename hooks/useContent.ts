@@ -59,3 +59,40 @@ export function useContent() {
     enabled: !!API_URL,
   });
 }
+
+const fetchContentWithParams = async (
+  params: { query?: string; limit?: number; offset?: number },
+  jwt?: string
+): Promise<Content[]> => {
+  const headers: Record<string, string> = {
+    accept: 'application/json',
+  };
+  if (jwt) {
+    headers['Authorization'] = `Bearer ${jwt}`;
+  }
+
+  // Construct query string from params
+  const queryString = new URLSearchParams(params as Record<string, string>).toString();
+
+  const observable$ = ajax<Content[]>({
+    url: `${API_URL}/content/selection?${queryString}`,
+    method: 'GET',
+    headers,
+    responseType: 'json',
+  });
+
+  const response = await firstValueFrom(observable$);
+  return response.response;
+};
+
+export function useContentWithParams(params: { query?: string; limit?: number; offset?: number }) {
+  const queryClient = useQueryClient();
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(['auth']);
+  const jwt = authData?.accessToken;
+
+  return useQuery<Content[], Error>({
+    queryKey: ['content', params],
+    queryFn: () => fetchContentWithParams(params, jwt),
+    enabled: !!API_URL,
+  });
+}

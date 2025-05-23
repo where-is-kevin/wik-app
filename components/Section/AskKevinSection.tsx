@@ -18,6 +18,7 @@ import {
 } from "@/utilities/scaling";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Audio } from 'expo-av';
+import { router } from "expo-router";
 
 type AskKevinSectionProps = {
   onSend?: (message: string) => void;
@@ -41,8 +42,13 @@ const AskKevinSection = ({
   const handleSend = () => {
     if (input.trim() === "") return;
     console.log("AskKevin: Send pressed", input);
-    onSend?.(input);
-    setInput("");
+
+    // Redirect to /ask-kevin with the input as a query parameter
+    router.push({
+      pathname: "/ask-kevin",
+      params: { query: input.trim() },
+    });
+
     Keyboard.dismiss();
   };
 
