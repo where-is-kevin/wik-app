@@ -61,49 +61,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="planner"
-        options={{
-          headerShown: false,
-          tabBarIcon: ({ color, focused }) => (
-            <IconWithTopBorder focused={focused}>
-              <PlanetSvg color={color} />
-            </IconWithTopBorder>
-          ),
-          tabBarLabel: ({ focused }) => (
-            <CustomText
-              fontFamily="Inter-Regular"
-              style={[styles.tabBarLabel, focused && styles.activeTabBarLabel]}
-            >
-              Planner
-            </CustomText>
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="index"
         options={{
           headerShown: false,
           tabBarIcon: () => <HomeIcon />,
           tabBarLabel: () => null,
-        }}
-      />
-      <Tabs.Screen
-        name="ask-kevin"
-        options={{
-          headerShown: false,
-          tabBarIcon: ({ color, focused }) => (
-            <IconWithTopBorder focused={focused}>
-              <PlanetSvg color={color} />
-            </IconWithTopBorder>
-          ),
-          tabBarLabel: ({ focused }) => (
-            <CustomText
-              fontFamily="Inter-Regular"
-              style={[styles.tabBarLabel, focused && styles.activeTabBarLabel]}
-            >
-              Explore
-            </CustomText>
-          ),
         }}
       />
       <Tabs.Screen

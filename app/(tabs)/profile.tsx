@@ -7,10 +7,15 @@ import BucketsSection from "@/components/ImageBucket/ImageBucket";
 import LikesSection from "@/components/Section/LikesSection";
 import { useTheme } from "@/contexts/ThemeContext";
 import ProfileSection from "@/components/Section/ProfileSection";
+import { useUser } from "@/hooks/useUser";
 
 const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+
+  const { data: user, isLoading, error } = useUser();
+  console.log("User data:", user);
+
 
   // Sample data for buckets
   const bucketsData = [
@@ -65,7 +70,7 @@ const ProfileScreen = () => {
 
       <CustomView style={styles.container}>
         <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-          <ProfileSection />
+          <ProfileSection user={user} />
           <BucketsSection
             buckets={bucketsData}
             onSeeMorePress={() => console.log("See more buckets pressed")}

@@ -30,7 +30,8 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "use": "expo-router"
     },
     "plugins": [
       "expo-router",
@@ -62,6 +63,7 @@
         }
       ]
     ],
+    "assetBundlePatterns": ["**/*"],
     "experiments": {
       "typedRoutes": true
     },
@@ -76,4 +78,3 @@
     "owner": "itsamejms"
   }
 }
-

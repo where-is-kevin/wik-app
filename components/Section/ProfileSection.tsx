@@ -12,10 +12,25 @@ import EditSvg from "../SvgComponents/EditSvg";
 import CustomTouchable from "../CustomTouchableOpacity";
 import LocationSvg from "../SvgComponents/LocationSvg";
 import HomeSvg from "../SvgComponents/HomeSvg";
+import { useRouter } from "expo-router";
 
-const ProfileSection = () => {
+type ProfileSectionProps = {
+  user?: {
+    username: string;
+    email: string;
+    // Add more fields as needed
+    profileImageUrl?: string;
+    description?: string;
+    location?: string;
+    home?: string;
+  };
+};
+
+const ProfileSection = ({ user }: ProfileSectionProps) => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const router = useRouter();
+
   return (
     <CustomView
       bgColor={colors.lime}
@@ -27,7 +42,9 @@ const ProfileSection = () => {
       {/* Profile Image */}
       <Image
         source={{
-          uri: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&h=200&auto=format",
+          uri:
+            user?.profileImageUrl ||
+            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&h=200&auto=format",
         }}
         style={styles.profileImage}
       />
@@ -38,17 +55,19 @@ const ProfileSection = () => {
           fontFamily="Inter-Bold"
           style={[styles.profileName, { color: colors.profile_name_black }]}
         >
-          Liora Vanzetti
+          {user?.username || "Placeholder Name"}
         </CustomText>
-        <EditSvg />
+        <CustomTouchable onPress={() => router.push("/(profile)/updateProfile")}>
+          <EditSvg />
+        </CustomTouchable>
       </CustomView>
 
-      {/* Bio */}
+      {/* description */}
       <CustomText
         style={[styles.profileBio, { color: colors.profile_name_black }]}
       >
-        Passionate traveler and photographer. Sharing my journey one pin at a
-        time.
+        {user?.description ||
+          "Placeholder description. This is a sample bio that can be replaced with actual user data."}
       </CustomText>
 
       {/* Location Tags */}
@@ -62,7 +81,7 @@ const ProfileSection = () => {
             fontFamily="Inter-Medium"
             style={[styles.locationText, { color: colors.text_white }]}
           >
-            Lisbon, PT
+            {user?.location || "Lisbon, Portugal"}
           </CustomText>
         </CustomTouchable>
 
@@ -75,7 +94,7 @@ const ProfileSection = () => {
             fontFamily="Inter-Medium"
             style={[styles.locationText, { color: colors.profile_name_black }]}
           >
-            Florence, IT
+            {user?.home || "Lisbon, Portugal"}
           </CustomText>
         </CustomTouchable>
       </CustomView>
