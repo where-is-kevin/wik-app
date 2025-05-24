@@ -15,3 +15,4 @@ The where is kevin react native application.
 - `npx expo export --platform web` to export the app for web
 - `npx eas deploy` to deploy the app for web
 - `npx serve dist` to serve the app for web
+- `npx neas build --profile development --platform all`

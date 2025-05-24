@@ -68,7 +68,7 @@ const SwipeableCards = () => {
   };
 
   const handleLocationPress = (latitude: number, longitude: number) => {
-    navigation.navigate("(discover)/MapScreen", { latitude, longitude }); // Updated route
+    navigation.navigate("MapScreen", { latitude, longitude }); // Updated route
   };
 
   const renderItem = ({ item }: { item: (typeof data)[0] }) => (

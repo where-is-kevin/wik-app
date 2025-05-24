@@ -126,32 +126,6 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
               </CustomText>
             </CustomTouchable>
           </CustomView>
-
-          <CustomView
-            bgColor={colors.horizontal_line}
-            style={commonStyles.horizontalLine}
-          />
-          <CustomText
-            style={[styles.otherWaysText, { color: colors.gray_regular }]}
-          >
-            Other ways to Sign in
-          </CustomText>
-
-          <CustomTouchable
-            style={[styles.googleButton, { borderColor: colors.border_gray }]}
-            onPress={handleGoogleSignIn}
-          >
-            <GoogleSvg />
-            <CustomText
-              fontFamily="Inter-SemiBold"
-              style={[
-                styles.googleButtonText,
-                { color: colors.horizontal_line },
-              ]}
-            >
-              Sign in with Google
-            </CustomText>
-          </CustomTouchable>
         </CustomView>
       </CustomView>
     </SafeAreaView>
