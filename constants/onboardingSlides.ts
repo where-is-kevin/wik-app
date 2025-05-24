@@ -1,7 +1,7 @@
 
 
-export type OnboardingSelections = {
-  [key: string]: number | undefined;
+export interface OnboardingSelections {
+  [key: string]: number | number[] | undefined;
 }
 export type Condition = {
     key: string;
@@ -15,6 +15,7 @@ export type OnboardingStep = {
   type: "logo-selection" | "option-list" | "personal-form" | "card-swipe" | "final-slide";
   options: string[];
   condition?: Condition;
+  allowMultipleSelections?: boolean;
   // For card-swipe type, we'll add additional data
   cards?: {
     id: string;
@@ -30,6 +31,7 @@ export const onboardingSteps: OnboardingStep[] = [
       subtitle: "Are you a business or personal user?",
       type: "logo-selection", // Special layout with logo
       options: ["Business user", "Personal user"],
+      allowMultipleSelections: false,
     },
     {
       key: "businessTravelReason",
@@ -42,6 +44,7 @@ export const onboardingSteps: OnboardingStep[] = [
         "Networking or investor meetings",
         "Remote work or co-working",
       ],
+      allowMultipleSelections: true,
       condition: { key: "userType", value: 0 },
     },
     {
@@ -55,6 +58,7 @@ export const onboardingSteps: OnboardingStep[] = [
         "Visiting family or friends",
         "Digital nomad or remote work",
       ],
+      allowMultipleSelections: true,
       condition: { key: "userType", value: 1 },
     },
     {
@@ -68,6 +72,7 @@ export const onboardingSteps: OnboardingStep[] = [
         "A few times a year",
         "Rarely (only for special events)",
       ],
+      allowMultipleSelections: false,
       condition: { key: "userType", value: 0 },
     },
     {
@@ -81,6 +86,7 @@ export const onboardingSteps: OnboardingStep[] = [
         "Rarely (only for special occasions)",
         "Never",
       ],
+      allowMultipleSelections: false,
       condition: { key: "userType", value: 1 },
     },
     {
@@ -94,6 +100,7 @@ export const onboardingSteps: OnboardingStep[] = [
         "Budget-friendly options (e.g., Airbnb, hostels)",
         "Co-living spaces or serviced apartments",
       ],
+      allowMultipleSelections: true,
       condition: { key: "userType", value: 0 },
     },
     {
@@ -107,6 +114,7 @@ export const onboardingSteps: OnboardingStep[] = [
         "Budget-friendly options (e.g., hostels, Airbnb)",
         "Eco-friendly or sustainable accommodations",
       ],
+      allowMultipleSelections: true,
       condition: { key: "userType", value: 1 },
     },
     {
@@ -120,6 +128,7 @@ export const onboardingSteps: OnboardingStep[] = [
         "Low (self-funded or budget-conscious)",
         "Varies (depends on the trip)",
       ],
+      allowMultipleSelections: false,
       condition: { key: "userType", value: 0 },
     },
     {
@@ -132,6 +141,7 @@ export const onboardingSteps: OnboardingStep[] = [
         "Moderate (I look for value but don’t mind spending)",
         "Low (I’m budget-conscious and seek deals)",
       ],
+      allowMultipleSelections: false,
       condition: { key: "userType", value: 1 },
     },
     {
@@ -145,6 +155,7 @@ export const onboardingSteps: OnboardingStep[] = [
         "Balancing work with leisure activities",
         "Co-working and productivity",
       ],
+      allowMultipleSelections: true,
       condition: { key: "userType", value: 0 },
     },
     {
@@ -158,6 +169,7 @@ export const onboardingSteps: OnboardingStep[] = [
         "Cultural immersion and local experiences",
         "Nightlife and social events",
       ],
+      allowMultipleSelections: true,
       condition: { key: "userType", value: 1 },
     },
     {
@@ -170,6 +182,7 @@ export const onboardingSteps: OnboardingStep[] = [
         "Moderately tech-savvy (I use apps but prefer simplicity)",
         "Not very tech-savvy (I prefer human assistance)",
       ],
+      allowMultipleSelections: false,
       condition: { key: "userType", value: 0 },
     },
     {
@@ -182,6 +195,7 @@ export const onboardingSteps: OnboardingStep[] = [
         "Moderately tech-savvy (I use apps but prefer simplicity)",
         "Not very tech-savvy (I prefer human assistance)",
       ],
+      allowMultipleSelections: false,
       condition: { key: "userType", value: 1 },
     },
     {

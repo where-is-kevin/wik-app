@@ -1,7 +1,6 @@
 import { Dimensions } from "react-native";
 
 const { width, height } = Dimensions.get("window");
-console.log(height, width);
 
 const isSmall = width <= 375;
 

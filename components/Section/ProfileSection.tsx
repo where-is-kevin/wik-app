@@ -12,10 +12,17 @@ import EditSvg from "../SvgComponents/EditSvg";
 import CustomTouchable from "../CustomTouchableOpacity";
 import LocationSvg from "../SvgComponents/LocationSvg";
 import HomeSvg from "../SvgComponents/HomeSvg";
+import { useRouter } from "expo-router";
 
 const ProfileSection = () => {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { colors } = useTheme();
+
+  const onEditPress = () => {
+    router.push("/edit-profile");
+  };
+
   return (
     <CustomView
       bgColor={colors.lime}
@@ -40,7 +47,9 @@ const ProfileSection = () => {
         >
           Liora Vanzetti
         </CustomText>
-        <EditSvg />
+        <CustomTouchable onPress={onEditPress} bgColor={colors.lime}>
+          <EditSvg />
+        </CustomTouchable>
       </CustomView>
 
       {/* Bio */}

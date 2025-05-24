@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     fontSize: scaleFontSize(14),
   },
   seeMoreButton: {
-    paddingHorizontal: horizontalScale(3),
+    paddingHorizontal: horizontalScale(6),
     paddingVertical: verticalScale(4),
     borderRadius: 6,
   },

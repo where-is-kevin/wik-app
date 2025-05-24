@@ -1,8 +1,8 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { View, StyleSheet, Text } from "react-native";
+import { View, StyleSheet } from "react-native";
 import CustomText from "../../components/CustomText";
-import { scaleFontSize, verticalScale } from "../../utilities/scaling";
+import { scaleFontSize } from "../../utilities/scaling";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PlanetSvg from "@/components/SvgComponents/PlanetSvg";
 import PigeonSvg from "@/components/SvgComponents/PigeonSvg";

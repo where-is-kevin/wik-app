@@ -15,12 +15,14 @@ interface OnboardingOptionProps {
   text: string;
   selected?: boolean;
   onPress: () => void;
+  allowMultipleSelections?: boolean;
 }
 
 export const OnboardingOption: React.FC<OnboardingOptionProps> = ({
   text,
   selected = false,
   onPress,
+  allowMultipleSelections = false,
 }) => {
   const { colors } = useTheme();
   return (
@@ -29,7 +31,14 @@ export const OnboardingOption: React.FC<OnboardingOptionProps> = ({
       style={[styles.container, selected ? styles.containerSelected : {}]}
       onPress={onPress}
     >
-      <View style={styles.textContainer}>
+      <View
+        style={[
+          styles.textContainer,
+          !(selected || allowMultipleSelections)
+            ? styles.textContainerFullWidth
+            : {},
+        ]}
+      >
         <CustomText
           style={[
             styles.text,
@@ -44,9 +53,11 @@ export const OnboardingOption: React.FC<OnboardingOptionProps> = ({
         </CustomText>
       </View>
 
-      <View style={styles.iconContainer}>
-        {selected ? <SuccessSvg /> : <PlusSvg />}
-      </View>
+      {(selected || allowMultipleSelections) && (
+        <View style={styles.iconContainer}>
+          {selected ? <SuccessSvg /> : <PlusSvg />}
+        </View>
+      )}
     </CustomTouchable>
   );
 };
@@ -71,6 +82,9 @@ const styles = StyleSheet.create({
     flex: 1,
     maxWidth: "80%",
     justifyContent: "center",
+  },
+  textContainerFullWidth: {
+    maxWidth: "100%",
   },
   text: {
     fontSize: scaleFontSize(15),

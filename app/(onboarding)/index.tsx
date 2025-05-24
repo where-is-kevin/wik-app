@@ -59,6 +59,26 @@ const OnboardingScreen = () => {
   const stepData = filteredSteps[currentStepIndex];
   const currentSelection = stepData ? selections[stepData.key] : undefined;
 
+  // Helper to get selected indices as array
+  const getSelectedIndices = (): number[] => {
+    if (!stepData) return [];
+    const selection = selections[stepData.key];
+
+    // Handle multiple selections (array)
+    if (Array.isArray(selection)) {
+      return selection;
+    }
+
+    // Handle single selection (number) - convert to array for consistency
+    if (typeof selection === "number") {
+      return [selection];
+    }
+
+    return [];
+  };
+
+  const selectedIndices = getSelectedIndices();
+
   useEffect(() => {
     const initialSteps = onboardingSteps.filter((step) => !step.condition);
     setFilteredSteps(initialSteps);
@@ -68,13 +88,24 @@ const OnboardingScreen = () => {
     const newFilteredSteps = onboardingSteps.filter((step) => {
       if (!step.condition) return true;
       const { key, value } = step.condition;
-      return selections[key] === value;
+      const stepSelection = selections[key];
+
+      // Handle array selections - check if value exists in array
+      if (Array.isArray(stepSelection)) {
+        return stepSelection.includes(value);
+      }
+
+      // Handle single selection
+      return stepSelection === value;
     });
 
     setFilteredSteps(newFilteredSteps);
 
     if (selections.userType !== undefined) {
-      const path = selections.userType === 0 ? "business" : "personal";
+      const userTypeSelection = Array.isArray(selections.userType)
+        ? selections.userType[0]
+        : (selections.userType as number);
+      const path = userTypeSelection === 0 ? "business" : "personal";
       setTotalSteps(getTotalStepsForPath(path));
     }
   }, [selections]);
@@ -88,10 +119,10 @@ const OnboardingScreen = () => {
       formData.email.trim() !== "";
 
     if (stepData) {
-      setSelections({
-        ...selections,
+      setSelections((prev) => ({
+        ...prev,
         [stepData.key]: isFormValid ? 1 : 0,
-      });
+      }));
     }
   };
 
@@ -109,10 +140,10 @@ const OnboardingScreen = () => {
 
   const handleSwipeComplete = () => {
     if (stepData) {
-      setSelections({
-        ...selections,
+      setSelections((prev) => ({
+        ...prev,
         [stepData.key]: 1,
-      });
+      }));
 
       setTimeout(() => {
         setCurrentStepIndex(currentStepIndex + 1);
@@ -125,19 +156,44 @@ const OnboardingScreen = () => {
   };
 
   const handleSelection = (index: number) => {
-    if (stepData) {
-      setSelections({
-        ...selections,
+    if (!stepData) return;
+
+    // Check if this step allows multiple selections
+    if (stepData.allowMultipleSelections) {
+      const currentSelections = Array.isArray(selections[stepData.key])
+        ? (selections[stepData.key] as number[])
+        : [];
+
+      let newSelections: number[];
+
+      if (currentSelections.includes(index)) {
+        // Remove if already selected
+        newSelections = currentSelections.filter((i) => i !== index);
+      } else {
+        // Add if not selected
+        newSelections = [...currentSelections, index];
+      }
+
+      setSelections((prev) => ({
+        ...prev,
+        [stepData.key]: newSelections,
+      }));
+    } else {
+      // Single selection logic (original behavior)
+      setSelections((prev) => ({
+        ...prev,
         [stepData.key]: index,
-      });
+      }));
     }
   };
 
   const handleLogoSelection = (index: number) => {
-    setSelections({
-      ...selections,
-      [stepData!.key]: index,
-    });
+    if (!stepData) return;
+
+    setSelections((prev) => ({
+      ...prev,
+      [stepData.key]: index,
+    }));
 
     setTimeout(() => {
       setCurrentStepIndex(1);
@@ -207,7 +263,7 @@ const OnboardingScreen = () => {
               key={index}
               style={[
                 styles.selectionButton,
-                currentSelection === index ? styles.selectedButton : {},
+                selectedIndices.includes(index) ? styles.selectedButton : {},
                 styles.businessButton,
               ]}
               bgColor={colors.onboarding_gray}
@@ -243,8 +299,9 @@ const OnboardingScreen = () => {
             <OnboardingOption
               key={index}
               text={option}
-              selected={currentSelection === index}
+              selected={selectedIndices.includes(index)}
               onPress={() => handleSelection(index)}
+              allowMultipleSelections={stepData.allowMultipleSelections}
             />
           ))}
         </CustomView>
@@ -300,6 +357,8 @@ const OnboardingScreen = () => {
   };
 
   const renderFinalSlide = () => {
+    if (!stepData) return null;
+
     return (
       <CustomView style={styles.contentEnd}>
         <LottieView
@@ -342,8 +401,18 @@ const OnboardingScreen = () => {
     }
   };
 
-  const isNextButtonDisabled =
-    currentSelection === undefined && stepData?.type !== "final-slide";
+  // Updated validation logic to handle both single and multiple selections
+  const isNextButtonDisabled = (): boolean => {
+    if (stepData?.type === "final-slide") return false;
+
+    // For steps that allow multiple selections, require at least one selection
+    if (stepData?.allowMultipleSelections) {
+      return selectedIndices.length === 0;
+    }
+
+    // For single selection steps, keep original logic
+    return currentSelection === undefined;
+  };
 
   return (
     <SafeAreaView
@@ -365,7 +434,7 @@ const OnboardingScreen = () => {
             <NextButton
               onPress={handleNext}
               customStyles={
-                isNextButtonDisabled ? styles.nextButtonDisabled : {}
+                isNextButtonDisabled() ? styles.nextButtonDisabled : {}
               }
               bgColor={colors.lime}
               title={
@@ -373,7 +442,7 @@ const OnboardingScreen = () => {
                   ? "Finish"
                   : "Next"
               }
-              disabled={isNextButtonDisabled}
+              disabled={isNextButtonDisabled()}
             />
           )}
         <CustomView style={styles.progressContainer}>
