@@ -3,6 +3,9 @@ The where is kevin react native application.
 
 - `https://wik-general-api-408585232460.europe-west4.run.app` - The API for the app
 
+## Handy commands
+- `gcloud auth application-default login` to authenticate with Google Cloud
+
 ## Getting Started
 - `npx create-expo-app .` to create a new expo app
 - `npm install` to install dependencies
@@ -11,5 +14,6 @@ The where is kevin react native application.
 - `npx expo export --platform web` to export the app for web
 - `npx serve dist` to serve the app for web
 - `npx eas deploy` to deploy the app for web add (--prod) for production
+- `npx eas build --platform android` to build the app for android
 
 play-console-service-account@where-is-kevin-457713.iam.gserviceaccount.com

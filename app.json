@@ -15,7 +15,7 @@
         "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "bundleIdentifier": "com.itsamejms.wikapp"
+      "bundleIdentifier": "com.whereiskevin.wikapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +25,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.itsamejms.wikapp"
+      "package": "com.whereiskevin.wikapp"
     },
     "web": {
       "bundler": "metro",
@@ -63,7 +63,9 @@
         }
       ]
     ],
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "experiments": {
       "typedRoutes": true
     },
@@ -72,9 +74,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "cb192ef1-a64d-4586-b178-4c4aaed12fbc"
+        "projectId": "719e1bdf-8484-4245-b1a4-4dd432a1d6f2"
       }
     },
-    "owner": "itsamejms"
+    "owner": "where-is-kevin"
   }
 }
