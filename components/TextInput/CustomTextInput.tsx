@@ -53,7 +53,7 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
         ]}
       >
         <TextInput
-          style={[styles.input, { color: colors.gray_regular }]}
+          style={[styles.input, { color: colors.label_dark }]}
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
@@ -102,8 +102,9 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    paddingHorizontal: horizontalScale(14),
-    paddingVertical: verticalScale(10),
+    fontFamily: "Inter-Regular",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     fontSize: scaleFontSize(16),
   },
   visibilityToggle: {

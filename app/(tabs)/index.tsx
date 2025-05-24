@@ -15,14 +15,15 @@ import { Ionicons } from "@expo/vector-icons";
 import AskKevinSection from "@/components/Section/AskKevinSection";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "@/app/types"; // Import the route types
+import { RootStackParamList } from "@/constants/types.ts";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 const SwipeableCards = () => {
   const { data: content, isLoading, error, refetch } = useContent();
   const [isListening, setIsListening] = useState(false);
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   // Prepare data for FlatList
   const data = content

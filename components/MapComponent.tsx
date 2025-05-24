@@ -9,19 +9,20 @@ type MapComponentProps = {
 
 const MapComponent = ({ latitude, longitude }: MapComponentProps) => {
   return (
-    <MapView
-      provider={PROVIDER_GOOGLE}
-      style={styles.map}
-      googleMapId="e698a3c123c9505aefccc855"
-      initialRegion={{
-        latitude: latitude,
-        longitude: longitude,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
-      }}
-    >
-      <Marker coordinate={{ latitude, longitude }} />
-    </MapView>
+    <></>
+    // <MapView
+    //   provider={PROVIDER_GOOGLE}
+    //   style={styles.map}
+    //   googleMapId="e698a3c123c9505aefccc855"
+    //   initialRegion={{
+    //     latitude: latitude,
+    //     longitude: longitude,
+    //     latitudeDelta: 0.0922,
+    //     longitudeDelta: 0.0421,
+    //   }}
+    // >
+    //   <Marker coordinate={{ latitude, longitude }} />
+    // </MapView>
   );
 };
 

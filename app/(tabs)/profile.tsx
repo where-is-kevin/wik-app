@@ -1,4 +1,4 @@
-import { StyleSheet, ScrollView } from "react-native";
+import { StyleSheet, ScrollView, ActivityIndicator } from "react-native";
 import React from "react";
 import { StatusBar } from "expo-status-bar";
 import CustomView from "@/components/CustomView";
@@ -15,7 +15,6 @@ const ProfileScreen = () => {
 
   const { data: user, isLoading, error } = useUser();
   console.log("User data:", user);
-
 
   // Sample data for buckets
   const bucketsData = [
@@ -59,6 +58,14 @@ const ProfileScreen = () => {
     },
   ];
 
+  if (isLoading) {
+    return (
+      <CustomView style={styles.loadingContainer}>
+        <ActivityIndicator size={"large"} />
+      </CustomView>
+    );
+  }
+
   return (
     <>
       <StatusBar style="dark" translucent />
@@ -98,5 +105,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

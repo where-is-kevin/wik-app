@@ -32,7 +32,7 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
   const { colors } = useTheme();
 
   const onEditPress = () => {
-    router.push("/edit-profile");
+    router.push("/(profile)");
   };
 
   return (
@@ -61,10 +61,7 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
         >
           {user?.username || "Placeholder Name"}
         </CustomText>
-        <CustomTouchable
-          onPress={() => router.push("/(profile)/updateProfile")}
-          bgColor={colors.lime}
-        >
+        <CustomTouchable onPress={onEditPress} bgColor={colors.lime}>
           <EditSvg />
         </CustomTouchable>
       </CustomView>

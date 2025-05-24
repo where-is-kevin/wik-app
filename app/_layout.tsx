@@ -45,7 +45,7 @@ export default function RootLayout() {
           <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
           {/* Main tab navigation */}
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
+          <Stack.Screen name="(profile)" options={{ headerShown: false }} />
           {/* Fallback screen for undefined routes */}
           <Stack.Screen name="+not-found" />
         </Stack>
