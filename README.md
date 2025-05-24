@@ -1,6 +1,8 @@
 # wik-app
 The where is kevin react native application.
 
+- `https://wik-general-api-408585232460.europe-west4.run.app` - The API for the app
+
 ## Getting Started
 - `npx create-expo-app .` to create a new expo app
 - `npm install` to install dependencies
@@ -12,3 +14,5 @@ The where is kevin react native application.
 - `npx eas deploy --platform web` to deploy the app for web
 - `npx expo export --platform web` to export the app for web
 - `npx eas deploy` to deploy the app for web
+- `npx serve dist` to serve the app for web
+- `npx neas build --profile development --platform all`

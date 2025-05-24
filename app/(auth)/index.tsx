@@ -16,6 +16,7 @@ import { Dimensions, Platform, StyleSheet } from "react-native";
 import GoogleSvg from "@/components/SvgComponents/GoogleSvg";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useLogin } from "@/hooks/useLogin";
 
 interface SignInScreenProps {
   // Add any props here if needed
@@ -23,14 +24,28 @@ interface SignInScreenProps {
 const windowHeight = Dimensions.get("window").height;
 
 const SignInScreen: React.FC<SignInScreenProps> = () => {
-  const [email, setEmail] = useState<string>("contact@whereskevin.com");
-  const [password, setPassword] = useState<string>("***********");
+  const [email, setEmail] = useState<string>("user@example.com");
+  const [password, setPassword] = useState<string>("string");
   const { colors } = useTheme();
   const router = useRouter();
+  const { mutate: login, isPending } = useLogin();
+
 
   const handleSignIn = (): void => {
-    console.log("Signing in with:", { email, password });
-    router.replace("/(onboarding)");
+    login(
+      {
+        username: email,
+        password,
+      },
+      {
+        onSuccess: () => {
+          router.replace("/(tabs)");
+        },
+        onError: (err: any) => {
+          alert(err?.message || "Login failed");
+        },
+      }
+    );
   };
 
   const handleForgotPassword = (): void => {
@@ -39,6 +54,7 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
 
   const handleSignUp = (): void => {
     console.log("Sign up clicked");
+    router.replace("/(auth)/signup");
   };
 
   const handleGoogleSignIn = (): void => {
@@ -110,32 +126,6 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
               </CustomText>
             </CustomTouchable>
           </CustomView>
-
-          <CustomView
-            bgColor={colors.horizontal_line}
-            style={commonStyles.horizontalLine}
-          />
-          <CustomText
-            style={[styles.otherWaysText, { color: colors.gray_regular }]}
-          >
-            Other ways to Sign in
-          </CustomText>
-
-          <CustomTouchable
-            style={[styles.googleButton, { borderColor: colors.border_gray }]}
-            onPress={handleGoogleSignIn}
-          >
-            <GoogleSvg />
-            <CustomText
-              fontFamily="Inter-SemiBold"
-              style={[
-                styles.googleButtonText,
-                { color: colors.horizontal_line },
-              ]}
-            >
-              Sign in with Google
-            </CustomText>
-          </CustomTouchable>
         </CustomView>
       </CustomView>
     </SafeAreaView>
