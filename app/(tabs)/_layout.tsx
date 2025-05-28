@@ -45,6 +45,7 @@ export default function TabLayout() {
   const [isTabBarVisible, setIsTabBarVisible] = useState(true);
   const tabBarOpacity = useSharedValue(isTabBarVisible ? 1 : 0);
 
+  // Animated style for the tab bar
   const animatedTabBarStyle = useAnimatedStyle(() => ({
     opacity: withTiming(tabBarOpacity.value, {
       duration: 300,
@@ -52,13 +53,15 @@ export default function TabLayout() {
     }),
   }));
 
-  useEffect(() => {
-    tabBarOpacity.value = isTabBarVisible ? 1 : 0;
-  }, [isTabBarVisible]);
-
+  // Animated style for the active tab index
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: withTiming(-activeTabIndex.value * 100) }],
   }));
+
+  // Update tabBarOpacity when isTabBarVisible changes
+  useEffect(() => {
+    tabBarOpacity.value = isTabBarVisible ? 1 : 0;
+  }, [isTabBarVisible, tabBarOpacity]);
 
   return (
     <Animated.View style={[{ flex: 1 }, animatedStyle]}>
