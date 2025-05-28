@@ -8,10 +8,12 @@ import LikesSection from "@/components/Section/LikesSection";
 import { useTheme } from "@/contexts/ThemeContext";
 import ProfileSection from "@/components/Section/ProfileSection";
 import { useUser } from "@/hooks/useUser";
+import { useRouter } from "expo-router";
 
 const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const router = useRouter();
 
   const { data: user, isLoading, error } = useUser();
   console.log("User data:", user);
@@ -58,6 +60,22 @@ const ProfileScreen = () => {
     },
   ];
 
+  // Navigate to buckets list
+  const navigateToBucketsList = () => {
+    router.push({
+      pathname: "/profile-lists",
+      params: { type: "buckets" },
+    });
+  };
+
+  // Navigate to likes list
+  const navigateToLikesList = () => {
+    router.push({
+      pathname: "/profile-lists",
+      params: { type: "likes" },
+    });
+  };
+
   if (isLoading) {
     return (
       <CustomView style={styles.loadingContainer}>
@@ -80,11 +98,11 @@ const ProfileScreen = () => {
           <ProfileSection user={user} />
           <BucketsSection
             buckets={bucketsData}
-            onSeeMorePress={() => console.log("See more buckets pressed")}
+            onSeeMorePress={navigateToBucketsList}
           />
           <LikesSection
             likes={likesData}
-            onSeeMorePress={() => console.log("See more likes pressed")}
+            onSeeMorePress={navigateToLikesList}
           />
         </ScrollView>
       </CustomView>

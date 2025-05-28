@@ -37,7 +37,7 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
 
   return (
     <CustomView
-      bgColor={colors.lime}
+      bgColor={colors.onboarding_gray}
       style={[
         styles.profileHeader,
         { paddingTop: insets.top + verticalScale(12) },
@@ -54,14 +54,14 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
       />
 
       {/* Name and Edit Icon */}
-      <CustomView bgColor={colors.lime} style={styles.nameContainer}>
+      <CustomView bgColor={colors.onboarding_gray} style={styles.nameContainer}>
         <CustomText
           fontFamily="Inter-Bold"
           style={[styles.profileName, { color: colors.profile_name_black }]}
         >
           {user?.username || "Placeholder Name"}
         </CustomText>
-        <CustomTouchable onPress={onEditPress} bgColor={colors.lime}>
+        <CustomTouchable onPress={onEditPress} bgColor={colors.onboarding_gray}>
           <EditSvg />
         </CustomTouchable>
       </CustomView>
@@ -75,7 +75,10 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
       </CustomText>
 
       {/* Location Tags */}
-      <CustomView bgColor={colors.lime} style={styles.locationContainer}>
+      <CustomView
+        bgColor={colors.onboarding_gray}
+        style={styles.locationContainer}
+      >
         <CustomTouchable
           bgColor={colors.profile_name_black}
           style={styles.locationTag}

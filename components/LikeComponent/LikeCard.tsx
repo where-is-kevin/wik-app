@@ -1,0 +1,153 @@
+import React from "react";
+import { StyleSheet, Image } from "react-native";
+import type { StyleProp, ViewStyle } from "react-native";
+import { useTheme } from "@/contexts/ThemeContext";
+import {
+  horizontalScale,
+  scaleFontSize,
+  verticalScale,
+} from "@/utilities/scaling";
+import CustomView from "@/components/CustomView";
+import CustomTouchable from "@/components/CustomTouchableOpacity";
+import CustomText from "@/components/CustomText";
+import ShareButton from "../Button/ShareButton";
+import BucketSvg from "../SvgComponents/BucketSvg";
+
+interface ExperienceCard {
+  id: string;
+  title: string;
+  foodImage: string;
+  landscapeImage: string;
+  isExperience?: boolean;
+  hasIcon?: boolean;
+  height?: "short" | "tall";
+}
+
+interface LikeCardProps {
+  item: ExperienceCard;
+  onPress?: () => void;
+  style?: StyleProp<ViewStyle>;
+}
+
+const LikeCard: React.FC<LikeCardProps> = ({ item, onPress, style }) => {
+  const { colors } = useTheme();
+  const cardHeight =
+    item.height === "tall" ? verticalScale(217) : verticalScale(117);
+  const imageHeight =
+    item.height === "tall" ? verticalScale(187) : verticalScale(87);
+
+  return (
+    <CustomTouchable
+      style={[
+        styles.likeCard,
+        {
+          height: cardHeight,
+        },
+        style,
+      ]}
+      onPress={onPress}
+    >
+      <CustomView style={styles.container}>
+        {/* Image container with fixed height */}
+        <CustomTouchable
+          style={[styles.imageContainer, { height: imageHeight }]}
+          onPress={onPress}
+        >
+          <Image source={{ uri: item.foodImage }} style={styles.image} />
+
+          {/* Experience tag in top left */}
+          {item.isExperience && (
+            <CustomView
+              bgColor={colors.profile_name_black}
+              style={styles.experienceTag}
+            >
+              <CustomText
+                fontFamily="Inter-SemiBold"
+                style={[styles.experienceText, { color: colors.lime }]}
+              >
+                EXPERIENCE
+              </CustomText>
+            </CustomView>
+          )}
+
+          {/* Bucket SVG icon in bottom right */}
+          {item.hasIcon && (
+            <CustomView
+              bgColor={colors.overlay}
+              style={styles.bucketIconContainer}
+            >
+              <BucketSvg />
+            </CustomView>
+          )}
+        </CustomTouchable>
+
+        {/* Title row with more options button */}
+        <CustomView style={styles.titleRow}>
+          <CustomText
+            fontFamily="Inter-SemiBold"
+            style={[styles.title, { color: colors.label_dark }]}
+            numberOfLines={1}
+          >
+            {item.title}
+          </CustomText>
+          <ShareButton
+            title={item.title}
+            message={`Check out this bucket: ${item.title}`}
+            url={item.foodImage}
+          />
+        </CustomView>
+      </CustomView>
+    </CustomTouchable>
+  );
+};
+
+const styles = StyleSheet.create({
+  likeCard: {
+    borderRadius: 14,
+    overflow: "hidden",
+    position: "relative",
+    flex: 1,
+  },
+  container: {
+    flex: 1,
+  },
+  imageContainer: {
+    width: "100%",
+    borderRadius: 8,
+    overflow: "hidden",
+    position: "relative", // Added for absolute positioning of overlays
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  experienceTag: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  experienceText: {
+    fontSize: scaleFontSize(10),
+  },
+  bucketIconContainer: {
+    position: "absolute",
+    bottom: 4,
+    right: 5,
+  },
+  titleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: verticalScale(2),
+    paddingHorizontal: horizontalScale(2),
+  },
+  title: {
+    fontSize: scaleFontSize(12.5),
+  },
+});
+
+export default LikeCard;
