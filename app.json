@@ -11,8 +11,6 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "This app requires access to the microphone to record audio.",
-        "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.whereiskevin.wikapp"
@@ -23,7 +21,6 @@
         "backgroundColor": "#ffffff"
       },
       "permissions": [
-        "android.permission.RECORD_AUDIO"
       ],
       "package": "com.whereiskevin.wikapp"
     },

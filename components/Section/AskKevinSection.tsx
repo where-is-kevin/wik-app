@@ -1,15 +1,3 @@
-import React, { useState } from "react";
-import {
-  View,
-  TextInput,
-  StyleSheet,
-  TouchableOpacity,
-  Keyboard,
-  Alert,
-} from "react-native";
-import CustomView from "../CustomView";
-import CustomText from "../CustomText";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
   horizontalScale,
@@ -17,27 +5,30 @@ import {
   verticalScale,
 } from "@/utilities/scaling";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { Audio } from 'expo-av';
 import { router } from "expo-router";
+import React, { useState } from "react";
+import {
+  Keyboard,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import CustomView from "../CustomView";
 
 type AskKevinSectionProps = {
   onSend?: (message: string) => void;
-  onMicPress?: () => void;
-  isListening?: boolean;
   onSettingsPress?: () => void;
 };
 
 const AskKevinSection = ({
   onSend,
-  onMicPress,
-  isListening: isListeningProp,
   onSettingsPress,
 }: AskKevinSectionProps) => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const [input, setInput] = useState("");
-  const [isListening, setIsListening] = useState(false);
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
 
   const handleSend = () => {
     if (input.trim() === "") return;
@@ -50,15 +41,6 @@ const AskKevinSection = ({
     });
 
     Keyboard.dismiss();
-  };
-
-  const handleMic = async () => {
-    if (isListening) {
-      await stopListening();
-    } else {
-      await startListening();
-    }
-    onMicPress?.();
   };
 
   const handleSettings = () => {
@@ -75,59 +57,6 @@ const AskKevinSection = ({
     console.log("AskKevin: Input changed", text);
   };
 
-  // --- Listening functions ---
-  const startListening = async () => {
-    try {
-      // Configure audio mode for recording on iOS
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      // Request microphone permissions
-      const { granted } = await Audio.requestPermissionsAsync();
-      if (!granted) {
-        Alert.alert("Permission to access microphone is required!");
-        return;
-      }
-
-      setIsListening(true);
-      const newRecording = new Audio.Recording();
-      await newRecording.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY);
-      await newRecording.startAsync();
-      console.log("Recording started");
-      setRecording(newRecording);
-    } catch (error) {
-      console.error("Error starting audio recording:", error);
-      setIsListening(false);
-    }
-  };
-
-  const stopListening = async () => {
-    try {
-      if (recording) {
-        await recording.stopAndUnloadAsync();
-        const uri = recording.getURI();
-        console.log("Recording stopped. File saved at:", uri);
-        setRecording(null);
-        setIsListening(false);
-
-        if (uri) {
-          const transcript = await sendAudioToSpeechAPI(uri);
-          setInput(transcript);
-        }
-      }
-    } catch (error) {
-      console.error("Error stopping audio recording:", error);
-      setIsListening(false);
-    }
-  };
-
-  const sendAudioToSpeechAPI = async (uri: string): Promise<string> => {
-    console.log("Audio file URI:", uri);
-    // Replace this with your actual speech-to-text API call
-    return "Transcribed text from audio";
-  };
 
   return (
     <CustomView
@@ -157,14 +86,6 @@ const AskKevinSection = ({
           onFocus={handleInputFocus}
           returnKeyType="send"
         />
-        {/* Mic Button */}
-        <TouchableOpacity style={styles.iconButton} onPress={handleMic}>
-          <Ionicons
-            name={isListening ? "mic-off" : "mic"}
-            size={24}
-            color={isListening ? "#ff5252" : colors.profile_name_black}
-          />
-        </TouchableOpacity>
         {/* Settings Button with Red Dot */}
         <TouchableOpacity style={styles.iconButton} onPress={handleSettings}>
           <MaterialCommunityIcons

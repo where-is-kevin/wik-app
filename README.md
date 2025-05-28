@@ -15,5 +15,4 @@ The where is kevin react native application.
 - `npx serve dist` to serve the app for web
 - `npx eas deploy` to deploy the app for web add (--prod) for production
 - `npx eas build --platform android` to build the app for android
-
-play-console-service-account@where-is-kevin-457713.iam.gserviceaccount.com
+- `npx eas submit --platform ios` to submit the app for ios

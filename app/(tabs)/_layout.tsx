@@ -1,11 +1,17 @@
-import React from "react";
-import { Tabs } from "expo-router";
-import { View, StyleSheet, Text } from "react-native";
-import CustomText from "../../components/CustomText";
-import { scaleFontSize, verticalScale } from "../../utilities/scaling";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import PlanetSvg from "@/components/SvgComponents/PlanetSvg";
 import PigeonSvg from "@/components/SvgComponents/PigeonSvg";
+import PlanetSvg from "@/components/SvgComponents/PlanetSvg";
+import { Tabs } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { StyleSheet, View } from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import CustomText from "../../components/CustomText";
+import { scaleFontSize } from "../../utilities/scaling";
 
 const IconWithTopBorder = ({
   children,
@@ -15,7 +21,12 @@ const IconWithTopBorder = ({
   focused: boolean;
 }) => {
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        focused && styles.focusedTabShadow, // Add shadow when focused
+      ]}
+    >
       {focused && <View style={styles.topBorder} />}
       {children}
     </View>
@@ -30,64 +41,94 @@ const HomeIcon = () => (
 
 export default function TabLayout() {
   const { bottom } = useSafeAreaInsets();
+  const activeTabIndex = useSharedValue(0);
+  const [isTabBarVisible, setIsTabBarVisible] = useState(true);
+  const tabBarOpacity = useSharedValue(isTabBarVisible ? 1 : 0);
+
+  const animatedTabBarStyle = useAnimatedStyle(() => ({
+    opacity: withTiming(tabBarOpacity.value, {
+      duration: 300,
+      easing: Easing.linear,
+    }),
+  }));
+
+  useEffect(() => {
+    tabBarOpacity.value = isTabBarVisible ? 1 : 0;
+  }, [isTabBarVisible]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: withTiming(-activeTabIndex.value * 100) }],
+  }));
+
   return (
-    <Tabs
-      initialRouteName="index"
-      screenOptions={{
-        tabBarActiveTintColor: "rgba(52, 64, 81, 1)",
-        headerShown: false,
-        tabBarStyle: {
-          paddingTop: 4,
-          height: bottom > 0 ? 83 : 66,
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="profile"
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <IconWithTopBorder focused={focused}>
-              <PlanetSvg color={color} />
-            </IconWithTopBorder>
-          ),
-          tabBarLabel: ({ focused }) => (
-            <CustomText
-              fontFamily="Inter-Regular"
-              style={[styles.tabBarLabel, focused && styles.activeTabBarLabel]}
-            >
-              Profile
-            </CustomText>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="index"
-        options={{
+    <Animated.View style={[{ flex: 1 }, animatedStyle]}>
+      <Tabs
+        initialRouteName="index"
+        screenOptions={{
+          tabBarActiveTintColor: "rgba(52, 64, 81, 1)",
           headerShown: false,
-          tabBarIcon: () => <HomeIcon />,
-          tabBarLabel: () => null,
+          tabBarStyle: [
+            {
+              paddingTop: 4,
+              height: bottom > 0 ? 83 : 66,
+            },
+            animatedTabBarStyle, // Apply animated opacity to the tab bar
+          ],
         }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          headerShown: false,
-          tabBarIcon: ({ color, focused }) => (
-            <IconWithTopBorder focused={focused}>
-              <PlanetSvg color={color} />
-            </IconWithTopBorder>
-          ),
-          tabBarLabel: ({ focused }) => (
-            <CustomText
-              fontFamily="Inter-Regular"
-              style={[styles.tabBarLabel, focused && styles.activeTabBarLabel]}
-            >
-              Settings
-            </CustomText>
-          ),
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="profile"
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <IconWithTopBorder focused={focused}>
+                <PlanetSvg color={color} />
+              </IconWithTopBorder>
+            ),
+            tabBarLabel: ({ focused }) => (
+              <CustomText
+                fontFamily="Inter-Regular"
+                style={[
+                  styles.tabBarLabel,
+                  focused && styles.activeTabBarLabel,
+                ]}
+              >
+                Profile
+              </CustomText>
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="index"
+          options={{
+            headerShown: false,
+            tabBarIcon: () => <HomeIcon />,
+            tabBarLabel: () => null,
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            headerShown: false,
+            tabBarIcon: ({ color, focused }) => (
+              <IconWithTopBorder focused={focused}>
+                <PlanetSvg color={color} />
+              </IconWithTopBorder>
+            ),
+            tabBarLabel: ({ focused }) => (
+              <CustomText
+                fontFamily="Inter-Regular"
+                style={[
+                  styles.tabBarLabel,
+                  focused && styles.activeTabBarLabel,
+                ]}
+              >
+                Settings
+              </CustomText>
+            ),
+          }}
+        />
+      </Tabs>
+    </Animated.View>
   );
 }
 
@@ -106,6 +147,13 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 100,
     borderBottomRightRadius: 100,
     backgroundColor: "#764BFA",
+  },
+  focusedTabShadow: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5, // For Android shadow
   },
   homeIconWrapper: {
     width: 70,
