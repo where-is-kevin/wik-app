@@ -12,7 +12,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomView from "../CustomView";
@@ -41,6 +41,7 @@ const AskKevinSection = ({
     });
 
     Keyboard.dismiss();
+    onSend?.(input.trim());
   };
 
   const handleSettings = () => {
@@ -56,7 +57,6 @@ const AskKevinSection = ({
     setInput(text);
     console.log("AskKevin: Input changed", text);
   };
-
 
   return (
     <CustomView
@@ -77,7 +77,7 @@ const AskKevinSection = ({
         </View>
         {/* Ask Kevin TextInput */}
         <TextInput
-          style={styles.inputRow}
+          style={styles.input}
           placeholder="Ask Kevin..."
           placeholderTextColor={colors.profile_name_black + "99"}
           value={input}

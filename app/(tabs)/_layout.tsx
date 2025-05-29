@@ -1,5 +1,6 @@
 import CogSvg from "@/components/SvgComponents/CogSvg";
 import PigeonSvg from "@/components/SvgComponents/PigeonSvg";
+import StarSvg from "@/components/SvgComponents/StarSvg";
 import UserSvg from "@/components/SvgComponents/UserSvg";
 import { Tabs } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -46,10 +47,7 @@ export default function TabLayout() {
           tabBarActiveTintColor: "rgba(52, 64, 81, 1)",
           headerShown: false,
           tabBarStyle: [
-            {
-              paddingTop: 10,
-              height: 60,
-            },
+            styles.tabBarStyle,
             animatedTabBarStyle, // Apply animated opacity to the tab bar
           ],
           tabBarShowLabel: false, // Hide default labels
@@ -65,7 +63,7 @@ export default function TabLayout() {
                   focused && styles.focusedTabBackground, // Add background for focused tab
                 ]}
               >
-                <UserSvg color={focused ? "#764BFA" : "#637083"} />
+                <UserSvg color={focused ? "#3C62FA" : "#A3A3A8"} /> {/* Grey when not focused */}
                 {focused && (
                   <CustomText
                     fontFamily="Inter-Regular"
@@ -92,7 +90,7 @@ export default function TabLayout() {
                   focused && styles.focusedTabBackground, // Add background for focused tab
                 ]}
               >
-                <PigeonSvg />
+                <PigeonSvg color={focused ? "#3C62FA" : "#A3A3A8"} /> {/* Grey when not focused */}
                 {focused && (
                   <CustomText
                     fontFamily="Inter-Regular"
@@ -102,6 +100,35 @@ export default function TabLayout() {
                     ]}
                   >
                     Discover
+                  </CustomText>
+                )}
+              </Animated.View>
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="ask-kevin"
+          options={{
+            headerShown: false,
+            tabBarIcon: ({ focused }) => (
+              <Animated.View
+                style={[
+                  styles.tabWrapper,
+                  focused && styles.focusedTabBackground, // Add background for focused tab
+                ]}
+              >
+                <StarSvg color={focused ? "#3C62FA" : "#A3A3A8"} /> {/* Grey when not focused */}
+                {focused && (
+                  <CustomText
+                    fontFamily="Inter-Regular"
+                    style={[
+                      styles.tabBarLabel,
+                      focused && styles.activeTabBarLabel,
+                    ]}
+                    numberOfLines={1} // Ensure text fits in one line
+                    ellipsizeMode="clip" // Add ellipsis if text is too long
+                  >
+                    Ask Kevin
                   </CustomText>
                 )}
               </Animated.View>
@@ -119,7 +146,7 @@ export default function TabLayout() {
                   focused && styles.focusedTabBackground, // Add background for focused tab
                 ]}
               >
-                <CogSvg color={focused ? "#764BFA" : "#637083"} />
+                <CogSvg color={focused ? "#3C62FA" : "#A3A3A8"} /> {/* Grey when not focused */}
                 {focused && (
                   <CustomText
                     fontFamily="Inter-Regular"
@@ -145,20 +172,33 @@ const styles = StyleSheet.create({
     flexDirection: "row", // Align icon and text horizontally
     alignItems: "center", // Center align items vertically
     justifyContent: "center", // Center align items horizontally
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 6, // Reduce vertical padding
+    paddingHorizontal: 10, // Reduce horizontal padding to fit text on one line
     borderRadius: 20, // Rounded corners for the tab
   },
   focusedTabBackground: {
+    width: "auto", // Allow width to adjust based on content
     backgroundColor: "rgba(118, 75, 250, 0.1)", // Light purple background for focused tab
   },
   tabBarLabel: {
-    fontSize: scaleFontSize(12),
+    fontSize: scaleFontSize(11), // Slightly reduce font size
     color: "#637083", // Gray color for inactive state
-    marginLeft: 8, // Add spacing between the icon and text
+    marginLeft: 6, // Reduce spacing between the icon and text
   },
   activeTabBarLabel: {
     color: "#3C62FA", // Purple color for active state
     fontWeight: "600", // Slightly bold for active label
+  },
+  tabBarStyle: {
+    flexDirection: "row", // Align tabs horizontally
+    justifyContent: "space-between", // Space tabs evenly
+    alignItems: "center", // Center align items vertically
+    paddingHorizontal: 12, // Match the horizontal padding from the prompt
+    gap: 10, // Add spacing between tabs
+    height: 80, // Match the height from the prompt
+    backgroundColor: "#FFFFFF", // White background
+    borderWidth: 1, // Add border
+    borderColor: "#F2F2F3", // Light gray border color
+    borderRadius: 0, // Remove rounded corners
   },
 });

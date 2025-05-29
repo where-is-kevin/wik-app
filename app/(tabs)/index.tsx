@@ -1,4 +1,3 @@
-import AskKevinSection from "@/components/Section/AskKevinSection";
 import { useContent } from "@/hooks/useContent";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -144,10 +143,6 @@ const handleLocationPress = (latitude: number, longitude: number) => {
 
   return (
     <View style={{ flex: 1 }}>
-      <AskKevinSection
-        onSend={handleAskKevinSend}
-        isListening={isListening}
-      />
       <FlatList
         data={data}
         keyExtractor={(item) => item.id}
@@ -167,7 +162,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: screenWidth * 0.9,
-    height: screenHeight * 0.7,
+    height: screenHeight * 0.8,
     marginHorizontal: screenWidth * 0.05,
     borderRadius: 15,
     overflow: "hidden",
