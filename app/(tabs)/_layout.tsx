@@ -1,8 +1,9 @@
+import CogSvg from "@/components/SvgComponents/CogSvg";
 import PigeonSvg from "@/components/SvgComponents/PigeonSvg";
-import PlanetSvg from "@/components/SvgComponents/PlanetSvg";
+import UserSvg from "@/components/SvgComponents/UserSvg";
 import { Tabs } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -12,32 +13,6 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomText from "../../components/CustomText";
 import { scaleFontSize } from "../../utilities/scaling";
-
-const IconWithTopBorder = ({
-  children,
-  focused,
-}: {
-  children: React.ReactNode;
-  focused: boolean;
-}) => {
-  return (
-    <View
-      style={[
-        styles.container,
-        focused && styles.focusedTabShadow, // Add shadow when focused
-      ]}
-    >
-      {focused && <View style={styles.topBorder} />}
-      {children}
-    </View>
-  );
-};
-
-const HomeIcon = () => (
-  <View style={styles.homeIconWrapper}>
-    <PigeonSvg />
-  </View>
-);
 
 export default function TabLayout() {
   const { bottom } = useSafeAreaInsets();
@@ -72,31 +47,37 @@ export default function TabLayout() {
           headerShown: false,
           tabBarStyle: [
             {
-              paddingTop: 4,
-              height: bottom > 0 ? 83 : 66,
+              paddingTop: 10,
+              height: 60,
             },
             animatedTabBarStyle, // Apply animated opacity to the tab bar
           ],
+          tabBarShowLabel: false, // Hide default labels
         }}
       >
         <Tabs.Screen
           name="profile"
           options={{
-            tabBarIcon: ({ color, focused }) => (
-              <IconWithTopBorder focused={focused}>
-                <PlanetSvg color={color} />
-              </IconWithTopBorder>
-            ),
-            tabBarLabel: ({ focused }) => (
-              <CustomText
-                fontFamily="Inter-Regular"
+            tabBarIcon: ({ focused }) => (
+              <Animated.View
                 style={[
-                  styles.tabBarLabel,
-                  focused && styles.activeTabBarLabel,
+                  styles.tabWrapper,
+                  focused && styles.focusedTabBackground, // Add background for focused tab
                 ]}
               >
-                Profile
-              </CustomText>
+                <UserSvg color={focused ? "#764BFA" : "#637083"} />
+                {focused && (
+                  <CustomText
+                    fontFamily="Inter-Regular"
+                    style={[
+                      styles.tabBarLabel,
+                      focused && styles.activeTabBarLabel,
+                    ]}
+                  >
+                    Profile
+                  </CustomText>
+                )}
+              </Animated.View>
             ),
           }}
         />
@@ -104,29 +85,53 @@ export default function TabLayout() {
           name="index"
           options={{
             headerShown: false,
-            tabBarIcon: () => <HomeIcon />,
-            tabBarLabel: () => null,
+            tabBarIcon: ({ focused }) => (
+              <Animated.View
+                style={[
+                  styles.tabWrapper,
+                  focused && styles.focusedTabBackground, // Add background for focused tab
+                ]}
+              >
+                <PigeonSvg />
+                {focused && (
+                  <CustomText
+                    fontFamily="Inter-Regular"
+                    style={[
+                      styles.tabBarLabel,
+                      focused && styles.activeTabBarLabel,
+                    ]}
+                  >
+                    Discover
+                  </CustomText>
+                )}
+              </Animated.View>
+            ),
           }}
         />
         <Tabs.Screen
           name="settings"
           options={{
             headerShown: false,
-            tabBarIcon: ({ color, focused }) => (
-              <IconWithTopBorder focused={focused}>
-                <PlanetSvg color={color} />
-              </IconWithTopBorder>
-            ),
-            tabBarLabel: ({ focused }) => (
-              <CustomText
-                fontFamily="Inter-Regular"
+            tabBarIcon: ({ focused }) => (
+              <Animated.View
                 style={[
-                  styles.tabBarLabel,
-                  focused && styles.activeTabBarLabel,
+                  styles.tabWrapper,
+                  focused && styles.focusedTabBackground, // Add background for focused tab
                 ]}
               >
-                Settings
-              </CustomText>
+                <CogSvg color={focused ? "#764BFA" : "#637083"} />
+                {focused && (
+                  <CustomText
+                    fontFamily="Inter-Regular"
+                    style={[
+                      styles.tabBarLabel,
+                      focused && styles.activeTabBarLabel,
+                    ]}
+                  >
+                    Settings
+                  </CustomText>
+                )}
+              </Animated.View>
             ),
           }}
         />
@@ -136,43 +141,24 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    alignItems: "center",
-    justifyContent: "center",
-    height: 46,
-    position: "relative",
+  tabWrapper: {
+    flexDirection: "row", // Align icon and text horizontally
+    alignItems: "center", // Center align items vertically
+    justifyContent: "center", // Center align items horizontally
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20, // Rounded corners for the tab
   },
-  topBorder: {
-    position: "absolute",
-    top: 0,
-    width: "100%",
-    height: 3.2,
-    borderBottomLeftRadius: 100,
-    borderBottomRightRadius: 100,
-    backgroundColor: "#764BFA",
-  },
-  focusedTabShadow: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5, // For Android shadow
-  },
-  homeIconWrapper: {
-    width: 70,
-    height: 70,
-    borderRadius: 95,
-    backgroundColor: "#F2F2F7",
-    justifyContent: "center",
-    borderColor: "#FFFFFF",
-    borderWidth: 4,
-    alignItems: "center",
+  focusedTabBackground: {
+    backgroundColor: "rgba(118, 75, 250, 0.1)", // Light purple background for focused tab
   },
   tabBarLabel: {
     fontSize: scaleFontSize(12),
-    color: "#637083", // gray color for inactive state
+    color: "#637083", // Gray color for inactive state
+    marginLeft: 8, // Add spacing between the icon and text
   },
   activeTabBarLabel: {
-    color: "rgba(52, 64, 81, 1)", // purple color for active state
+    color: "#3C62FA", // Purple color for active state
+    fontWeight: "600", // Slightly bold for active label
   },
 });
