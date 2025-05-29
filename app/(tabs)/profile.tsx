@@ -9,6 +9,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import ProfileSection from "@/components/Section/ProfileSection";
 import { useUser } from "@/hooks/useUser";
 import { useRouter } from "expo-router";
+import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 
 const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
@@ -77,11 +78,7 @@ const ProfileScreen = () => {
   };
 
   if (isLoading) {
-    return (
-      <CustomView style={styles.loadingContainer}>
-        <ActivityIndicator size={"large"} />
-      </CustomView>
-    );
+    return <AnimatedLoader />;
   }
 
   return (

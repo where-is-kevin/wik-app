@@ -4,6 +4,7 @@ import CustomTouchable from "../CustomTouchableOpacity";
 import ArrowLeftSvg from "../SvgComponents/ArrowLeftSvg";
 import { useRouter } from "expo-router";
 import { horizontalScale, verticalScale } from "@/utilities/scaling";
+import CustomView from "../CustomView";
 
 interface BackHeaderProps {
   transparent?: boolean;
@@ -13,12 +14,15 @@ const BackHeader: React.FC<BackHeaderProps> = ({ transparent = false }) => {
   const router = useRouter();
 
   return (
-    <TouchableOpacity
+    <CustomView
       style={[styles.header, transparent && styles.transparentHeader]}
-      onPress={() => router.back()}
     >
-      <ArrowLeftSvg />
-    </TouchableOpacity>
+      <View style={styles.buttonContainer}>
+        <CustomTouchable onPress={() => router.back()}>
+          <ArrowLeftSvg />
+        </CustomTouchable>
+      </View>
+    </CustomView>
   );
 };
 
@@ -27,10 +31,12 @@ export default BackHeader;
 const styles = StyleSheet.create({
   header: {
     paddingHorizontal: horizontalScale(16),
-    paddingTop: verticalScale(10),
-    backgroundColor: "white", // Default background
+    marginTop: verticalScale(10),
   },
   transparentHeader: {
-    backgroundColor: "transparent", // Override when transparent is true
+    backgroundColor: "transparent",
+  },
+  buttonContainer: {
+    alignSelf: "flex-start",
   },
 });
