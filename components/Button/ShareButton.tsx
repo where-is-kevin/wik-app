@@ -7,12 +7,16 @@ interface ShareButtonProps {
   message?: string;
   url?: string;
   onMorePress?: () => void;
+  width?: number;
+  height?: number;
 }
 
 const ShareButton: React.FC<ShareButtonProps> = ({
   title = "Check this out!",
   message = "I thought you might like this",
   url = "",
+  width,
+  height,
   onMorePress,
 }) => {
   const handleShare = async () => {
@@ -56,7 +60,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({
 
   return (
     <TouchableOpacity onPress={handleShare}>
-      <MoreSvg />
+      <MoreSvg width={width} height={height} />
     </TouchableOpacity>
   );
 };

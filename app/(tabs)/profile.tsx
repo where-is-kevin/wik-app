@@ -19,26 +19,32 @@ const ProfileScreen = () => {
   const { data: user, isLoading, error } = useUser();
   console.log("User data:", user);
 
-  // Sample data for buckets
+  // Sample data for buckets - added id field
   const bucketsData = [
     {
+      id: "123", // Add unique ID for each bucket
       title: "Douro Valley with family",
       images: [
         "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?q=80&w=300&auto=format",
         "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=150&auto=format",
         "https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=150&auto=format",
       ],
-      onPress: () => console.log("Bucket pressed"),
+      onPress: () => {
+        router.push(`/bucket-details/123`);
+      },
       onMorePress: () => console.log("More options pressed"),
     },
     {
-      title: "Douro Valley with family",
+      id: "456", // Add unique ID for each bucket
+      title: "Adventure in the Alps",
       images: [
         "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?q=80&w=300&auto=format",
         "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=150&auto=format",
         "https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=150&auto=format",
       ],
-      onPress: () => console.log("Bucket pressed"),
+      onPress: () => {
+        router.push(`/bucket-details/456`);
+      },
       onMorePress: () => console.log("More options pressed"),
     },
   ];
@@ -46,17 +52,23 @@ const ProfileScreen = () => {
   // Sample data for likes
   const likesData = [
     {
+      id: "123",
       title: "Douro Valley with family",
       image:
         "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?q=80&w=300&auto=format",
-      onPress: () => console.log("Like pressed"),
+      onPress: () => {
+        router.push(`/event-details/123`);
+      },
       onMorePress: () => console.log("Like more options pressed"),
     },
     {
+      id: "456",
       title: "Douro Valley with family",
       image:
         "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?q=80&w=300&auto=format",
-      onPress: () => console.log("Like pressed"),
+      onPress: () => {
+        router.push(`/event-details/456`);
+      },
       onMorePress: () => console.log("Like more options pressed"),
     },
   ];

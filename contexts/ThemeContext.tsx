@@ -37,6 +37,8 @@ type ThemeColors = {
   profile_name_black: string;
   text_white: string;
   opacity_lime: string;
+  indicator_gray: string;
+  light_blue: string;
 };
 
 // Define the themes
@@ -61,11 +63,13 @@ const themes = {
     overlay: "rgba(0,0,0,0)",
     event_gray: "#A3A3A8",
     profile_name_black: "#0B2E34",
+    indicator_gray: "#F2F2F7",
     tint: tintColorLight,
     icon: "#687076",
     tabIconDefault: "#687076",
     tabIconSelected: tintColorLight,
     buttonText: "#fff",
+    light_blue: "#3C62FA",
   },
   dark: {
     text: "#ECEDEE",
@@ -87,11 +91,13 @@ const themes = {
     overlay: "rgba(0,0,0,0)",
     event_gray: "#A3A3A8",
     profile_name_black: "#0B2E34",
+    indicator_gray: "#F2F2F7",
     tint: tintColorDark,
     icon: "#9BA1A6",
     tabIconDefault: "#9BA1A6",
     tabIconSelected: tintColorDark,
     buttonText: "#151718",
+    light_blue: "#3C62FA",
   },
 };
 

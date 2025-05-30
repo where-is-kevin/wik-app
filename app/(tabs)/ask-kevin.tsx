@@ -1,23 +1,21 @@
-import React, { useState } from 'react';
+import AskKevinSection from "@/components/Section/AskKevinSection";
+import { useContentWithParams } from "@/hooks/useContent";
+import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams } from "expo-router";
+import React, { useState } from "react";
 import {
-  FlatList,
-  Text,
-  View,
-  Image,
-  TouchableOpacity,
   ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Image,
   Linking,
   StyleSheet,
-  Dimensions,
-} from 'react-native';
-import { useContentWithParams } from '@/hooks/useContent';
-import AskKevinSection from '@/components/Section/AskKevinSection';
-import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from "expo-router"; // Import useSearchParams
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 const PaginatedContentList = () => {
   const { query } = useLocalSearchParams(); // Get the query parameter from the route
@@ -36,12 +34,13 @@ const PaginatedContentList = () => {
     refetch();
   };
 
-  const handleLike = () => {
-    console.log("Liked:", data?.id);
+  const handleLike = (id: string) => {
+    console.log("Liked:", id);
     refetch();
   };
-  const handleDislike = () => {
-    console.log("Disliked:", data?.id);
+
+  const handleDislike = (id: string) => {
+    console.log("Disliked:", id);
     refetch();
   };
 
@@ -57,7 +56,10 @@ const PaginatedContentList = () => {
           {item.tags}
         </Text>
         <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.iconButton} onPress={handleDislike}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => handleDislike(item.id)}
+          >
             <Ionicons name="thumbs-down" size={32} color="#ff5252" />
           </TouchableOpacity>
           {item.websiteUrl ? (
@@ -68,7 +70,10 @@ const PaginatedContentList = () => {
               <Ionicons name="arrow-up" size={32} color="#4caf50" />
             </TouchableOpacity>
           ) : null}
-          <TouchableOpacity style={styles.iconButton} onPress={handleLike}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => handleLike(item.id)}
+          >
             <Ionicons name="thumbs-up" size={32} color="#4caf50" />
           </TouchableOpacity>
         </View>
@@ -78,7 +83,12 @@ const PaginatedContentList = () => {
 
   return (
     <View style={{ flex: 1 }}>
-      <AskKevinSection />
+      <AskKevinSection
+        onSend={(message) => {
+          setParams({ ...params, query: message, offset: 0 });
+          refetch();
+        }}
+      />
       {isLoading ? (
         <View
           style={[styles.card, { justifyContent: "center", alignItems: "center" }]}
@@ -113,19 +123,19 @@ const styles = StyleSheet.create({
     height: screenHeight * 0.7,
     marginHorizontal: screenWidth * 0.05,
     borderRadius: 15,
-    overflow: 'hidden',
-    backgroundColor: '#fff',
+    overflow: "hidden",
+    backgroundColor: "#fff",
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     marginVertical: 10,
   },
   image: {
-    width: '100%',
-    height: '50%',
-    backgroundColor: '#eee',
+    width: "100%",
+    height: "50%",
+    backgroundColor: "#eee",
   },
   textContainer: {
     padding: 15,
@@ -133,45 +143,39 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: '#000',
+    fontWeight: "bold",
+    color: "#000",
   },
   category: {
     fontSize: 16,
-    color: '#6C63FF',
+    color: "#6C63FF",
     marginBottom: 4,
   },
   iconLinkRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 16,
     marginBottom: 10,
-    alignItems: 'center',
-  },
-  iconLink: {
-    padding: 2,
-    borderRadius: 10,
-    backgroundColor: '#f5f5f5',
-    marginHorizontal: 10,
+    alignItems: "center",
   },
   buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     marginTop: 16,
     gap: 40,
   },
   iconButton: {
     padding: 12,
     borderRadius: 50,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
     marginHorizontal: 10,
   },
   loadMoreButton: {
     padding: 10,
-    backgroundColor: '#6C63FF',
+    backgroundColor: "#6C63FF",
     borderRadius: 5,
   },
   loadMoreText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
   },
 });

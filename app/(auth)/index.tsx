@@ -30,7 +30,6 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
   const router = useRouter();
   const { mutate: login, isPending } = useLogin();
 
-
   const handleSignIn = (): void => {
     login(
       {
@@ -107,7 +106,7 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
               fontFamily="Inter-SemiBold"
               style={[styles.signInButtonText, { color: colors.label_dark }]}
             >
-              Sign in
+              {isPending ? "Signing in..." : "Sign in"}
             </CustomText>
           </CustomTouchable>
 

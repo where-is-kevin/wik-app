@@ -51,6 +51,10 @@ export default function RootLayout() {
             {/* Main tab navigation */}
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="(profile)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="event-details/[eventId]"
+              options={{ headerShown: false }}
+            />
             {/* Fallback screen for undefined routes */}
             <Stack.Screen name="+not-found" />
           </Stack>

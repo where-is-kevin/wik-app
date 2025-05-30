@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, FlatList, ScrollView } from "react-native";
+import { StyleSheet, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BackHeader from "@/components/Header/BackHeader";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -12,13 +12,14 @@ import SearchBar from "@/components/SearchBar/SearchBar";
 import CustomView from "@/components/CustomView";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import CustomText from "@/components/CustomText";
-import LikeCard from "@/components/LikeComponent/LikeCard";
 import BucketCard from "@/components/BucketComponent/BucketCard";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   BucketBottomSheet,
   BucketItem,
 } from "@/components/BottomSheet/BucketBottomSheet";
+import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
+import MasonryGrid, { LikeItem } from "@/components/MansoryGrid";
 
 interface LocalBucketItem {
   id: string;
@@ -26,19 +27,9 @@ interface LocalBucketItem {
   safeImages: string[];
 }
 
-// Interface for like items
-interface LikeItem {
-  id: string;
-  title: string;
-  foodImage: string;
-  landscapeImage: string;
-  isExperience?: boolean;
-  hasIcon?: boolean;
-  height?: "short" | "tall";
-}
-
 const ProfileListsScreen = () => {
   const { colors } = useTheme();
+  const router = useRouter();
   const { type } = useLocalSearchParams();
   const listType = type === "buckets" || type === "likes" ? type : "buckets";
   const [activeTab, setActiveTab] = useState<"buckets" | "likes">(
@@ -46,12 +37,17 @@ const ProfileListsScreen = () => {
   );
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Bottom sheet state
-  const [isBottomSheetVisible, setIsBottomSheetVisible] = useState(false);
+  // Bottom sheet states
+  const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] =
+    useState(false);
+  const [
+    isCreateBucketBottomSheetVisible,
+    setIsCreateBucketBottomSheetVisible,
+  ] = useState(false);
   const [bottomSheetItems, setBottomSheetItems] = useState<BucketItem[]>([]);
 
   // Mock data for buckets
-  const bucketsData: LocalBucketItem[] = [
+  const [bucketsData, setBucketsData] = useState<LocalBucketItem[]>([
     {
       id: "1",
       title: "Douro Valley with family",
@@ -79,13 +75,49 @@ const ProfileListsScreen = () => {
         "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
       ],
     },
-  ];
+    {
+      id: "4",
+      title: "Hiking trip in the Azores",
+      safeImages: [
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+      ],
+    },
+    {
+      id: "5",
+      title: "Hiking trip in the Azores",
+      safeImages: [
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+      ],
+    },
+    {
+      id: "6",
+      title: "Hiking trip in the Azores",
+      safeImages: [
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+      ],
+    },
+    {
+      id: "7",
+      title: "Hiking trip in the Azores",
+      safeImages: [
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+      ],
+    },
+  ]);
 
   // Mock data for likes with varying heights
   const likesData: LikeItem[] = [
     {
       id: "1",
-      title: "Douro Valley with f...",
+      title: "Douro Valley with family in the alpes",
       foodImage:
         "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
       landscapeImage: "",
@@ -121,7 +153,7 @@ const ProfileListsScreen = () => {
       landscapeImage: "",
       isExperience: true,
       hasIcon: true,
-      height: "tall",
+      height: "short",
     },
     {
       id: "5",
@@ -131,33 +163,13 @@ const ProfileListsScreen = () => {
       landscapeImage: "",
       isExperience: true,
       hasIcon: false,
-      height: "short",
+      height: "tall",
     },
     {
       id: "6",
       title: "Douro Valley with f...",
       foodImage:
         "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=250",
-      landscapeImage: "",
-      isExperience: true,
-      hasIcon: true,
-      height: "tall",
-    },
-    {
-      id: "7",
-      title: "Douro Valley with f...",
-      foodImage:
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=200",
-      landscapeImage: "",
-      isExperience: true,
-      hasIcon: true,
-      height: "short",
-    },
-    {
-      id: "8",
-      title: "Douro Valley with f...",
-      foodImage:
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
       landscapeImage: "",
       isExperience: true,
       hasIcon: true,
@@ -180,82 +192,70 @@ const ProfileListsScreen = () => {
     }));
   };
 
-  // Bottom sheet handlers
-  const handleShowBottomSheet = () => {
-    console.log("🚀 Opening bottom sheet");
+  // Bucket selection bottom sheet handlers
+  const handleShowBucketBottomSheet = () => {
     const items = transformBucketsForBottomSheet();
     setBottomSheetItems(items);
-    setIsBottomSheetVisible(true);
+    setIsBucketBottomSheetVisible(true);
   };
 
-  const handleCloseBottomSheet = () => {
-    console.log("🔒 Closing bottom sheet");
-    setIsBottomSheetVisible(false);
+  const handleCloseBucketBottomSheet = () => {
+    setIsBucketBottomSheetVisible(false);
   };
 
   const handleItemSelect = (item: BucketItem) => {
-    console.log("✅ Selected bucket:", item.title);
     // Handle bucket selection logic here
-    setIsBottomSheetVisible(false);
+    setIsBucketBottomSheetVisible(false);
   };
 
-  const handleCreateNew = () => {
-    console.log("🆕 Create new bucket");
-    // Handle create new bucket logic here
-    setIsBottomSheetVisible(false);
+  // Create bucket bottom sheet handlers
+  const handleShowCreateBucketBottomSheet = () => {
+    setIsBucketBottomSheetVisible(false); // Close bucket selection sheet
+    setIsCreateBucketBottomSheetVisible(true); // Open create bucket sheet
   };
 
-  const filteredData = (
-    activeTab === "buckets" ? bucketsData : likesData
-  ).filter((item) =>
+  const handleCloseCreateBucketBottomSheet = () => {
+    setIsCreateBucketBottomSheetVisible(false);
+  };
+
+  const handleCreateBucket = (bucketName: string) => {
+    // Create new bucket and add to the list
+    const newBucket: LocalBucketItem = {
+      id: Date.now().toString(),
+      title: bucketName,
+      safeImages: [
+        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
+        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
+        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
+      ],
+    };
+
+    setBucketsData((prevBuckets) => [newBucket, ...prevBuckets]);
+    setIsCreateBucketBottomSheetVisible(false);
+
+    // Optionally switch to buckets tab to show the new bucket
+    setActiveTab("buckets");
+  };
+
+  // Handle like item press
+  const handleLikeItemPress = (item: LikeItem) => {
+    router.push(`/event-details/${item.id}`);
+    // Add your navigation or other logic here
+  };
+
+  const filteredBucketsData = bucketsData.filter((item) =>
     item.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const MasonryGrid = ({ data }: { data: LikeItem[] }) => {
-    // Split data into two columns for masonry effect
-    const leftColumn = data.filter((_, index) => index % 2 === 0);
-    const rightColumn = data.filter((_, index) => index % 2 === 1);
-
-    const renderColumn = (columnData: LikeItem[]) => (
-      <CustomView style={{ flex: 1 }}>
-        {columnData.map((item) => (
-          <CustomView key={item.id} style={{ marginBottom: 0 }}>
-            <LikeCard
-              onBucketPress={handleShowBottomSheet}
-              item={item}
-              onPress={() => console.log("Like card pressed:", item.id)}
-            />
-          </CustomView>
-        ))}
-      </CustomView>
-    );
-
-    return (
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: horizontalScale(16),
-        }}
-      >
-        <CustomView
-          style={{
-            flexDirection: "row",
-            gap: 16,
-            alignItems: "flex-start",
-          }}
-        >
-          {renderColumn(leftColumn)}
-          {renderColumn(rightColumn)}
-        </CustomView>
-      </ScrollView>
-    );
-  };
+  const filteredLikesData = likesData.filter((item) =>
+    item.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Render buckets item
   const renderBucketItem = ({ item }: { item: LocalBucketItem }) => (
     <BucketCard
       item={item}
-      onPress={() => console.log("Bucket card pressed:", item.id)}
+      onPress={() => router.push("/bucket-details/123")}
     />
   );
 
@@ -332,10 +332,14 @@ const ProfileListsScreen = () => {
 
       {/* Content */}
       {activeTab === "likes" ? (
-        <MasonryGrid data={filteredData} />
+        <MasonryGrid
+          data={filteredLikesData}
+          onBucketPress={handleShowBucketBottomSheet}
+          onItemPress={handleLikeItemPress}
+        />
       ) : (
         <FlatList
-          data={filteredData}
+          data={filteredBucketsData}
           renderItem={renderBucketItem}
           keyExtractor={(item) => item.id}
           numColumns={2}
@@ -345,13 +349,20 @@ const ProfileListsScreen = () => {
         />
       )}
 
-      {/* Bottom Sheet */}
+      {/* Bucket Selection Bottom Sheet */}
       <BucketBottomSheet
-        isVisible={isBottomSheetVisible}
+        isVisible={isBucketBottomSheetVisible}
         bucketItems={bottomSheetItems}
-        onClose={handleCloseBottomSheet}
+        onClose={handleCloseBucketBottomSheet}
         onItemSelect={handleItemSelect}
-        onCreateNew={handleCreateNew}
+        onCreateNew={handleShowCreateBucketBottomSheet}
+      />
+
+      {/* Create Bucket Bottom Sheet */}
+      <CreateBucketBottomSheet
+        isVisible={isCreateBucketBottomSheetVisible}
+        onClose={handleCloseCreateBucketBottomSheet}
+        onCreateBucket={handleCreateBucket}
       />
     </SafeAreaView>
   );
@@ -390,6 +401,7 @@ const styles = StyleSheet.create({
   bucketsContainer: {
     paddingHorizontal: horizontalScale(16),
     paddingBottom: verticalScale(20),
+    gap: verticalScale(16),
   },
   bucketRow: {
     justifyContent: "space-between",

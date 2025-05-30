@@ -1,7 +1,6 @@
 import React, { useRef, useState } from "react";
 import {
   StyleSheet,
-  View,
   Animated,
   PanResponder,
   Dimensions,
@@ -9,6 +8,7 @@ import {
   TouchableOpacity,
   StatusBar,
   ScrollView,
+  View,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
@@ -26,6 +26,10 @@ import BackHeader from "@/components/Header/BackHeader";
 import TestImage from "@/assets/images/test-bg.png";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import SendSvgSmall from "@/components/SvgComponents/SendSvgSmall";
+import CustomView from "@/components/CustomView";
+import MoreSvg from "@/components/SvgComponents/MoreSvg";
+import BucketSvg from "@/components/SvgComponents/BucketSvg";
+import ShareButton from "@/components/Button/ShareButton";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -40,9 +44,8 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
   // Estimated header height - adjusted based on your setup
   const ESTIMATED_HEADER_HEIGHT = verticalScale(10) + 12 + 24;
-  console.log(insets.top);
   // Panel heights
-  const PANEL_MIN_HEIGHT = SCREEN_HEIGHT * 0.45;
+  const PANEL_MIN_HEIGHT = SCREEN_HEIGHT * 0.3;
   const PANEL_MAX_HEIGHT = SCREEN_HEIGHT - insets.top - ESTIMATED_HEADER_HEIGHT;
 
   const panelHeight = useRef(new Animated.Value(PANEL_MIN_HEIGHT)).current;
@@ -120,10 +123,12 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <CustomView style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" />
       <ImageBackground source={TestImage} style={styles.backgroundImage}>
-        <SafeAreaView style={styles.headerContainer}>
+        <SafeAreaView
+          style={[styles.headerContainer, { backgroundColor: colors.overlay }]}
+        >
           <BackHeader transparent={true} />
         </SafeAreaView>
       </ImageBackground>
@@ -149,31 +154,46 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
           scrollEventThrottle={16}
         >
           {/* Panel Content */}
-          <View style={styles.panelContent}>
+          <CustomView style={styles.panelContent}>
             {/* EVENT Badge */}
-            <View style={styles.badgeContainer}>
-              <View
-                style={[styles.badge, { backgroundColor: colors.card_purple }]}
+            <CustomView style={styles.badgeContainer}>
+              <CustomView
+                bgColor={colors.profile_name_black}
+                style={styles.experienceTag}
               >
                 <CustomText
                   fontFamily="Inter-SemiBold"
-                  style={[styles.badgeText, { color: colors.input_border }]}
+                  style={[styles.experienceText, { color: colors.lime }]}
                 >
-                  EVENT
+                  EXPERIENCE
                 </CustomText>
-              </View>
+              </CustomView>
 
               {/* Share Button */}
-              <CustomTouchable
-                bgColor={colors.label_dark}
-                style={styles.shareButton}
-              >
-                <SendSvgSmall />
-              </CustomTouchable>
-            </View>
+              <CustomView style={styles.row}>
+                <CustomTouchable
+                  style={styles.bucketContainer}
+                  bgColor={colors.label_dark}
+                >
+                  <BucketSvg />
+                </CustomTouchable>
+                <CustomTouchable
+                  bgColor={colors.onboarding_gray}
+                  style={styles.shareButton}
+                >
+                  <ShareButton
+                    width={14}
+                    height={14}
+                    title={title || ""}
+                    message={`Check out this bucket: ${title}`}
+                    url={"www.google.com"}
+                  />
+                </CustomTouchable>
+              </CustomView>
+            </CustomView>
 
             {/* Title Section */}
-            <View style={styles.titleSection}>
+            <CustomView style={styles.titleSection}>
               <CustomText
                 fontFamily="Inter-SemiBold"
                 style={[styles.title, { color: colors.label_dark }]}
@@ -201,15 +221,15 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
               >
                 Address
               </CustomText>
-            </View>
+            </CustomView>
 
             {/* About Section */}
-            <View style={styles.aboutSection}>
+            <CustomView style={styles.aboutSection}>
               <CustomText
                 fontFamily="Inter-SemiBold"
-                style={[styles.aboutTitle, { color: colors.gray_regular }]}
+                style={[styles.aboutTitle, { color: colors.label_dark }]}
               >
-                ABOUT
+                About
               </CustomText>
               <CustomText
                 style={[styles.aboutText, { color: colors.gray_regular }]}
@@ -219,11 +239,11 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                 at nibh elementum imperdiet. Duis sagittis ipsum. Praesent
                 mauris. Fusce nec tellus sed augue semper porta.
               </CustomText>
-            </View>
-          </View>
+            </CustomView>
+          </CustomView>
         </ScrollView>
       </Animated.View>
-    </View>
+    </CustomView>
   );
 };
 
@@ -265,7 +285,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "#DDDDDD",
+    backgroundColor: "#F2F2F7",
   },
   scrollViewContent: {
     flexGrow: 1,
@@ -277,6 +297,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    width: "100%",
     marginBottom: verticalScale(8),
   },
   badge: {
@@ -288,18 +309,15 @@ const styles = StyleSheet.create({
     fontSize: scaleFontSize(10),
   },
   shareButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    borderRadius: 50,
+    width: 36,
+    height: 36,
+    borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
   },
-  titleSection: {
-    marginBottom: verticalScale(20),
-  },
+  titleSection: {},
   title: {
     fontSize: scaleFontSize(24),
-    marginBottom: verticalScale(10),
   },
   priceText: {
     fontSize: scaleFontSize(24),
@@ -312,15 +330,35 @@ const styles = StyleSheet.create({
     fontSize: scaleFontSize(14),
   },
   aboutSection: {
-    marginTop: verticalScale(12),
+    marginTop: verticalScale(16),
   },
   aboutTitle: {
-    fontSize: scaleFontSize(10),
+    fontSize: scaleFontSize(14),
     marginBottom: verticalScale(8),
   },
   aboutText: {
     fontSize: scaleFontSize(14),
     lineHeight: 16,
+  },
+  experienceTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  experienceText: {
+    fontSize: scaleFontSize(10),
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  bucketContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 

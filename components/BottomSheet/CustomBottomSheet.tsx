@@ -7,7 +7,7 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { View, StyleSheet, Pressable, Animated } from "react-native";
+import { View, StyleSheet, Pressable, Animated, Keyboard } from "react-native";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -83,6 +83,9 @@ export const CustomBottomSheet = forwardRef<
     const handleSheetChanges = useCallback(
       (index: number) => {
         if (index === -1) {
+          // Dismiss keyboard when bottom sheet closes
+          Keyboard.dismiss();
+
           // Animate overlay out when sheet closes
           Animated.timing(overlayAnimatedValue, {
             toValue: 0,
@@ -120,7 +123,7 @@ export const CustomBottomSheet = forwardRef<
     const defaultHandleIndicatorStyle = useMemo(
       () => [
         styles.handleIndicator,
-        { backgroundColor: colors.gray_regular },
+        { backgroundColor: colors.indicator_gray },
         handleIndicatorStyle,
       ],
       [colors.gray_regular, handleIndicatorStyle]

@@ -1,13 +1,17 @@
 // BucketBottomSheet.tsx
-import React from "react";
+import React, { useMemo } from "react";
 import {
   View,
   StyleSheet,
   TouchableOpacity,
   Image,
   ScrollView,
+  Dimensions,
+  StatusBar,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/ThemeContext";
 import CustomText from "@/components/CustomText";
 import CustomView from "@/components/CustomView";
@@ -17,6 +21,8 @@ import {
   verticalScale,
 } from "@/utilities/scaling";
 import { CustomBottomSheet } from "./CustomBottomSheet";
+import CustomTouchable from "../CustomTouchableOpacity";
+import CreateBucketPlus from "../SvgComponents/CreateBucketPlus";
 
 // Define the BucketItem interface directly in this file
 export interface BucketItem {
@@ -42,9 +48,32 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
   onCreateNew,
 }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  // Calculate dynamic height for bottom sheet
+  const snapPointHeight = useMemo(() => {
+    const screenHeight = Dimensions.get("window").height;
+    const statusBarHeight =
+      Platform.OS === "android" ? StatusBar.currentHeight || 0 : 0;
+    const safeAreaTop = insets.top;
+    const backHeaderHeight = verticalScale(10) + 30;
+
+    const totalHeaderHeight =
+      Platform.OS === "ios"
+        ? safeAreaTop + backHeaderHeight
+        : safeAreaTop + statusBarHeight + backHeaderHeight;
+
+    // Calculate available height and convert to percentage
+    const availableHeight = screenHeight - totalHeaderHeight;
+    const percentage = (availableHeight / screenHeight) * 100;
+
+    const finalPercentage = `${Math.floor(percentage)}%`;
+
+    return finalPercentage;
+  }, [insets.top]);
 
   const renderBucketItem = (item: BucketItem) => (
-    <TouchableOpacity
+    <CustomTouchable
       key={item.id}
       style={styles.bucketItem}
       onPress={() => {
@@ -55,54 +84,52 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
       <Image source={{ uri: item.image }} style={styles.bucketItemImage} />
       <CustomView style={styles.bucketItemContent}>
         <CustomText
-          style={[
-            styles.bucketItemTitle,
-            { color: colors.label_dark, fontFamily: "Inter-Medium" },
-          ]}
+          fontFamily="Inter-SemiBold"
+          style={[styles.bucketItemTitle, { color: colors.label_dark }]}
         >
           {item.title}
         </CustomText>
         <CustomText
-          style={[
-            styles.bucketItemDate,
-            { color: colors.gray_regular, fontFamily: "Inter-Regular" },
-          ]}
+          style={[styles.bucketItemDate, { color: colors.gray_regular }]}
         >
           {item.date}
         </CustomText>
       </CustomView>
-    </TouchableOpacity>
+    </CustomTouchable>
   );
 
   return (
     <CustomBottomSheet
       isVisible={isVisible}
       onClose={onClose}
-      snapPoints={["70%"]}
+      snapPoints={[snapPointHeight]}
       enablePanDownToClose={true}
     >
       <CustomView style={styles.container}>
         <CustomView style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={24} color={colors.label_dark} />
-          </TouchableOpacity>
           <CustomText
-            style={[
-              styles.title,
-              { color: colors.label_dark, fontFamily: "Inter-SemiBold" },
-            ]}
+            fontFamily="Inter-SemiBold"
+            style={[styles.title, { color: colors.label_dark }]}
           >
             Add to bucket
           </CustomText>
-          <View style={styles.headerSpacer} />
         </CustomView>
 
         <ScrollView
           style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
           {bucketItems.map(renderBucketItem)}
+        </ScrollView>
 
+        {/* Fixed bottom section for Create New Button */}
+        <CustomView
+          style={[
+            styles.bottomSection,
+            { borderTopColor: colors.onboarding_gray },
+          ]}
+        >
           <TouchableOpacity
             style={styles.createNewButton}
             onPress={() => {
@@ -110,19 +137,20 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
             }}
             activeOpacity={0.7}
           >
-            <CustomView style={styles.createNewIconContainer}>
-              <Ionicons name="add" size={24} color="white" />
+            <CustomView
+              bgColor={colors.light_blue}
+              style={styles.createNewIconContainer}
+            >
+              <CreateBucketPlus />
             </CustomView>
             <CustomText
-              style={[
-                styles.createNewText,
-                { color: colors.label_dark, fontFamily: "Inter-Medium" },
-              ]}
+              fontFamily="Inter-SemiBold"
+              style={[styles.createNewText, { color: colors.label_dark }]}
             >
               Create new bucket
             </CustomText>
           </TouchableOpacity>
-        </ScrollView>
+        </CustomView>
       </CustomView>
     </CustomBottomSheet>
   );
@@ -131,70 +159,65 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: horizontalScale(20),
   },
   header: {
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: verticalScale(16),
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
-    marginBottom: verticalScale(16),
+    marginTop: verticalScale(4),
+    marginBottom: 18,
   },
   backButton: {
     padding: 4,
   },
   title: {
-    fontSize: scaleFontSize(18),
-    fontWeight: "600",
-  },
-  headerSpacer: {
-    width: 32,
+    fontSize: scaleFontSize(15),
   },
   scrollContainer: {
     flex: 1,
   },
+  scrollContent: {
+    gap: 18,
+    paddingHorizontal: 24,
+    paddingBottom: verticalScale(20),
+  },
   bucketItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: verticalScale(12),
-    marginBottom: verticalScale(8),
   },
   bucketItemImage: {
-    width: horizontalScale(56),
-    height: verticalScale(56),
-    borderRadius: 8,
-    marginRight: horizontalScale(16),
+    width: 68,
+    height: 68,
+    borderRadius: 10,
+    marginRight: horizontalScale(7),
   },
   bucketItemContent: {
     flex: 1,
   },
   bucketItemTitle: {
-    fontSize: scaleFontSize(16),
-    fontWeight: "500",
-    marginBottom: verticalScale(4),
+    fontSize: scaleFontSize(14),
+    lineHeight: 20,
   },
   bucketItemDate: {
     fontSize: scaleFontSize(14),
   },
+  bottomSection: {
+    borderTopWidth: 1,
+    paddingTop: verticalScale(10),
+    paddingBottom: verticalScale(10),
+    paddingHorizontal: 24,
+  },
   createNewButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: verticalScale(16),
-    marginTop: verticalScale(8),
   },
   createNewIconContainer: {
-    width: horizontalScale(56),
-    height: verticalScale(56),
-    borderRadius: 28,
-    backgroundColor: "#007AFF",
+    width: 47,
+    height: 47,
+    borderRadius: 1000,
     justifyContent: "center",
     alignItems: "center",
     marginRight: horizontalScale(16),
   },
   createNewText: {
-    fontSize: scaleFontSize(16),
-    fontWeight: "500",
+    fontSize: scaleFontSize(14),
   },
 });

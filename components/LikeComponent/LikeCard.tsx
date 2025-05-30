@@ -79,7 +79,7 @@ const LikeCard: React.FC<LikeCardProps> = ({
           {/* Bucket SVG icon in bottom right */}
           {item.hasIcon && (
             <CustomTouchable
-              bgColor={colors.overlay}
+              bgColor={colors.label_dark}
               onPress={onBucketPress}
               style={styles.bucketIconContainer}
             >
@@ -144,6 +144,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 4,
     right: 5,
+    width: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 1000,
+    height: 30,
   },
   titleRow: {
     flexDirection: "row",
@@ -154,6 +159,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: scaleFontSize(12.5),
+    width: "80%",
   },
 });
 

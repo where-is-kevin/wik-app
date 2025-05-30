@@ -1,7 +1,8 @@
 import * as React from "react";
 import Svg, { Path } from "react-native-svg";
-const MoreSvg = ({ ...props }) => (
-  <Svg width={16} height={17} viewBox="0 0 16 17" fill="none" {...props}>
+
+const MoreSvg = ({ width = 16, height = 17, ...props }) => (
+  <Svg width={width} height={height} viewBox="0 0 16 17" fill="none" {...props}>
     <Path
       d="M4.00008 8.49992C4.00008 9.42039 3.25389 10.1666 2.33341 10.1666C1.41294 10.1666 0.666748 9.42039 0.666748 8.49992C0.666748 7.57944 1.41294 6.83325 2.33341 6.83325C3.25389 6.83325 4.00008 7.57944 4.00008 8.49992Z"
       fill="#6F6F76"
@@ -16,4 +17,5 @@ const MoreSvg = ({ ...props }) => (
     />
   </Svg>
 );
+
 export default MoreSvg;

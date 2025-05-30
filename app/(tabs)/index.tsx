@@ -1,21 +1,20 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  FlatList,
-  TouchableOpacity,
-  Dimensions,
-  ActivityIndicator,
-  Linking,
-} from "react-native";
 import { useContent } from "@/hooks/useContent";
 import { Ionicons } from "@expo/vector-icons";
-import AskKevinSection from "@/components/Section/AskKevinSection";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "@/constants/types.ts";
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Image,
+  Linking,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
@@ -63,14 +62,14 @@ const SwipeableCards = () => {
     // Add your logic here
   };
 
-  const handleMicPress = () => {
-    setIsListening((prev) => !prev);
-    // Add your mic logic here
-  };
-
-  const handleLocationPress = (latitude: number, longitude: number) => {
-    navigation.navigate("MapScreen", { latitude, longitude }); // Updated route
-  };
+const handleLocationPress = (latitude: number, longitude: number) => {
+  // const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+  console.log("Opening Google Maps with URL:", googleMapsUrl);
+  Linking.openURL(googleMapsUrl).catch((err) =>
+    console.error("Failed to open Google Maps:", err)
+  );
+};
 
   const renderItem = ({ item }: { item: (typeof data)[0] }) => (
     <View style={styles.card}>
@@ -146,11 +145,6 @@ const SwipeableCards = () => {
 
   return (
     <View style={{ flex: 1 }}>
-      <AskKevinSection
-        onSend={handleAskKevinSend}
-        onMicPress={handleMicPress}
-        isListening={isListening}
-      />
       <FlatList
         data={data}
         keyExtractor={(item) => item.id}
@@ -170,7 +164,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: screenWidth * 0.9,
-    height: screenHeight * 0.7,
+    height: screenHeight * 0.8,
     marginHorizontal: screenWidth * 0.05,
     borderRadius: 15,
     overflow: "hidden",
