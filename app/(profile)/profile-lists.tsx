@@ -15,8 +15,12 @@ import CustomText from "@/components/CustomText";
 import LikeCard from "@/components/LikeComponent/LikeCard";
 import BucketCard from "@/components/BucketComponent/BucketCard";
 import { useLocalSearchParams } from "expo-router";
+import {
+  BucketBottomSheet,
+  BucketItem,
+} from "@/components/BottomSheet/BucketBottomSheet";
 
-interface BucketItem {
+interface LocalBucketItem {
   id: string;
   title: string;
   safeImages: string[];
@@ -42,11 +46,15 @@ const ProfileListsScreen = () => {
   );
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Bottom sheet state
+  const [isBottomSheetVisible, setIsBottomSheetVisible] = useState(false);
+  const [bottomSheetItems, setBottomSheetItems] = useState<BucketItem[]>([]);
+
   // Mock data for buckets
-  const bucketsData: any[] = [
+  const bucketsData: LocalBucketItem[] = [
     {
       id: "1",
-      title: "Douro Valley with fa...",
+      title: "Douro Valley with family",
       safeImages: [
         "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
         "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
@@ -55,11 +63,20 @@ const ProfileListsScreen = () => {
     },
     {
       id: "2",
-      title: "Douro Valley with fa...",
+      title: "Summer in Lagos",
       safeImages: [
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
+        "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=300",
+        "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=300",
+        "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=300",
+      ],
+    },
+    {
+      id: "3",
+      title: "Hiking trip in the Azores",
+      safeImages: [
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
       ],
     },
   ];
@@ -148,6 +165,46 @@ const ProfileListsScreen = () => {
     },
   ];
 
+  // Transform bucketsData to match BucketItem interface for bottom sheet
+  const transformBucketsForBottomSheet = (): BucketItem[] => {
+    return bucketsData.map((bucket, index) => ({
+      id: bucket.id,
+      title: bucket.title,
+      date:
+        index === 0
+          ? "22-27 June"
+          : index === 1
+          ? "27 June - 27 July"
+          : "4-6 July",
+      image: bucket.safeImages[0],
+    }));
+  };
+
+  // Bottom sheet handlers
+  const handleShowBottomSheet = () => {
+    console.log("🚀 Opening bottom sheet");
+    const items = transformBucketsForBottomSheet();
+    setBottomSheetItems(items);
+    setIsBottomSheetVisible(true);
+  };
+
+  const handleCloseBottomSheet = () => {
+    console.log("🔒 Closing bottom sheet");
+    setIsBottomSheetVisible(false);
+  };
+
+  const handleItemSelect = (item: BucketItem) => {
+    console.log("✅ Selected bucket:", item.title);
+    // Handle bucket selection logic here
+    setIsBottomSheetVisible(false);
+  };
+
+  const handleCreateNew = () => {
+    console.log("🆕 Create new bucket");
+    // Handle create new bucket logic here
+    setIsBottomSheetVisible(false);
+  };
+
   const filteredData = (
     activeTab === "buckets" ? bucketsData : likesData
   ).filter((item) =>
@@ -164,6 +221,7 @@ const ProfileListsScreen = () => {
         {columnData.map((item) => (
           <CustomView key={item.id} style={{ marginBottom: 0 }}>
             <LikeCard
+              onBucketPress={handleShowBottomSheet}
               item={item}
               onPress={() => console.log("Like card pressed:", item.id)}
             />
@@ -192,8 +250,9 @@ const ProfileListsScreen = () => {
       </ScrollView>
     );
   };
+
   // Render buckets item
-  const renderBucketItem = ({ item }: { item: BucketItem }) => (
+  const renderBucketItem = ({ item }: { item: LocalBucketItem }) => (
     <BucketCard
       item={item}
       onPress={() => console.log("Bucket card pressed:", item.id)}
@@ -285,6 +344,15 @@ const ProfileListsScreen = () => {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Bottom Sheet */}
+      <BucketBottomSheet
+        isVisible={isBottomSheetVisible}
+        bucketItems={bottomSheetItems}
+        onClose={handleCloseBottomSheet}
+        onItemSelect={handleItemSelect}
+        onCreateNew={handleCreateNew}
+      />
     </SafeAreaView>
   );
 };

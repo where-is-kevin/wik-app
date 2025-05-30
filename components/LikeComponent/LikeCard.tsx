@@ -26,10 +26,16 @@ interface ExperienceCard {
 interface LikeCardProps {
   item: ExperienceCard;
   onPress?: () => void;
+  onBucketPress: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
-const LikeCard: React.FC<LikeCardProps> = ({ item, onPress, style }) => {
+const LikeCard: React.FC<LikeCardProps> = ({
+  item,
+  onPress,
+  onBucketPress,
+  style,
+}) => {
   const { colors } = useTheme();
   const cardHeight =
     item.height === "tall" ? verticalScale(217) : verticalScale(117);
@@ -72,12 +78,13 @@ const LikeCard: React.FC<LikeCardProps> = ({ item, onPress, style }) => {
 
           {/* Bucket SVG icon in bottom right */}
           {item.hasIcon && (
-            <CustomView
+            <CustomTouchable
               bgColor={colors.overlay}
+              onPress={onBucketPress}
               style={styles.bucketIconContainer}
             >
               <BucketSvg />
-            </CustomView>
+            </CustomTouchable>
           )}
         </CustomTouchable>
 
