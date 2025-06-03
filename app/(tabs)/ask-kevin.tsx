@@ -1,182 +1,151 @@
+import CustomView from "@/components/CustomView";
+import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import AskKevinSection from "@/components/Section/AskKevinSection";
+import { useTheme } from "@/contexts/ThemeContext";
 import { useContentWithParams } from "@/hooks/useContent";
-import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
-import {
-  ActivityIndicator,
-  Dimensions,
-  FlatList,
-  Image,
-  Linking,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+import React, { useState, useEffect, useRef } from "react";
+import { Dimensions, StyleSheet, Text, View } from "react-native";
+import MasonryGrid, { LikeItem } from "@/components/MansoryGrid";
+import { horizontalScale, verticalScale } from "@/utilities/scaling";
+import CustomText from "@/components/CustomText";
 
 const PaginatedContentList = () => {
   const { query } = useLocalSearchParams(); // Get the query parameter from the route
+  const { colors } = useTheme();
   const [params, setParams] = useState({
     query: query || "cake", // Use the query parameter or default to 'cake'
     limit: 10,
     offset: 0,
   });
-  const { data, isLoading, isFetching, refetch } = useContentWithParams(params);
+  const [refreshing, setRefreshing] = useState(false);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const loadMore = () => {
+  const { data, isLoading, isError, refetch } = useContentWithParams(params);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
     setParams((prevParams) => ({
       ...prevParams,
       offset: prevParams.offset + prevParams.limit,
     }));
-    refetch();
+    setRefreshing(false);
   };
 
-  const handleLike = (id: string) => {
-    console.log("Liked:", id);
-    refetch();
+  // Handle input changes with debouncing to avoid too many API calls
+  const handleInputChange = (text: string) => {
+    // Clear existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Set new timeout for debounced search
+    debounceTimeoutRef.current = setTimeout(() => {
+      if (text.trim() === "") {
+        // When input is cleared, either remove query param or use default
+        setParams({
+          limit: 10,
+          offset: 0,
+          query: "cake",
+        });
+      }
+    }, 500);
   };
 
-  const handleDislike = (id: string) => {
-    console.log("Disliked:", id);
-    refetch();
+  const handleSend = (message: string) => {
+    // Clear any pending debounced calls
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    setParams({
+      query: message,
+      limit: 10,
+      offset: 0,
+    });
   };
 
-  const renderItem = ({ item }: { item: typeof data[0] }) => (
-    <View style={styles.card}>
-      <Image source={{ uri: item.googlePlacesImageUrl }} style={styles.image} />
-      <View style={styles.textContainer}>
-        <View style={styles.iconLinkRow}>
-          <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.rating}>⭐ {item.rating}</Text>
-        </View>
-        <Text style={{ color: "#6C63FF", fontSize: 16, marginBottom: 4 }}>
-          {item.tags}
-        </Text>
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => handleDislike(item.id)}
-          >
-            <Ionicons name="thumbs-down" size={32} color="#ff5252" />
-          </TouchableOpacity>
-          {item.websiteUrl ? (
-            <TouchableOpacity
-              onPress={() => Linking.openURL(item.websiteUrl)}
-              style={styles.iconButton}
-            >
-              <Ionicons name="arrow-up" size={32} color="#4caf50" />
-            </TouchableOpacity>
-          ) : null}
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => handleLike(item.id)}
-          >
-            <Ionicons name="thumbs-up" size={32} color="#4caf50" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Transform data to match LikeItem interface
+  const transformedData: LikeItem[] = (data || []).map((item) => ({
+    id: item.id,
+    title: item.title,
+    foodImage: item.googlePlacesImageUrl || "",
+    landscapeImage: "",
+    isExperience: true,
+    hasIcon: true,
+    height: Math.random() > 0.5 ? "tall" : "short", // Random height for masonry effect
+  }));
+
+  const handleBucketPress = () => {
+    // Handle bucket press logic here
+    console.log("Bucket pressed");
+  };
+
+  const handleItemPress = (item: LikeItem) => {
+    // Handle item press logic here
+    console.log("Item pressed:", item.title);
+  };
 
   return (
-    <View style={{ flex: 1 }}>
-      <AskKevinSection
-        onSend={(message) => {
-          setParams({ ...params, query: message, offset: 0 });
-          refetch();
-        }}
-      />
-      {isLoading ? (
-        <View
-          style={[styles.card, { justifyContent: "center", alignItems: "center" }]}
-        >
-          <ActivityIndicator size="large" />
-        </View>
-      ) : (
-        <FlatList
-          data={data || []}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          ListFooterComponent={
-            <View style={{ padding: 16, alignItems: "center" }}>
-              {isFetching ? (
-                <ActivityIndicator size="small" />
-              ) : (
-                <TouchableOpacity onPress={loadMore} style={styles.loadMoreButton}>
-                  <Text style={styles.loadMoreText}>Load More</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          }
+    <CustomView bgColor={colors.background} style={{ flex: 1 }}>
+      <AskKevinSection onSend={handleSend} onInputChange={handleInputChange} />
+      {isLoading && !refreshing ? (
+        <AnimatedLoader />
+      ) : transformedData.length > 0 ? (
+        <MasonryGrid
+          data={transformedData}
+          onBucketPress={handleBucketPress}
+          onItemPress={handleItemPress}
+          showVerticalScrollIndicator={false}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          contentContainerStyle={{
+            paddingBottom: 20,
+            marginTop: verticalScale(12),
+            paddingHorizontal: horizontalScale(24),
+          }}
         />
+      ) : (
+        <CustomView style={styles.errorContainer}>
+          <CustomText style={styles.errorText}>
+            No results found for "{params.query}"
+          </CustomText>
+          <CustomText style={styles.errorSubtext}>
+            Try searching for something else
+          </CustomText>
+        </CustomView>
       )}
-    </View>
+    </CustomView>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    width: screenWidth * 0.9,
-    height: screenHeight * 0.7,
-    marginHorizontal: screenWidth * 0.05,
-    borderRadius: 15,
-    overflow: "hidden",
-    backgroundColor: "#fff",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    marginVertical: 10,
-  },
-  image: {
-    width: "100%",
-    height: "50%",
-    backgroundColor: "#eee",
-  },
-  textContainer: {
-    padding: 15,
+  errorContainer: {
     flex: 1,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  category: {
-    fontSize: 16,
-    color: "#6C63FF",
-    marginBottom: 4,
-  },
-  iconLinkRow: {
-    flexDirection: "row",
-    gap: 16,
-    marginBottom: 10,
-    alignItems: "center",
-  },
-  buttonRow: {
-    flexDirection: "row",
     justifyContent: "center",
-    marginTop: 16,
-    gap: 40,
+    alignItems: "center",
+    paddingHorizontal: 20,
   },
-  iconButton: {
-    padding: 12,
-    borderRadius: 50,
-    backgroundColor: "#f5f5f5",
-    marginHorizontal: 10,
+  errorText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 8,
   },
-  loadMoreButton: {
-    padding: 10,
-    backgroundColor: "#6C63FF",
-    borderRadius: 5,
-  },
-  loadMoreText: {
-    color: "#fff",
+  errorSubtext: {
     fontSize: 16,
+    color: "#999",
+    textAlign: "center",
   },
 });
 
