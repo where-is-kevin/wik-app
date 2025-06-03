@@ -16,6 +16,7 @@ import {
   BucketItem,
 } from "@/components/BottomSheet/BucketBottomSheet";
 import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
+import { useTheme } from "@/contexts/ThemeContext";
 
 // Define the interface that matches your SwipeCards component
 interface CardData {
@@ -33,6 +34,7 @@ interface LocalBucketItem {
 
 const SwipeableCards = () => {
   const { data: content, isLoading, error, refetch } = useContent();
+  const { colors } = useTheme();
   const [swipeKey, setSwipeKey] = useState(0);
   const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] =
     useState(false);
@@ -211,7 +213,11 @@ const SwipeableCards = () => {
   // };
 
   if (isLoading) {
-    return <AnimatedLoader />;
+    return (
+      <CustomView style={{ flex: 1 }}>
+        <AnimatedLoader />
+      </CustomView>
+    );
   }
 
   if (error) {

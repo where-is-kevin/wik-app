@@ -99,7 +99,9 @@ const PaginatedContentList = () => {
     <CustomView bgColor={colors.background} style={{ flex: 1 }}>
       <AskKevinSection onSend={handleSend} onInputChange={handleInputChange} />
       {isLoading && !refreshing ? (
-        <AnimatedLoader />
+        <CustomView style={{ flex: 1 }}>
+          <AnimatedLoader />
+        </CustomView>
       ) : transformedData.length > 0 ? (
         <MasonryGrid
           data={transformedData}
