@@ -38,6 +38,7 @@ const UpdateProfile = () => {
     location: "",
     home: "",
     profileImageUrl: "",
+    createdAt: new Date().toISOString(),
   });
 
   useEffect(() => {
@@ -50,6 +51,7 @@ const UpdateProfile = () => {
         location: user.location || "",
         home: user.home || "",
         profileImageUrl: user.profileImageUrl || "",
+        createdAt: user.createdAt || new Date().toISOString(),
       });
     }
   }, [user]);

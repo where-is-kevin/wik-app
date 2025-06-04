@@ -19,7 +19,6 @@ type ProfileSectionProps = {
     firstName: string;
     lastName: string;
     email: string;
-    // Add more fields as needed
     profileImageUrl?: string;
     description?: string;
     location?: string;
@@ -71,8 +70,7 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
       <CustomText
         style={[styles.profileBio, { color: colors.profile_name_black }]}
       >
-        {user?.description ||
-          "Placeholder description. This is a sample bio that can be replaced with actual user data."}
+        {user?.description || ""}
       </CustomText>
 
       {/* Location Tags */}
@@ -134,6 +132,7 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: scaleFontSize(22),
     marginRight: horizontalScale(10),
+    textTransform: "capitalize",
   },
   profileBio: {
     textAlign: "center",

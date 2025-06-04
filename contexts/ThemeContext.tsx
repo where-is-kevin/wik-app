@@ -39,6 +39,8 @@ type ThemeColors = {
   opacity_lime: string;
   indicator_gray: string;
   light_blue: string;
+  pink: string;
+  bordo: string;
 };
 
 // Define the themes
@@ -70,6 +72,8 @@ const themes = {
     tabIconSelected: tintColorLight,
     buttonText: "#fff",
     light_blue: "#3C62FA",
+    pink: "#FC6EFE",
+    bordo: "#6A0C31",
   },
   dark: {
     text: "#ECEDEE",
@@ -98,6 +102,8 @@ const themes = {
     tabIconSelected: tintColorDark,
     buttonText: "#151718",
     light_blue: "#3C62FA",
+    pink: "#FC6EFE",
+    bordo: "#6A0C31",
   },
 };
 

@@ -1,48 +1,132 @@
 import { useContent } from "@/hooks/useContent";
+import React, { useState } from "react";
 import { useAddLike } from "@/hooks/useLikes"; // Import the useAddLike hook
-import { Ionicons } from "@expo/vector-icons";
-import React from "react";
 import {
-  ActivityIndicator,
-  Dimensions,
-  FlatList,
-  Image,
-  Linking,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Linking,
 } from "react-native";
+import { SwipeCards } from "@/components/Onboarding/SwipeCards";
+import CustomView from "@/components/CustomView";
+import { horizontalScale, verticalScale } from "@/utilities/scaling";
+import AnimatedLoader from "@/components/Loader/AnimatedLoader";
+import {
+  BucketBottomSheet,
+  BucketItem,
+} from "@/components/BottomSheet/BucketBottomSheet";
+import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+// Define the interface that matches your SwipeCards component
+interface CardData {
+  id: string;
+  title: string;
+  imageUrl: string;
+  price?: string;
+  category?: string;
+}
+interface LocalBucketItem {
+  id: string;
+  title: string;
+  safeImages: string[];
+}
 
 const SwipeableCards = () => {
   const { data: content, isLoading, error, refetch } = useContent();
+  const [swipeKey, setSwipeKey] = useState(0);
+  const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] =
+    useState(false);
+  const [
+    isCreateBucketBottomSheetVisible,
+    setIsCreateBucketBottomSheetVisible,
+  ] = useState(false);
+  const [bottomSheetItems, setBottomSheetItems] = useState<BucketItem[]>([]);
+  const [bucketsData, setBucketsData] = useState<LocalBucketItem[]>([
+    {
+      id: "1",
+      title: "Douro Valley with family",
+      safeImages: [
+        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
+        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
+        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
+      ],
+    },
+    {
+      id: "2",
+      title: "Summer in Lagos",
+      safeImages: [
+        "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=300",
+        "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=300",
+        "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=300",
+      ],
+    },
+    {
+      id: "3",
+      title: "Hiking trip in the Azores",
+      safeImages: [
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+      ],
+    },
+    {
+      id: "4",
+      title: "Hiking trip in the Azores",
+      safeImages: [
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+      ],
+    },
+    {
+      id: "5",
+      title: "Hiking trip in the Azores",
+      safeImages: [
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+      ],
+    },
+    {
+      id: "6",
+      title: "Hiking trip in the Azores",
+      safeImages: [
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+      ],
+    },
+    {
+      id: "7",
+      title: "Hiking trip in the Azores",
+      safeImages: [
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
+      ],
+    },
+  ]);
+  // Transform your content data to match SwipeCards interface
+  const isBottomSheetOpen =
+    isBucketBottomSheetVisible || isCreateBucketBottomSheetVisible;
+  const transformedData: CardData[] = content;
   const addLikeMutation = useAddLike(); // Initialize the mutation hook
 
-  // Prepare data for FlatList
-  const data = content
-    ? [
-        {
-          id: content.id,
-          image: content.googlePlacesImageUrl,
-          title: content.title,
-          match: content.rating
-            ? `${Math.round(content.rating * 20)}% Match`
-            : "",
-          tags: content.tags || "",
-          category: content.category || "",
-          rating: content.rating ? content.rating.toFixed(1) : "",
-          description: content.description || "",
-          reviews: content.reviews || "",
-          websiteUrl: content.websiteUrl || content.bookingUrl,
-          googleMapsUrl: content.googleMapsUrl,
-          latitude: content.latitude, // Ensure latitude is available
-          longitude: content.longitude, // Ensure longitude is available
-        },
-      ]
-    : [];
-
+  // Transform bucketsData to match BucketItem interface for bottom sheet
+  const transformBucketsForBottomSheet = (): BucketItem[] => {
+    return bucketsData.map((bucket, index) => ({
+      id: bucket.id,
+      title: bucket.title,
+      date:
+        index === 0
+          ? "22-27 June"
+          : index === 1
+          ? "27 June - 27 July"
+          : "4-6 July",
+      image: bucket.safeImages[0],
+    }));
+  };
   const handleLike = () => {
     if (!content) return;
 
@@ -61,165 +145,217 @@ const SwipeableCards = () => {
     });
   };
 
-  const handleDislike = () => {
-    console.log("Disliked:", content?.id);
-    refetch();
+  const handleSwipeLeft = (item: CardData) => {
+    console.log("Disliked:", item.id);
+    // Don't call refetch here - let onComplete handle it
   };
 
-  const handleLocationPress = (latitude: number, longitude: number) => {
-    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-    console.log("Opening Google Maps with URL:", googleMapsUrl);
-    Linking.openURL(googleMapsUrl).catch((err) =>
-      console.error("Failed to open Google Maps:", err)
-    );
+  const handleSwipeRight = (item: CardData) => {
+    console.log("Liked:", item.id);
+    // Don't call refetch here - let onComplete handle it
   };
 
-  const renderItem = ({ item }: { item: (typeof data)[0] }) => (
-    <View style={styles.card}>
-      <Image source={{ uri: item.image }} style={styles.image} />
-      <View style={styles.textContainer}>
-        <View style={styles.iconLinkRow}>
-          <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.rating}>⭐ {item.rating}</Text>
-        </View>
-        <View style={styles.iconLinkRow}>
-          <Text style={styles.category}>{item.category}</Text>
-          {item.latitude && item.longitude ? (
-            <TouchableOpacity
-              onPress={() => handleLocationPress(item.latitude, item.longitude)}
-              style={styles.iconLink}
-            >
-              <Ionicons name="location" size={28} color="#34a853" />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-        <Text style={{ color: "#6C63FF", fontSize: 16, marginBottom: 4 }}>
-          {item.tags}
-        </Text>
-        <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.iconButton} onPress={handleDislike}>
-            <Ionicons name="thumbs-down" size={32} color="#ff5252" />
-          </TouchableOpacity>
-          {item.websiteUrl ? (
-            <TouchableOpacity
-              onPress={() => Linking.openURL(item.websiteUrl)}
-              style={styles.iconButton}
-            >
-              <Ionicons name="arrow-up" size={32} color="#4caf50" />
-            </TouchableOpacity>
-          ) : null}
-          <TouchableOpacity style={styles.iconButton} onPress={handleLike}>
-            <Ionicons name="thumbs-up" size={32} color="#4caf50" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
+  const handleSwipeUp = (item: CardData) => {
+    console.log("Saved:", item.id);
+    // Don't call refetch here - let onComplete handle it
+  };
+
+  const handleComplete = () => {
+    console.log("Card completed, fetching new content...");
+    // Only call refetch once here
+    refetch().then(() => {
+      setSwipeKey((prev) => prev + 1);
+    });
+  };
+  const handleShowBucketBottomSheet = () => {
+    const items = transformBucketsForBottomSheet();
+    setBottomSheetItems(items);
+    setIsBucketBottomSheetVisible(true);
+  };
+
+  const handleCloseBucketBottomSheet = () => {
+    setIsBucketBottomSheetVisible(false);
+  };
+
+  const handleItemSelect = (item: BucketItem) => {
+    // Handle bucket selection logic here
+    setIsBucketBottomSheetVisible(false);
+  };
+
+  // Create bucket bottom sheet handlers
+  const handleShowCreateBucketBottomSheet = () => {
+    setIsBucketBottomSheetVisible(false); // Close bucket selection sheet
+    setIsCreateBucketBottomSheetVisible(true); // Open create bucket sheet
+  };
+
+  const handleCloseCreateBucketBottomSheet = () => {
+    setIsCreateBucketBottomSheetVisible(false);
+  };
+
+  const handleCreateBucket = (bucketName: string) => {
+    // Create new bucket and add to the list
+    const newBucket: LocalBucketItem = {
+      id: Date.now().toString(),
+      title: bucketName,
+      safeImages: [
+        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
+        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
+        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
+      ],
+    };
+
+    setBucketsData((prevBuckets) => [newBucket, ...prevBuckets]);
+    setIsCreateBucketBottomSheetVisible(false);
+  };
+
+  // const handleCardTap = (item: CardData) => {
+  //   console.log("Card tapped:", item.id);
+  //   // Navigate to details or show more info
+  //   if (content?.websiteUrl) {
+  //     Linking.openURL(content.websiteUrl);
+  //   } else if (content?.latitude && content?.longitude) {
+  //     const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${content.latitude},${content.longitude}`;
+  //     Linking.openURL(googleMapsUrl);
+  //   }
+  // };
 
   if (isLoading) {
     return (
-      <View
-        style={[
-          styles.card,
-          { justifyContent: "center", alignItems: "center" },
-        ]}
-      >
-        <ActivityIndicator size="large" />
-      </View>
+      <CustomView style={{ flex: 1 }}>
+        <AnimatedLoader />
+      </CustomView>
     );
   }
 
   if (error) {
     return (
-      <View
-        style={[
-          styles.card,
-          { justifyContent: "center", alignItems: "center" },
-        ]}
-      >
-        <Text style={{ color: "red" }}>Failed to load content.</Text>
-        <TouchableOpacity style={styles.button} onPress={refetch}>
-          <Text style={styles.buttonText}>Try Again</Text>
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Failed to load content.</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+          <Text style={styles.retryButtonText}>Try Again</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!transformedData.length) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>No content available</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+          <Text style={styles.retryButtonText}>Refresh</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1 }}>
-      <FlatList
-        data={data}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.listContainer}
+    <>
+      <CustomView style={styles.content}>
+        <CustomView
+          style={[
+            styles.swipeContainer,
+            isBottomSheetOpen && { display: "none" },
+          ]}
+        >
+          <SwipeCards
+            key={swipeKey}
+            data={transformedData}
+            onSwipeLeft={handleSwipeLeft}
+            onSwipeRight={handleSwipeRight}
+            onSwipeUp={handleSwipeUp}
+            onComplete={handleComplete}
+            onBucketPress={handleShowBucketBottomSheet}
+            // onCardTap={handleCardTap}
+          />
+        </CustomView>
+      </CustomView>
+      <BucketBottomSheet
+        isVisible={isBucketBottomSheetVisible}
+        bucketItems={bottomSheetItems}
+        onClose={handleCloseBucketBottomSheet}
+        onItemSelect={handleItemSelect}
+        onCreateNew={handleShowCreateBucketBottomSheet}
       />
-    </View>
+
+      {/* Create Bucket Bottom Sheet */}
+      <CreateBucketBottomSheet
+        isVisible={isCreateBucketBottomSheetVisible}
+        onClose={handleCloseCreateBucketBottomSheet}
+        onCreateBucket={handleCreateBucket}
+      />
+    </>
   );
 };
 
 const styles = StyleSheet.create({
-  listContainer: {
-    paddingHorizontal: 10,
+  container: {
+    flex: 1,
   },
-  card: {
-    width: screenWidth * 0.9,
-    height: screenHeight * 0.8,
-    marginHorizontal: screenWidth * 0.05,
-    borderRadius: 15,
-    overflow: "hidden",
-    backgroundColor: "#fff",
-    elevation: 5,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#666",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "#f5f5f5",
+  },
+  errorText: {
+    color: "#ff5252",
+    fontSize: 18,
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+  },
+  emptyText: {
+    fontSize: 18,
+    color: "#666",
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: "#6C63FF",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
-    shadowRadius: 5,
-    marginVertical: 10,
+    shadowRadius: 2,
   },
-  image: {
-    width: "100%",
-    height: "50%",
-    backgroundColor: "#eee",
-  },
-  textContainer: {
-    padding: 15,
-    flex: 1,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  category: {
+  retryButtonText: {
+    color: "white",
     fontSize: 16,
-    color: "#6C63FF",
-    marginBottom: 4,
+    fontWeight: "600",
   },
-  iconLinkRow: {
-    flexDirection: "row",
-    gap: 16,
-    marginBottom: 10,
+  content: {
+    flex: 1,
+    paddingHorizontal: horizontalScale(24),
     alignItems: "center",
-  },
-  iconLink: {
-    padding: 2,
-    borderRadius: 10,
-    backgroundColor: "#f5f5f5",
-    marginHorizontal: 10,
-  },
-  buttonRow: {
-    flexDirection: "row",
     justifyContent: "center",
-    marginTop: 16,
-    gap: 40,
+    paddingTop: verticalScale(45),
   },
-  iconButton: {
-    padding: 12,
-    borderRadius: 50,
-    backgroundColor: "#f5f5f5",
-    marginHorizontal: 10,
+  swipeContainer: {
+    flex: 1,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: verticalScale(30),
   },
 });
 

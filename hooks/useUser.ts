@@ -5,7 +5,8 @@ import { ajax } from 'rxjs/ajax';
 
 type User = {
   id: string;
-  username: string;
+  firstName: string;
+  lastName: string;
   email: string;
   description: string;
   location: string;

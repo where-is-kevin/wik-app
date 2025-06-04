@@ -23,6 +23,7 @@ interface CustomTextInputProps {
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
   keyboardType?: KeyboardTypeOptions;
   placeholder?: string;
+  autoCorrect?: boolean;
 }
 
 const CustomTextInput: React.FC<CustomTextInputProps> = ({
@@ -33,6 +34,7 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
   autoCapitalize = "none",
   keyboardType = "default",
   placeholder = "",
+  autoCorrect = false,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
@@ -58,6 +60,7 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
           onChangeText={onChangeText}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           autoCapitalize={autoCapitalize}
+          autoCorrect={autoCorrect}
           keyboardType={keyboardType}
           placeholder={placeholder}
           placeholderTextColor={colors.gray_regular}

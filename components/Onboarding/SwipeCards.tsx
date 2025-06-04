@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -7,7 +7,6 @@ import {
   PanResponder,
   Dimensions,
   ImageBackground,
-  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import CustomText from "@/components/CustomText";
@@ -19,6 +18,10 @@ import {
 } from "@/utilities/scaling";
 import SendSvg from "../SvgComponents/SengSvg";
 import CustomTouchable from "../CustomTouchableOpacity";
+import AnimatedLoader from "../Loader/AnimatedLoader";
+import CustomView from "../CustomView";
+import BucketSvg from "../SvgComponents/BucketSvg";
+import ShareButton from "../Button/ShareButton";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
@@ -30,9 +33,9 @@ const TAP_DURATION_THRESHOLD = 200;
 interface CardData {
   id: string;
   title: string;
-  description: string;
   imageUrl: string;
   price?: string;
+  category?: string;
 }
 
 interface SwipeCardsProps {
@@ -42,6 +45,7 @@ interface SwipeCardsProps {
   onSwipeUp: (item: CardData) => void;
   onComplete: () => void;
   onCardTap?: (item: CardData) => void;
+  onBucketPress?: () => void;
 }
 
 export const SwipeCards: React.FC<SwipeCardsProps> = ({
@@ -51,11 +55,16 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   onSwipeUp,
   onComplete,
   onCardTap,
+  onBucketPress,
 }) => {
   const { colors } = useTheme();
   const router = useRouter();
   const [cardIndex, setCardIndex] = React.useState(0);
+  const [imageLoaded, setImageLoaded] = useState<{ [key: string]: boolean }>(
+    {}
+  );
   const position = useRef(new Animated.ValueXY()).current;
+
   // Track touch start time and position to distinguish between tap and swipe
   const touchStartTime = useRef<number>(0);
   const touchStartPosition = useRef({ x: 0, y: 0 });
@@ -90,6 +99,14 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     } else {
       router.push(`/event-details/${item.id}`);
     }
+  };
+
+  const handleImageLoadStart = (itemId: string) => {
+    setImageLoaded((prev) => ({ ...prev, [itemId]: false }));
+  };
+
+  const handleImageLoad = (itemId: string) => {
+    setImageLoaded((prev) => ({ ...prev, [itemId]: true }));
   };
 
   const panResponder = useRef(
@@ -197,7 +214,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
         <Animated.View
           style={[styles.emptyCardsContainer, styles.transitionContainer]}
         >
-          <ActivityIndicator color={colors.link_blue} size={"large"} />
+          <AnimatedLoader />
         </Animated.View>
       );
     }
@@ -209,6 +226,26 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
         }
 
         if (i === cardIndex) {
+          const isCurrentImageLoaded = imageLoaded[item.id];
+
+          // Show AnimatedLoader until image is loaded
+          if (!isCurrentImageLoaded) {
+            return (
+              <View key={item.id} style={styles.loaderContainer}>
+                <AnimatedLoader />
+                {/* Preload image in background */}
+                <ImageBackground
+                  source={{ uri: item.imageUrl }}
+                  style={{ width: 0, height: 0 }}
+                  onLoad={() => handleImageLoad(item.id)}
+                  onError={() => handleImageLoad(item.id)}
+                  onLoadStart={() => handleImageLoadStart(item.id)}
+                />
+              </View>
+            );
+          }
+
+          // Show actual card when image is loaded
           return (
             <Animated.View
               key={item.id}
@@ -232,36 +269,59 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                 imageStyle={styles.imageBackground}
               >
                 {/* VENUE badge */}
-                <View style={styles.venueBadge}>
-                  <CustomText
-                    fontFamily="Inter-SemiBold"
-                    style={[styles.venueText, { color: colors.card_purple }]}
-                  >
-                    VENUE
-                  </CustomText>
-                </View>
+                <CustomView
+                  bgColor={colors.overlay}
+                  style={styles.shareContainer}
+                >
+                  <CustomView bgColor={colors.overlay} style={styles.row}>
+                    <CustomTouchable
+                      style={styles.bucketContainer}
+                      bgColor={colors.label_dark}
+                      onPress={() => onBucketPress?.()}
+                    >
+                      <BucketSvg />
+                    </CustomTouchable>
+                    <CustomTouchable
+                      bgColor={colors.onboarding_gray}
+                      style={styles.shareButton}
+                    >
+                      <ShareButton
+                        width={14}
+                        height={14}
+                        title={""}
+                        message={`Check out this bucket: `}
+                        url={"www.google.com"}
+                      />
+                    </CustomTouchable>
+                  </CustomView>
+                </CustomView>
 
                 {/* Content overlay on the image */}
                 <View style={styles.cardContent}>
+                  {item.category && (
+                    <CustomView
+                      bgColor={colors.bordo}
+                      style={styles.tagContainer}
+                    >
+                      <CustomText
+                        fontFamily="Inter-SemiBold"
+                        style={[styles.venueText, { color: colors.pink }]}
+                      >
+                        {item.category}
+                      </CustomText>
+                    </CustomView>
+                  )}
                   <CustomText
                     fontFamily="Inter-SemiBold"
                     style={[styles.cardTitle, { color: colors.background }]}
                   >
                     {item.title}
                   </CustomText>
-
-                  <CustomText
-                    fontFamily="Inter-SemiBold"
-                    style={[styles.cardTitle, { color: colors.background }]}
-                  >
-                    {item.description || item.title}
-                  </CustomText>
-
                   <CustomText
                     fontFamily="Inter-SemiBold"
                     style={[styles.priceText, { color: colors.lime }]}
                   >
-                    {item.price || "£45"}{" "}
+                    {item.price || ""}{" "}
                     <CustomText
                       fontFamily="Inter-SemiBold"
                       style={[styles.perPersonText, { color: colors.lime }]}
@@ -276,22 +336,13 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                   >
                     Address
                   </CustomText>
-
-                  {/* Send icon */}
-                  <CustomTouchable
-                    bgColor={colors.overlay}
-                    style={styles.sendIconContainer}
-                    onPress={() => console.log("share")}
-                  >
-                    <SendSvg />
-                  </CustomTouchable>
                 </View>
               </ImageBackground>
             </Animated.View>
           );
         }
 
-        // Show next card
+        // Show next card (also preload its image)
         if (i === cardIndex + 1) {
           return (
             <Animated.View
@@ -306,11 +357,13 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                 },
               ]}
             >
-              {/* Using ImageBackground for the next card too */}
               <ImageBackground
                 source={{ uri: item.imageUrl }}
                 style={styles.cardImage}
                 imageStyle={styles.imageBackground}
+                onLoad={() => handleImageLoad(item.id)}
+                onError={() => handleImageLoad(item.id)}
+                onLoadStart={() => handleImageLoadStart(item.id)}
               >
                 <View style={styles.cardContent}>
                   <CustomText
@@ -318,9 +371,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                     style={styles.cardTitle}
                   >
                     {item.title}
-                  </CustomText>
-                  <CustomText style={styles.cardDescription}>
-                    {item.description}
                   </CustomText>
                 </View>
               </ImageBackground>
@@ -347,6 +397,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  loaderContainer: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 999,
+  },
   cardStyle: {
     position: "absolute",
     width: "100%",
@@ -367,17 +425,23 @@ const styles = StyleSheet.create({
   imageBackground: {
     resizeMode: "cover",
   },
-  venueBadge: {
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: horizontalScale(8),
-    paddingVertical: verticalScale(6),
-    borderRadius: 12,
-    alignSelf: "flex-start",
-    marginLeft: horizontalScale(12),
+  shareContainer: {
+    alignSelf: "flex-end",
+    marginRight: horizontalScale(12),
     marginTop: verticalScale(16),
   },
   venueText: {
     fontSize: scaleFontSize(10),
+    textTransform: "uppercase",
+  },
+  tagContainer: {
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginBottom: verticalScale(9),
+    justifyContent: "center",
+    alignItems: "center",
+    alignSelf: "flex-start",
   },
   cardContent: {
     padding: horizontalScale(12),
@@ -415,6 +479,26 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: "100%",
     height: "100%",
-    opacity: 0.5,
+    opacity: 1,
+    backgroundColor: "",
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  bucketContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  shareButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

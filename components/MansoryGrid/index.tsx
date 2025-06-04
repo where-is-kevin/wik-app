@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView } from "react-native";
+import { ScrollView, RefreshControl } from "react-native";
 import CustomView from "@/components/CustomView";
 import LikeCard from "@/components/LikeComponent/LikeCard";
 import { horizontalScale } from "@/utilities/scaling";
@@ -21,6 +21,8 @@ interface MasonryGridProps {
   onItemPress?: (item: LikeItem) => void;
   showVerticalScrollIndicator?: boolean;
   contentContainerStyle?: object;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }
 
 const MasonryGrid: React.FC<MasonryGridProps> = ({
@@ -29,6 +31,8 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
   onItemPress = (item) => console.log("Like card pressed:", item.id),
   showVerticalScrollIndicator = false,
   contentContainerStyle,
+  refreshing = false,
+  onRefresh,
 }) => {
   // Split data into two columns for masonry effect
   const leftColumn = data.filter((_, index) => index % 2 === 0);
@@ -57,6 +61,16 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
         },
         contentContainerStyle,
       ]}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#666" // Color of the refresh indicator (iOS)
+            colors={["#666"]} // Colors of the refresh indicator (Android)
+          />
+        ) : undefined
+      }
     >
       <CustomView
         style={{
