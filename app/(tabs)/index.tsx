@@ -1,9 +1,7 @@
 import { useContent } from "@/hooks/useContent";
+import { useAddLike } from "@/hooks/useLikes"; // Import the useAddLike hook
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "@/constants/types.ts";
-import React, { useState } from "react";
+import React from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -20,9 +18,7 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 const SwipeableCards = () => {
   const { data: content, isLoading, error, refetch } = useContent();
-  const [isListening, setIsListening] = useState(false);
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const addLikeMutation = useAddLike(); // Initialize the mutation hook
 
   // Prepare data for FlatList
   const data = content
@@ -48,8 +44,21 @@ const SwipeableCards = () => {
     : [];
 
   const handleLike = () => {
-    console.log("Liked:", content?.id);
-    refetch();
+    if (!content) return;
+
+    const likeData = {
+      content_ids: [content.id], // Use the content ID for the like
+    };
+
+    addLikeMutation.mutate(likeData, {
+      onSuccess: () => {
+        console.log("Liked:", content.id);
+        refetch(); // Refetch content after successfully adding a like
+      },
+      onError: (error) => {
+        console.error("Failed to add like:", error);
+      },
+    });
   };
 
   const handleDislike = () => {
@@ -57,19 +66,13 @@ const SwipeableCards = () => {
     refetch();
   };
 
-  const handleAskKevinSend = (text: string) => {
-    console.log("AskKevin send:", text);
-    // Add your logic here
+  const handleLocationPress = (latitude: number, longitude: number) => {
+    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+    console.log("Opening Google Maps with URL:", googleMapsUrl);
+    Linking.openURL(googleMapsUrl).catch((err) =>
+      console.error("Failed to open Google Maps:", err)
+    );
   };
-
-const handleLocationPress = (latitude: number, longitude: number) => {
-  // const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
-  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-  console.log("Opening Google Maps with URL:", googleMapsUrl);
-  Linking.openURL(googleMapsUrl).catch((err) =>
-    console.error("Failed to open Google Maps:", err)
-  );
-};
 
   const renderItem = ({ item }: { item: (typeof data)[0] }) => (
     <View style={styles.card}>
@@ -83,14 +86,13 @@ const handleLocationPress = (latitude: number, longitude: number) => {
           <Text style={styles.category}>{item.category}</Text>
           {item.latitude && item.longitude ? (
             <TouchableOpacity
-              onPress={() => handleLocationPress(item.latitude, item.longitude)} // Use handleLocationPress
+              onPress={() => handleLocationPress(item.latitude, item.longitude)}
               style={styles.iconLink}
             >
               <Ionicons name="location" size={28} color="#34a853" />
             </TouchableOpacity>
           ) : null}
         </View>
-        {/* tags */}
         <Text style={{ color: "#6C63FF", fontSize: 16, marginBottom: 4 }}>
           {item.tags}
         </Text>

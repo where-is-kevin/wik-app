@@ -1,22 +1,23 @@
-import { Image, StyleSheet } from "react-native";
-import CustomView from "../CustomView";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "@/contexts/ThemeContext";
 import {
   horizontalScale,
   scaleFontSize,
   verticalScale,
 } from "@/utilities/scaling";
-import { useTheme } from "@/contexts/ThemeContext";
-import CustomText from "../CustomText";
-import EditSvg from "../SvgComponents/EditSvg";
-import CustomTouchable from "../CustomTouchableOpacity";
-import LocationSvg from "../SvgComponents/LocationSvg";
-import HomeSvg from "../SvgComponents/HomeSvg";
 import { useRouter } from "expo-router";
+import { Image, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import CustomText from "../CustomText";
+import CustomTouchable from "../CustomTouchableOpacity";
+import CustomView from "../CustomView";
+import EditSvg from "../SvgComponents/EditSvg";
+import HomeSvg from "../SvgComponents/HomeSvg";
+import LocationSvg from "../SvgComponents/LocationSvg";
 
 type ProfileSectionProps = {
   user?: {
-    username: string;
+    firstName: string;
+    lastName: string;
     email: string;
     // Add more fields as needed
     profileImageUrl?: string;
@@ -59,7 +60,7 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
           fontFamily="Inter-Bold"
           style={[styles.profileName, { color: colors.profile_name_black }]}
         >
-          {user?.username || "Placeholder Name"}
+          {user?.firstName || "Placeholder Name"}
         </CustomText>
         <CustomTouchable onPress={onEditPress} bgColor={colors.onboarding_gray}>
           <EditSvg />
