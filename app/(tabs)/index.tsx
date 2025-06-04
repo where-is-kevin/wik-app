@@ -1,5 +1,6 @@
 import { useContent } from "@/hooks/useContent";
 import React, { useState } from "react";
+import { useAddLike } from "@/hooks/useLikes"; // Import the useAddLike hook
 import {
   StyleSheet,
   Text,
@@ -16,7 +17,6 @@ import {
   BucketItem,
 } from "@/components/BottomSheet/BucketBottomSheet";
 import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
-import { useTheme } from "@/contexts/ThemeContext";
 
 // Define the interface that matches your SwipeCards component
 interface CardData {
@@ -34,7 +34,6 @@ interface LocalBucketItem {
 
 const SwipeableCards = () => {
   const { data: content, isLoading, error, refetch } = useContent();
-  const { colors } = useTheme();
   const [swipeKey, setSwipeKey] = useState(0);
   const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] =
     useState(false);
@@ -111,17 +110,8 @@ const SwipeableCards = () => {
   // Transform your content data to match SwipeCards interface
   const isBottomSheetOpen =
     isBucketBottomSheetVisible || isCreateBucketBottomSheetVisible;
-  const transformedData: CardData[] = content
-    ? [
-        {
-          id: content.id,
-          title: content.title,
-          imageUrl: content.googlePlacesImageUrl,
-          price: `£${content.price || 50}`,
-          category: content.category,
-        },
-      ]
-    : [];
+  const transformedData: CardData[] = content;
+  const addLikeMutation = useAddLike(); // Initialize the mutation hook
 
   // Transform bucketsData to match BucketItem interface for bottom sheet
   const transformBucketsForBottomSheet = (): BucketItem[] => {
@@ -136,6 +126,23 @@ const SwipeableCards = () => {
           : "4-6 July",
       image: bucket.safeImages[0],
     }));
+  };
+  const handleLike = () => {
+    if (!content) return;
+
+    const likeData = {
+      content_ids: [content.id], // Use the content ID for the like
+    };
+
+    addLikeMutation.mutate(likeData, {
+      onSuccess: () => {
+        console.log("Liked:", content.id);
+        refetch(); // Refetch content after successfully adding a like
+      },
+      onError: (error) => {
+        console.error("Failed to add like:", error);
+      },
+    });
   };
 
   const handleSwipeLeft = (item: CardData) => {

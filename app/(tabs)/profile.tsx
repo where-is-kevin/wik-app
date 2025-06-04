@@ -1,15 +1,16 @@
-import { StyleSheet, ScrollView, ActivityIndicator } from "react-native";
-import React from "react";
-import { StatusBar } from "expo-status-bar";
 import CustomView from "@/components/CustomView";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BucketsSection from "@/components/ImageBucket/ImageBucket";
+import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import LikesSection from "@/components/Section/LikesSection";
-import { useTheme } from "@/contexts/ThemeContext";
 import ProfileSection from "@/components/Section/ProfileSection";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useLikes } from "@/hooks/useLikes";
 import { useUser } from "@/hooks/useUser";
 import { useRouter } from "expo-router";
-import AnimatedLoader from "@/components/Loader/AnimatedLoader";
+import { StatusBar } from "expo-status-bar";
+import React from "react";
+import { ScrollView, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
@@ -17,7 +18,11 @@ const ProfileScreen = () => {
   const router = useRouter();
 
   const { data: user, isLoading, error } = useUser();
+  const { data: likes, isLoading: likesLoading } = useLikes();
+
   console.log("User data:", user);
+
+  console.log("Likes data:", likes);
 
   // Sample data for buckets - added id field
   const bucketsData = [

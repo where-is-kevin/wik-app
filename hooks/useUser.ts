@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Constants from 'expo-constants';
 import { firstValueFrom } from 'rxjs';
 import { ajax } from 'rxjs/ajax';
-import Constants from 'expo-constants';
 
 type User = {
   id: string;
@@ -34,7 +34,8 @@ const fetchUser = async (jwt: string): Promise<User> => {
 
 // Create user function
 type CreateUserInput = {
-  username: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
 };
