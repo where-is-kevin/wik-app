@@ -17,7 +17,7 @@ const cardWidth = (width - horizontalScale(60)) / 2;
 interface ExperienceCard {
   id: string;
   title: string;
-  safeImages: string[];
+  safeImages: (string | any)[];
   isExperience?: boolean;
   hasIcon?: boolean;
   height?: "short" | "tall";
@@ -31,6 +31,16 @@ interface BucketCardProps {
 const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
   const { colors } = useTheme();
 
+  // Local placeholder image
+  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+
+  // Ensuring we have at least 3 images, using local placeholder if needed
+  const safeImages = [
+    item.safeImages?.[0] || PLACEHOLDER_IMAGE,
+    item.safeImages?.[1] || PLACEHOLDER_IMAGE,
+    item.safeImages?.[2] || PLACEHOLDER_IMAGE,
+  ];
+
   return (
     <CustomView style={styles.container}>
       {/* Wrap the entire image container with a single TouchableOpacity */}
@@ -38,7 +48,11 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
         {/* Main large image (left side) */}
         <CustomView style={styles.mainImageContainer}>
           <Image
-            source={{ uri: item.safeImages[0] }}
+            source={
+              typeof safeImages[0] === "string"
+                ? { uri: safeImages[0] }
+                : safeImages[0]
+            }
             style={styles.mainImage}
           />
         </CustomView>
@@ -47,7 +61,11 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
         <CustomView style={styles.rightColumn}>
           <CustomView style={styles.smallImageContainer}>
             <Image
-              source={{ uri: item.safeImages[1] }}
+              source={
+                typeof safeImages[1] === "string"
+                  ? { uri: safeImages[1] }
+                  : safeImages[1]
+              }
               style={styles.smallImage}
             />
           </CustomView>
@@ -56,7 +74,11 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
             style={[styles.smallImageContainer, styles.bottomImageContainer]}
           >
             <Image
-              source={{ uri: item.safeImages[2] }}
+              source={
+                typeof safeImages[2] === "string"
+                  ? { uri: safeImages[2] }
+                  : safeImages[2]
+              }
               style={styles.smallImage}
             />
           </CustomView>
@@ -75,7 +97,7 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
         <ShareButton
           title={item.title}
           message={`Check out this bucket: ${item.title}`}
-          url={item.safeImages[0]} // Use the first image as the shared content
+          url={typeof safeImages[0] === "string" ? safeImages[0] : ""} // Use the first image as the shared content
         />
       </CustomView>
     </CustomView>

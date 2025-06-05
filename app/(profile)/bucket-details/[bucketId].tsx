@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BackHeader from "@/components/Header/BackHeader";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -11,12 +11,36 @@ import {
 } from "@/components/BottomSheet/BucketBottomSheet";
 import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
 import MasonryGrid, { LikeItem } from "@/components/MansoryGrid";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import {
+  useBucketById,
+  useBuckets,
+  useCreateBucket,
+  useAddBucket,
+} from "@/hooks/useBuckets";
+import CustomText from "@/components/CustomText";
+import CustomView from "@/components/CustomView";
+import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 
 const BucketDetailsScreen = () => {
   const { colors } = useTheme();
   const router = useRouter();
+  const { bucketId } = useLocalSearchParams<{ bucketId: string }>();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedLikeItemId, setSelectedLikeItemId] = useState<string | null>(
+    null
+  );
+
+  // API hooks
+  const {
+    data: bucket,
+    isLoading: isBucketLoading,
+    error: bucketError,
+    refetch: refetchBucket,
+  } = useBucketById(bucketId || "");
+  const { data: allBuckets, isLoading: isBucketsLoading } = useBuckets();
+  const createBucketMutation = useCreateBucket();
+  const addBucketMutation = useAddBucket();
 
   // Bottom sheet states
   const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] =
@@ -25,96 +49,44 @@ const BucketDetailsScreen = () => {
     isCreateBucketBottomSheetVisible,
     setIsCreateBucketBottomSheetVisible,
   ] = useState(false);
-  const [bottomSheetItems, setBottomSheetItems] = useState<BucketItem[]>([]);
 
-  // Mock data for bucket items - things saved in this specific bucket
-  const bucketItemsData: LikeItem[] = [
-    {
-      id: "1",
-      title: "Quinta do Crasto Winery",
-      foodImage:
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
+  // Transform Content to LikeItem format
+  const transformContentToLikeItem = (
+    content: any,
+    index: number
+  ): LikeItem => {
+    return {
+      id: content.id,
+      title: content.title,
+      foodImage: content.googlePlacesImageUrl || "",
       landscapeImage: "",
-      isExperience: true,
+      isExperience:
+        content.category === "experience" || content.category === "attraction",
       hasIcon: true,
-      height: "tall",
-    },
-    {
-      id: "2",
-      title: "Douro River Cruise",
-      foodImage:
-        "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=200",
-      landscapeImage: "",
-      isExperience: true,
-      hasIcon: true,
-      height: "short",
-    },
-    {
-      id: "3",
-      title: "Pinhão Train Station",
-      foodImage:
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=200",
-      landscapeImage: "",
-      isExperience: true,
-      hasIcon: true,
-      height: "short",
-    },
-    {
-      id: "4",
-      title: "Traditional Portuguese Restaurant",
-      foodImage:
-        "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=350",
-      landscapeImage: "",
-      isExperience: false,
-      hasIcon: true,
-      height: "short",
-    },
-    {
-      id: "5",
-      title: "Viewpoint Casal de Loivos",
-      foodImage:
-        "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=180",
-      landscapeImage: "",
-      isExperience: true,
-      hasIcon: false,
-      height: "tall",
-    },
-    {
-      id: "6",
-      title: "Port Wine Tasting",
-      foodImage:
-        "https://images.unsplash.com/photo-1547595628-c61a29f496f0?w=400&h=250",
-      landscapeImage: "",
-      isExperience: true,
-      hasIcon: true,
-      height: "tall",
-    },
-  ];
+      height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall",
+    };
+  };
 
-  // Mock data for other buckets (for bottom sheet)
-  const otherBucketsData: BucketItem[] = [
-    {
-      id: "1",
-      title: "Summer in Lagos",
-      date: "27 June - 27 July",
-      image:
-        "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=300",
-    },
-    {
-      id: "2",
-      title: "Hiking trip in the Azores",
-      date: "4-6 July",
-      image:
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-    },
-    {
-      id: "3",
-      title: "Winter in Madeira",
-      date: "15-20 December",
-      image:
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-    },
-  ];
+  // Transform bucket content to LikeItem array
+  const bucketItemsData: LikeItem[] = useMemo(() => {
+    if (!bucket?.content) return [];
+    return bucket.content.map((content, index) =>
+      transformContentToLikeItem(content, index)
+    );
+  }, [bucket?.content]);
+
+  // Transform all buckets to BucketItem format for bottom sheet
+  const otherBucketsData: BucketItem[] = useMemo(() => {
+    if (!allBuckets) return [];
+
+    return allBuckets.map((b) => ({
+      id: b.id,
+      title: b.bucketName,
+      date: "22-27 June", // You can format this better
+      image: b.content?.[0]?.googlePlacesImageUrl || "",
+      contentIds: b.contentIds,
+    }));
+  }, [allBuckets, bucketId]);
 
   // Filter bucket items based on search query
   const filteredBucketItems = bucketItemsData.filter((item) =>
@@ -122,51 +94,104 @@ const BucketDetailsScreen = () => {
   );
 
   // Bucket selection bottom sheet handlers
-  const handleShowBucketBottomSheet = () => {
-    setBottomSheetItems(otherBucketsData);
+  const handleShowBucketBottomSheet = (likeItemId: string) => {
+    setSelectedLikeItemId(likeItemId);
     setIsBucketBottomSheetVisible(true);
   };
 
   const handleCloseBucketBottomSheet = () => {
     setIsBucketBottomSheetVisible(false);
+    setSelectedLikeItemId(null);
   };
 
-  const handleItemSelect = (item: BucketItem) => {
-    // Handle moving item to another bucket
-    console.log("Moving item to bucket:", item.title);
-    setIsBucketBottomSheetVisible(false);
+  const handleItemSelect = async (item: BucketItem) => {
+    if (selectedLikeItemId) {
+      try {
+        await addBucketMutation.mutateAsync({
+          id: item?.id,
+          bucketName: item?.title,
+          contentIds: [selectedLikeItemId],
+        });
+
+        setIsBucketBottomSheetVisible(false);
+        setSelectedLikeItemId(null);
+
+        console.log(`Successfully added item to bucket "${item.title}"`);
+
+        // Optionally refetch current bucket data to see if item was removed
+        refetchBucket();
+      } catch (error) {
+        console.error("Failed to add item to bucket:", error);
+      }
+    }
   };
 
   // Create bucket bottom sheet handlers
   const handleShowCreateBucketBottomSheet = () => {
-    setIsBucketBottomSheetVisible(false); // Close bucket selection sheet
-    setIsCreateBucketBottomSheetVisible(true); // Open create bucket sheet
+    setIsBucketBottomSheetVisible(false);
+    setIsCreateBucketBottomSheetVisible(true);
   };
 
   const handleCloseCreateBucketBottomSheet = () => {
     setIsCreateBucketBottomSheetVisible(false);
   };
 
-  const handleCreateBucket = (bucketName: string) => {
-    // Handle creating new bucket and moving item there
-    console.log("Created new bucket:", bucketName);
-    setIsCreateBucketBottomSheetVisible(false);
+  const handleCreateBucket = async (bucketName: string) => {
+    try {
+      await createBucketMutation.mutateAsync({
+        bucketName,
+        contentIds: selectedLikeItemId ? [selectedLikeItemId] : [],
+      });
+
+      setIsCreateBucketBottomSheetVisible(false);
+      setSelectedLikeItemId(null);
+
+      // Optionally refetch bucket data
+      refetchBucket();
+    } catch (error) {
+      console.error("Error creating bucket:", error);
+    }
   };
 
   // Handle item press in bucket details
   const handleBucketItemPress = (item: LikeItem) => {
     console.log("Bucket item pressed:", item.title);
     router.push(`/event-details/${item.id}`);
-    // Add navigation to item details or other logic here
   };
+
+  // Loading state
+  if (isBucketLoading) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
+        <AnimatedLoader />
+      </SafeAreaView>
+    );
+  }
+
+  // Error state
+  if (bucketError || !bucket) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
+        <CustomView style={styles.loadingContainer}>
+          <CustomText style={{ color: colors.label_dark }}>
+            {bucketError ? "Error loading bucket" : "Bucket not found"}
+          </CustomText>
+        </CustomView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <BackHeader
-        title="Douro Valley with Family"
-        date="22-27 June"
+        title={bucket.bucketName}
+        date={"22-27 June"} // Format as needed
         transparent={true}
       />
       <SearchBar
@@ -181,15 +206,18 @@ const BucketDetailsScreen = () => {
         data={filteredBucketItems}
         onBucketPress={handleShowBucketBottomSheet}
         onItemPress={handleBucketItemPress}
+        refreshing={isBucketLoading}
+        onRefresh={refetchBucket}
       />
 
       {/* Bucket Selection Bottom Sheet */}
       <BucketBottomSheet
         isVisible={isBucketBottomSheetVisible}
-        bucketItems={bottomSheetItems}
+        bucketItems={otherBucketsData}
         onClose={handleCloseBucketBottomSheet}
         onItemSelect={handleItemSelect}
         onCreateNew={handleShowCreateBucketBottomSheet}
+        selectedLikeItemId={selectedLikeItemId}
       />
 
       {/* Create Bucket Bottom Sheet */}
@@ -211,5 +239,10 @@ const styles = StyleSheet.create({
   searchBarContainer: {
     marginBottom: verticalScale(16),
     marginTop: verticalScale(12),
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

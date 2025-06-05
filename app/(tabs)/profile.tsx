@@ -10,7 +10,7 @@ import { useLikes } from "@/hooks/useLikes";
 import { useUser } from "@/hooks/useUser";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React from "react";
+import React, { useMemo } from "react";
 import { ScrollView, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -25,66 +25,57 @@ const ProfileScreen = () => {
   const { data: buckets, isLoading: bucketsLoading } = useBuckets();
 
   console.log("User data:", user);
-
   console.log("Likes data:", likes);
-
   console.log("Dislikes data:", dislikes);
-
   console.log("Buckets data:", buckets);
 
-  // Sample data for buckets - added id field
-  const bucketsData = [
-    {
-      id: "123", // Add unique ID for each bucket
-      title: "Douro Valley with family",
-      images: [
-        "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?q=80&w=300&auto=format",
-        "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=150&auto=format",
-        "https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=150&auto=format",
-      ],
-      onPress: () => {
-        router.push(`/bucket-details/123`);
-      },
-      onMorePress: () => console.log("More options pressed"),
-    },
-    {
-      id: "456", // Add unique ID for each bucket
-      title: "Adventure in the Alps",
-      images: [
-        "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?q=80&w=300&auto=format",
-        "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=150&auto=format",
-        "https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=150&auto=format",
-      ],
-      onPress: () => {
-        router.push(`/bucket-details/456`);
-      },
-      onMorePress: () => console.log("More options pressed"),
-    },
-  ];
+  // Placeholder image from assets
+  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
-  // Sample data for likes
-  const likesData = [
-    {
-      id: "123",
-      title: "Douro Valley with family",
-      image:
-        "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?q=80&w=300&auto=format",
+  // Transform real bucket data for the UI
+  const transformedBucketsData = useMemo(() => {
+    if (!buckets || buckets.length === 0) return [];
+
+    return buckets.map((bucket: any) => {
+      // Extract images from bucket content
+      const images =
+        bucket.content
+          ?.filter((item: any) => item.googlePlacesImageUrl) // Only items with images
+          .slice(0, 3) // Take first 3 for the UI
+          .map((item: any) => item.googlePlacesImageUrl) || [];
+
+      // Add placeholder images if we don't have enough
+      while (images.length < 3) {
+        images.push(PLACEHOLDER_IMAGE);
+      }
+
+      return {
+        id: bucket.id,
+        title: bucket.bucketName,
+        images: images,
+        onPress: () => {
+          router.push(`/bucket-details/${bucket.id}`);
+        },
+        onMorePress: () =>
+          console.log("More options pressed for bucket:", bucket.id),
+      };
+    });
+  }, [buckets, router]);
+
+  // Transform real likes data for the UI
+  const transformedLikesData = useMemo(() => {
+    if (!likes || likes.length === 0) return [];
+
+    return likes.slice(0, 10).map((like: any) => ({
+      id: like.id,
+      title: like.title || "Liked Item",
+      image: like.googlePlacesImageUrl || like.image || PLACEHOLDER_IMAGE,
       onPress: () => {
-        router.push(`/event-details/123`);
+        router.push(`/event-details/${like.id}`);
       },
-      onMorePress: () => console.log("Like more options pressed"),
-    },
-    {
-      id: "456",
-      title: "Douro Valley with family",
-      image:
-        "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?q=80&w=300&auto=format",
-      onPress: () => {
-        router.push(`/event-details/456`);
-      },
-      onMorePress: () => console.log("Like more options pressed"),
-    },
-  ];
+      onMorePress: () => console.log("Like more options pressed for:", like.id),
+    }));
+  }, [likes, router]);
 
   // Navigate to buckets list
   const navigateToBucketsList = () => {
@@ -102,7 +93,7 @@ const ProfileScreen = () => {
     });
   };
 
-  if (isLoading) {
+  if (isLoading || bucketsLoading || likesLoading) {
     return <AnimatedLoader />;
   }
 
@@ -119,11 +110,11 @@ const ProfileScreen = () => {
         <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
           <ProfileSection user={user} />
           <BucketsSection
-            buckets={bucketsData}
+            buckets={transformedBucketsData}
             onSeeMorePress={navigateToBucketsList}
           />
           <LikesSection
-            likes={likesData}
+            likes={transformedLikesData}
             onSeeMorePress={navigateToLikesList}
           />
         </ScrollView>

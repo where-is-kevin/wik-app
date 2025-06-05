@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { StyleSheet, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BackHeader from "@/components/Header/BackHeader";
@@ -20,6 +20,9 @@ import {
 } from "@/components/BottomSheet/BucketBottomSheet";
 import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
 import MasonryGrid, { LikeItem } from "@/components/MansoryGrid";
+import { useAddBucket, useBuckets, useCreateBucket } from "@/hooks/useBuckets";
+import { useLikes } from "@/hooks/useLikes";
+import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 
 interface LocalBucketItem {
   id: string;
@@ -37,6 +40,22 @@ const ProfileListsScreen = () => {
   );
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Real data hooks
+  const { data: buckets, isLoading: bucketsLoading } = useBuckets();
+  const { data: likes, isLoading: likesLoading } = useLikes();
+
+  // Mutation hooks
+  const addBucketMutation = useAddBucket();
+  const createBucketMutation = useCreateBucket();
+
+  // Placeholder image
+  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+
+  // State to track which item is being added to bucket
+  const [selectedLikeItemId, setSelectedLikeItemId] = useState<string | null>(
+    null
+  );
+
   // Bottom sheet states
   const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] =
     useState(false);
@@ -46,154 +65,68 @@ const ProfileListsScreen = () => {
   ] = useState(false);
   const [bottomSheetItems, setBottomSheetItems] = useState<BucketItem[]>([]);
 
-  // Mock data for buckets
-  const [bucketsData, setBucketsData] = useState<LocalBucketItem[]>([
-    {
-      id: "1",
-      title: "Douro Valley with family",
-      safeImages: [
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
-      ],
-    },
-    {
-      id: "2",
-      title: "Summer in Lagos",
-      safeImages: [
-        "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=300",
-        "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=300",
-        "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=300",
-      ],
-    },
-    {
-      id: "3",
-      title: "Hiking trip in the Azores",
-      safeImages: [
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-      ],
-    },
-    {
-      id: "4",
-      title: "Hiking trip in the Azores",
-      safeImages: [
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-      ],
-    },
-    {
-      id: "5",
-      title: "Hiking trip in the Azores",
-      safeImages: [
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-      ],
-    },
-    {
-      id: "6",
-      title: "Hiking trip in the Azores",
-      safeImages: [
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-      ],
-    },
-    {
-      id: "7",
-      title: "Hiking trip in the Azores",
-      safeImages: [
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-      ],
-    },
-  ]);
+  // Transform real buckets data
+  const transformedBucketsData = useMemo(() => {
+    if (!buckets || buckets.length === 0) return [];
 
-  // Mock data for likes with varying heights
-  const likesData: LikeItem[] = [
-    {
-      id: "1",
-      title: "Douro Valley with family in the alpes",
-      foodImage:
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
+    return buckets.map((bucket: any) => {
+      // Extract images from bucket content
+      const images =
+        bucket.content
+          ?.filter((item: any) => item.googlePlacesImageUrl) // Only items with images
+          .slice(0, 3) // Take first 3 for the UI
+          .map((item: any) => item.googlePlacesImageUrl) || [];
+
+      // Add placeholder images if we don't have enough
+      while (images.length < 3) {
+        images.push(PLACEHOLDER_IMAGE);
+      }
+
+      return {
+        id: bucket.id,
+        title: bucket.bucketName,
+        safeImages: images,
+      };
+    });
+  }, [buckets]);
+
+  // Transform real likes data
+  const transformedLikesData = useMemo(() => {
+    if (!likes || likes.length === 0) return [];
+
+    return likes.map((like: any, index: number) => ({
+      id: like.id,
+      title: like.title || "Liked Item",
+      foodImage: like.googlePlacesImageUrl || like.image || PLACEHOLDER_IMAGE,
       landscapeImage: "",
       isExperience: true,
       hasIcon: true,
-      height: "tall",
-    },
-    {
-      id: "2",
-      title: "Douro Valley with f...",
-      foodImage:
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=200",
-      landscapeImage: "",
-      isExperience: true,
-      hasIcon: true,
-      height: "short",
-    },
-    {
-      id: "3",
-      title: "Douro Valley with f...",
-      foodImage:
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=200",
-      landscapeImage: "",
-      isExperience: true,
-      hasIcon: true,
-      height: "short",
-    },
-    {
-      id: "4",
-      title: "Douro Valley with f...",
-      foodImage:
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=350",
-      landscapeImage: "",
-      isExperience: true,
-      hasIcon: true,
-      height: "short",
-    },
-    {
-      id: "5",
-      title: "Douro Valley with f...",
-      foodImage:
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=180",
-      landscapeImage: "",
-      isExperience: true,
-      hasIcon: false,
-      height: "tall",
-    },
-    {
-      id: "6",
-      title: "Douro Valley with f...",
-      foodImage:
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=250",
-      landscapeImage: "",
-      isExperience: true,
-      hasIcon: true,
-      height: "tall",
-    },
-  ];
+      height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall", // Vary heights for masonry effect
+    }));
+  }, [likes]);
 
   // Transform bucketsData to match BucketItem interface for bottom sheet
+  // Transform bucketsData to match BucketItem interface for bottom sheet
   const transformBucketsForBottomSheet = (): BucketItem[] => {
-    return bucketsData.map((bucket, index) => ({
-      id: bucket.id,
-      title: bucket.title,
-      date:
-        index === 0
-          ? "22-27 June"
-          : index === 1
-          ? "27 June - 27 July"
-          : "4-6 July",
-      image: bucket.safeImages[0],
-    }));
+    if (buckets) {
+      return buckets.map((bucket) => ({
+        id: bucket.id,
+        title: bucket.bucketName,
+        date: "22-27 June",
+        image:
+          typeof bucket.content?.[0]?.googlePlacesImageUrl === "string"
+            ? bucket.content?.[0]?.googlePlacesImageUrl
+            : "",
+        contentIds: bucket.contentIds,
+      }));
+    } else return [];
   };
-
   // Bucket selection bottom sheet handlers
-  const handleShowBucketBottomSheet = () => {
+  const handleShowBucketBottomSheet = (likeItemId?: string) => {
+    // Store the item that user wants to add to bucket
+    if (likeItemId) {
+      setSelectedLikeItemId(likeItemId);
+    }
     const items = transformBucketsForBottomSheet();
     setBottomSheetItems(items);
     setIsBucketBottomSheetVisible(true);
@@ -203,9 +136,23 @@ const ProfileListsScreen = () => {
     setIsBucketBottomSheetVisible(false);
   };
 
-  const handleItemSelect = (item: BucketItem) => {
-    // Handle bucket selection logic here
-    setIsBucketBottomSheetVisible(false);
+  const handleItemSelect = async (item: BucketItem) => {
+    if (selectedLikeItemId) {
+      try {
+        await addBucketMutation.mutateAsync({
+          id: item?.id,
+          bucketName: item?.title,
+          contentIds: [selectedLikeItemId],
+        });
+
+        setIsBucketBottomSheetVisible(false);
+        setSelectedLikeItemId(null);
+
+        console.log(`Successfully added item to bucket "${item.title}"`);
+      } catch (error) {
+        console.error("Failed to add item to bucket:", error);
+      }
+    }
   };
 
   // Create bucket bottom sheet handlers
@@ -218,36 +165,44 @@ const ProfileListsScreen = () => {
     setIsCreateBucketBottomSheetVisible(false);
   };
 
-  const handleCreateBucket = (bucketName: string) => {
-    // Create new bucket and add to the list
-    const newBucket: LocalBucketItem = {
-      id: Date.now().toString(),
-      title: bucketName,
-      safeImages: [
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
-      ],
-    };
+  const handleCreateBucket = async (bucketName: string) => {
+    console.log(selectedLikeItemId);
+    if (selectedLikeItemId) {
+      console.log(bucketName);
+      try {
+        // Create new bucket using the API
+        // Note: Adjust the input fields based on your actual CreateBucketInput interface
+        await createBucketMutation.mutateAsync({
+          bucketName: bucketName,
+          contentIds: [selectedLikeItemId],
+        });
+        setIsCreateBucketBottomSheetVisible(false);
 
-    setBucketsData((prevBuckets) => [newBucket, ...prevBuckets]);
-    setIsCreateBucketBottomSheetVisible(false);
+        // Switch to buckets tab to show the new bucket
+        setActiveTab("buckets");
 
-    // Optionally switch to buckets tab to show the new bucket
-    setActiveTab("buckets");
+        // Clear selected item
+        setSelectedLikeItemId(null);
+
+        console.log(`Successfully created new bucket: "${bucketName}"`);
+      } catch (error) {
+        console.error("Failed to create bucket:", error);
+        // Handle error (show toast notification, etc.)
+        // You might want to show an error message to the user here
+      }
+    }
   };
 
   // Handle like item press
   const handleLikeItemPress = (item: LikeItem) => {
     router.push(`/event-details/${item.id}`);
-    // Add your navigation or other logic here
   };
 
-  const filteredBucketsData = bucketsData.filter((item) =>
+  const filteredBucketsData = transformedBucketsData.filter((item) =>
     item.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredLikesData = likesData.filter((item) =>
+  const filteredLikesData = transformedLikesData.filter((item) =>
     item.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -255,9 +210,14 @@ const ProfileListsScreen = () => {
   const renderBucketItem = ({ item }: { item: LocalBucketItem }) => (
     <BucketCard
       item={item}
-      onPress={() => router.push("/bucket-details/123")}
+      onPress={() => router.push(`/bucket-details/${item.id}`)}
     />
   );
+
+  // Show loading if data is still loading or mutations are in progress
+  if (bucketsLoading || likesLoading) {
+    return <AnimatedLoader />;
+  }
 
   return (
     <SafeAreaView
@@ -351,6 +311,7 @@ const ProfileListsScreen = () => {
 
       {/* Bucket Selection Bottom Sheet */}
       <BucketBottomSheet
+        selectedLikeItemId={selectedLikeItemId}
         isVisible={isBucketBottomSheetVisible}
         bucketItems={bottomSheetItems}
         onClose={handleCloseBucketBottomSheet}

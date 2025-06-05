@@ -26,7 +26,7 @@ interface ExperienceCard {
 interface LikeCardProps {
   item: ExperienceCard;
   onPress?: () => void;
-  onBucketPress: () => void;
+  onBucketPress: (value: string) => void;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -80,7 +80,7 @@ const LikeCard: React.FC<LikeCardProps> = ({
           {item.hasIcon && (
             <CustomTouchable
               bgColor={colors.label_dark}
-              onPress={onBucketPress}
+              onPress={() => onBucketPress(item.id)}
               style={styles.bucketIconContainer}
             >
               <BucketSvg />

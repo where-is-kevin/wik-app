@@ -17,7 +17,6 @@ import {
 import CustomText from "../CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
 import CustomTouchable from "../CustomTouchableOpacity";
-import MoreSvg from "../SvgComponents/MoreSvg";
 import ShareButton from "../Button/ShareButton";
 
 interface BucketItem {
@@ -47,11 +46,15 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
   onMorePress,
 }) => {
   const { colors } = useTheme();
-  // Ensuring we have at least 3 images, using fallbacks if needed
-  const safeImages: string[] = [
-    images?.[0] || "https://via.placeholder.com/150",
-    images?.[1] || "https://via.placeholder.com/150",
-    images?.[2] || "https://via.placeholder.com/150",
+
+  // Local placeholder image
+  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+
+  // Ensuring we have at least 3 images, using local placeholder if needed
+  const safeImages = [
+    images?.[0] || PLACEHOLDER_IMAGE,
+    images?.[1] || PLACEHOLDER_IMAGE,
+    images?.[2] || PLACEHOLDER_IMAGE,
   ];
 
   return (
@@ -60,19 +63,40 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
       <TouchableOpacity style={styles.imageContainer} onPress={onPress}>
         {/* Main large image (left side) */}
         <CustomView style={styles.mainImageContainer}>
-          <Image source={{ uri: safeImages[0] }} style={styles.mainImage} />
+          <Image
+            source={
+              typeof safeImages[0] === "string"
+                ? { uri: safeImages[0] }
+                : safeImages[0]
+            }
+            style={styles.mainImage}
+          />
         </CustomView>
 
         {/* Right column with two smaller images */}
         <CustomView style={styles.rightColumn}>
           <CustomView style={styles.smallImageContainer}>
-            <Image source={{ uri: safeImages[1] }} style={styles.smallImage} />
+            <Image
+              source={
+                typeof safeImages[1] === "string"
+                  ? { uri: safeImages[1] }
+                  : safeImages[1]
+              }
+              style={styles.smallImage}
+            />
           </CustomView>
 
           <CustomView
             style={[styles.smallImageContainer, styles.bottomImageContainer]}
           >
-            <Image source={{ uri: safeImages[2] }} style={styles.smallImage} />
+            <Image
+              source={
+                typeof safeImages[2] === "string"
+                  ? { uri: safeImages[2] }
+                  : safeImages[2]
+              }
+              style={styles.smallImage}
+            />
           </CustomView>
         </CustomView>
       </TouchableOpacity>
@@ -89,7 +113,7 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
         <ShareButton
           title={title}
           message={`Check out this bucket: ${title}`}
-          url={safeImages[0]} // Use the first image as the shared content
+          url={typeof safeImages[0] === "string" ? safeImages[0] : ""} // Use the first image as the shared content
         />
       </CustomView>
     </CustomView>

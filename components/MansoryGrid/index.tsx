@@ -8,7 +8,7 @@ import { horizontalScale } from "@/utilities/scaling";
 interface LikeItem {
   id: string;
   title: string;
-  foodImage: string;
+  foodImage: string | any;
   landscapeImage: string;
   isExperience?: boolean;
   hasIcon?: boolean;
@@ -17,7 +17,7 @@ interface LikeItem {
 
 interface MasonryGridProps {
   data: LikeItem[];
-  onBucketPress: () => void;
+  onBucketPress: (likeItemId: string) => void; // Updated to pass item ID
   onItemPress?: (item: LikeItem) => void;
   showVerticalScrollIndicator?: boolean;
   contentContainerStyle?: object;
@@ -34,16 +34,25 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
   refreshing = false,
   onRefresh,
 }) => {
+  // Local placeholder image
+  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+
+  // Process data to ensure all items have valid images
+  const processedData = data.map((item) => ({
+    ...item,
+    foodImage: item.foodImage || PLACEHOLDER_IMAGE,
+  }));
+
   // Split data into two columns for masonry effect
-  const leftColumn = data.filter((_, index) => index % 2 === 0);
-  const rightColumn = data.filter((_, index) => index % 2 === 1);
+  const leftColumn = processedData.filter((_, index) => index % 2 === 0);
+  const rightColumn = processedData.filter((_, index) => index % 2 === 1);
 
   const renderColumn = (columnData: LikeItem[]) => (
     <CustomView style={{ flex: 1 }}>
       {columnData.map((item) => (
         <CustomView key={item.id} style={{ marginBottom: 0 }}>
           <LikeCard
-            onBucketPress={onBucketPress}
+            onBucketPress={() => onBucketPress(item.id)} // Pass item ID
             item={item}
             onPress={() => onItemPress(item)}
           />

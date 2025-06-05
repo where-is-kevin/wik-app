@@ -59,6 +59,48 @@ const fetchBuckets = async (jwt: string): Promise<Bucket[]> => {
   }
 };
 
+// Fetch bucket by ID function
+const fetchBucketById = async (bucketId: string, jwt: string): Promise<Bucket> => {
+  try {
+    const observable$ = ajax<Bucket>({
+      url: `${API_URL}/buckets/${bucketId}`,
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        accept: "application/json",
+      },
+      responseType: "json",
+    });
+
+    const response = await firstValueFrom(observable$);
+    return response.response;
+  } catch (error) {
+    console.error("Error fetching bucket by ID:", error);
+    throw error;
+  }
+};
+
+// Fetch content by ID function
+const fetchContentById = async (contentId: string, jwt: string): Promise<Content> => {
+  try {
+    const observable$ = ajax<Content>({
+      url: `${API_URL}/content/${contentId}`,
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        accept: "application/json",
+      },
+      responseType: "json",
+    });
+
+    const response = await firstValueFrom(observable$);
+    return response.response;
+  } catch (error) {
+    console.error("Error fetching content by ID:", error);
+    throw error;
+  }
+};
+
 // Add bucket function
 type AddBucketInput = {
   id: string;
@@ -123,6 +165,38 @@ export function useBuckets() {
   });
 }
 
+// Custom hook for fetching bucket by ID
+export function useBucketById(bucketId: string) {
+  const queryClient = useQueryClient();
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
+  const jwt = authData?.accessToken;
+
+  return useQuery<Bucket, Error>({
+    queryKey: ["bucket", bucketId],
+    queryFn: () => {
+      if (!jwt) throw new Error("No JWT found");
+      return fetchBucketById(bucketId, jwt);
+    },
+    enabled: !!jwt && !!bucketId,
+  });
+}
+
+// Custom hook for fetching content by ID
+export function useContentById(contentId: string) {
+  const queryClient = useQueryClient();
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
+  const jwt = authData?.accessToken;
+
+  return useQuery<Content, Error>({
+    queryKey: ["content", contentId],
+    queryFn: () => {
+      if (!jwt) throw new Error("No JWT found");
+      return fetchContentById(contentId, jwt);
+    },
+    enabled: !!jwt && !!contentId,
+  });
+}
+
 // Custom hook for adding a bucket
 export function useAddBucket() {
   const queryClient = useQueryClient();
@@ -135,7 +209,7 @@ export function useAddBucket() {
       return addBucket(input, jwt);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(["buckets"]);
+      queryClient.invalidateQueries({ queryKey: ["buckets"] });
     },
   });
 }
@@ -152,7 +226,7 @@ export function useCreateBucket() {
       return createBucket(input, jwt);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(["buckets"]);
+      queryClient.invalidateQueries({ queryKey: ["buckets"] });
     },
   });
 }

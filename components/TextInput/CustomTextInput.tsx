@@ -24,6 +24,7 @@ interface CustomTextInputProps {
   keyboardType?: KeyboardTypeOptions;
   placeholder?: string;
   autoCorrect?: boolean;
+  editable?: boolean;
 }
 
 const CustomTextInput: React.FC<CustomTextInputProps> = ({
@@ -35,6 +36,7 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
   keyboardType = "default",
   placeholder = "",
   autoCorrect = false,
+  editable,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
@@ -65,6 +67,7 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
           placeholder={placeholder}
           placeholderTextColor={colors.gray_regular}
           onFocus={() => setIsFocused(true)}
+          editable={editable}
           onBlur={() => setIsFocused(false)}
         />
         {secureTextEntry && (

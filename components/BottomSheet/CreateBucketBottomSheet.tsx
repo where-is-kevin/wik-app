@@ -13,33 +13,48 @@ import NextButton from "../Button/NextButton";
 interface CreateBucketBottomSheetProps {
   isVisible: boolean;
   onClose: () => void;
-  onCreateBucket: (bucketName: string) => void;
+  onCreateBucket: (bucketName: string) => Promise<void>; // Updated to return Promise
+  isLoading?: boolean; // Add loading state prop
 }
 
 export const CreateBucketBottomSheet: React.FC<
   CreateBucketBottomSheetProps
-> = ({ isVisible, onClose, onCreateBucket }) => {
+> = ({ isVisible, onClose, onCreateBucket, isLoading = false }) => {
   const { colors } = useTheme();
   const [bucketName, setBucketName] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
 
-  const handleCreateBucket = () => {
+  const handleCreateBucket = async () => {
     if (bucketName.trim()) {
-      onCreateBucket(bucketName.trim());
-      setBucketName("");
+      setIsCreating(true);
+      try {
+        await onCreateBucket(bucketName.trim());
+        setBucketName(""); // Clear input after successful creation
+      } catch (error) {
+        console.error("Error creating bucket:", error);
+        // You might want to show an error message to the user here
+      } finally {
+        setIsCreating(false);
+      }
     }
   };
 
   const handleClose = () => {
-    setBucketName("");
-    onClose();
+    if (!isCreating) {
+      // Prevent closing while creating
+      setBucketName("");
+      onClose();
+    }
   };
+
+  const isButtonDisabled = !bucketName.trim() || isCreating || isLoading;
 
   return (
     <CustomBottomSheet
       isVisible={isVisible}
       onClose={handleClose}
       snapPoints={["60%"]}
-      enablePanDownToClose={true}
+      enablePanDownToClose={!isCreating} // Disable pan to close while creating
     >
       <CustomView style={styles.container}>
         <CustomView style={styles.header}>
@@ -63,6 +78,7 @@ export const CreateBucketBottomSheet: React.FC<
             onChangeText={setBucketName}
             placeholder="Enter bucket name..."
             autoCapitalize="words"
+            editable={!isCreating} // Disable input while creating
           />
         </ScrollView>
 
@@ -74,9 +90,9 @@ export const CreateBucketBottomSheet: React.FC<
           ]}
         >
           <NextButton
-            title="Create Bucket"
+            title={isCreating ? "Creating..." : "Create Bucket"}
             onPress={handleCreateBucket}
-            disabled={!bucketName.trim()}
+            disabled={isButtonDisabled}
             bgColor={colors.lime}
           />
         </CustomView>

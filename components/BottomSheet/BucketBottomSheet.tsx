@@ -30,6 +30,7 @@ export interface BucketItem {
   title: string;
   date: string;
   image: string;
+  contentIds: string[]; // Add contentIds to track items in bucket
 }
 
 interface BucketBottomSheetProps {
@@ -38,6 +39,7 @@ interface BucketBottomSheetProps {
   onClose: () => void;
   onItemSelect: (item: BucketItem) => void;
   onCreateNew: () => void;
+  selectedLikeItemId: string | null;
 }
 
 export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
@@ -46,6 +48,7 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
   onClose,
   onItemSelect,
   onCreateNew,
+  selectedLikeItemId,
 }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -72,31 +75,45 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
     return finalPercentage;
   }, [insets.top]);
 
-  const renderBucketItem = (item: BucketItem) => (
-    <CustomTouchable
-      key={item.id}
-      style={styles.bucketItem}
-      onPress={() => {
-        onItemSelect(item);
-      }}
-      activeOpacity={0.7}
-    >
-      <Image source={{ uri: item.image }} style={styles.bucketItemImage} />
-      <CustomView style={styles.bucketItemContent}>
-        <CustomText
-          fontFamily="Inter-SemiBold"
-          style={[styles.bucketItemTitle, { color: colors.label_dark }]}
-        >
-          {item.title}
-        </CustomText>
-        <CustomText
-          style={[styles.bucketItemDate, { color: colors.gray_regular }]}
-        >
-          {item.date}
-        </CustomText>
-      </CustomView>
-    </CustomTouchable>
-  );
+  const renderBucketItem = (item: BucketItem) => {
+    const isItemInBucket = selectedLikeItemId
+      ? item.contentIds.includes(selectedLikeItemId)
+      : false;
+
+    return (
+      <CustomTouchable
+        key={item.id}
+        style={styles.bucketItem}
+        onPress={() => {
+          onItemSelect(item);
+        }}
+        activeOpacity={0.7}
+        disabled={isItemInBucket}
+      >
+        <Image source={{ uri: item.image }} style={styles.bucketItemImage} />
+        <CustomView style={styles.bucketItemContent}>
+          <CustomText
+            fontFamily="Inter-SemiBold"
+            style={[styles.bucketItemTitle, { color: colors.label_dark }]}
+          >
+            {item.title}
+          </CustomText>
+          <CustomText
+            style={[styles.bucketItemDate, { color: colors.gray_regular }]}
+          >
+            {item.date}
+          </CustomText>
+          {isItemInBucket && (
+            <CustomText
+              style={[styles.alreadyInBucketText, { color: colors.light_blue }]}
+            >
+              Already in bucket
+            </CustomText>
+          )}
+        </CustomView>
+      </CustomTouchable>
+    );
+  };
 
   return (
     <CustomBottomSheet
@@ -198,6 +215,11 @@ const styles = StyleSheet.create({
   },
   bucketItemDate: {
     fontSize: scaleFontSize(14),
+  },
+  alreadyInBucketText: {
+    fontSize: scaleFontSize(12),
+    marginTop: 2,
+    fontStyle: "italic",
   },
   bottomSection: {
     borderTopWidth: 1,
