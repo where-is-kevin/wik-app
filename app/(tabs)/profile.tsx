@@ -4,6 +4,8 @@ import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import LikesSection from "@/components/Section/LikesSection";
 import ProfileSection from "@/components/Section/ProfileSection";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useBuckets } from "@/hooks/useBuckets";
+import { useDislikes } from "@/hooks/useDislikes";
 import { useLikes } from "@/hooks/useLikes";
 import { useUser } from "@/hooks/useUser";
 import { useRouter } from "expo-router";
@@ -19,10 +21,16 @@ const ProfileScreen = () => {
 
   const { data: user, isLoading, error } = useUser();
   const { data: likes, isLoading: likesLoading } = useLikes();
+  const { data: dislikes, isLoading: dislikesLoading } = useDislikes();
+  const { data: buckets, isLoading: bucketsLoading } = useBuckets();
 
   console.log("User data:", user);
 
   console.log("Likes data:", likes);
+
+  console.log("Dislikes data:", dislikes);
+
+  console.log("Buckets data:", buckets);
 
   // Sample data for buckets - added id field
   const bucketsData = [

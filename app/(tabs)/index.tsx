@@ -1,6 +1,6 @@
 import { useContent } from "@/hooks/useContent";
-import React, { useState } from "react";
-import { useAddLike } from "@/hooks/useLikes"; // Import the useAddLike hook
+import React, { useState, useCallback } from "react";
+import { useAddLike } from "@/hooks/useLikes";
 import {
   StyleSheet,
   Text,
@@ -110,8 +110,29 @@ const SwipeableCards = () => {
   // Transform your content data to match SwipeCards interface
   const isBottomSheetOpen =
     isBucketBottomSheetVisible || isCreateBucketBottomSheetVisible;
-  const transformedData: CardData[] = content;
-  const addLikeMutation = useAddLike(); // Initialize the mutation hook
+
+  // Map content data to CardData[]
+  const transformedData: CardData[] = Array.isArray(content)
+    ? content.map((item) => ({
+        id: item.id,
+        title: item.title,
+        imageUrl: item.googlePlacesImageUrl,
+        price: item.price,
+        category: item.category,
+      }))
+    : content
+      ? [{
+          id: content.id,
+          title: content.title,
+          imageUrl: content.googlePlacesImageUrl,
+          price: content.price,
+          category: content.category,
+        }]
+      : [];
+
+  console.log("Transformed Data:", transformedData);
+
+  const addLikeMutation = useAddLike();
 
   // Transform bucketsData to match BucketItem interface for bottom sheet
   const transformBucketsForBottomSheet = (): BucketItem[] => {
@@ -127,17 +148,18 @@ const SwipeableCards = () => {
       image: bucket.safeImages[0],
     }));
   };
+
   const handleLike = () => {
     if (!content) return;
 
     const likeData = {
-      content_ids: [content.id], // Use the content ID for the like
+      content_ids: [content.id],
     };
 
     addLikeMutation.mutate(likeData, {
       onSuccess: () => {
         console.log("Liked:", content.id);
-        refetch(); // Refetch content after successfully adding a like
+        refetch();
       },
       onError: (error) => {
         console.error("Failed to add like:", error);
@@ -160,13 +182,19 @@ const SwipeableCards = () => {
     // Don't call refetch here - let onComplete handle it
   };
 
-  const handleComplete = () => {
+  // Use useCallback to avoid unnecessary re-creations
+  const handleComplete = useCallback(() => {
     console.log("Card completed, fetching new content...");
-    // Only call refetch once here
-    refetch().then(() => {
-      setSwipeKey((prev) => prev + 1);
+    // Only call refetch if there is content
+    refetch().then((newData) => {
+      // Only increment swipeKey if new data is available and not empty
+      if (newData && Array.isArray(newData) && newData.length > 0) {
+        setSwipeKey((prev) => prev + 1);
+      }
+      // Optionally, show a message if no more data
     });
-  };
+  }, [refetch]);
+
   const handleShowBucketBottomSheet = () => {
     const items = transformBucketsForBottomSheet();
     setBottomSheetItems(items);
@@ -178,14 +206,12 @@ const SwipeableCards = () => {
   };
 
   const handleItemSelect = (item: BucketItem) => {
-    // Handle bucket selection logic here
     setIsBucketBottomSheetVisible(false);
   };
 
-  // Create bucket bottom sheet handlers
   const handleShowCreateBucketBottomSheet = () => {
-    setIsBucketBottomSheetVisible(false); // Close bucket selection sheet
-    setIsCreateBucketBottomSheetVisible(true); // Open create bucket sheet
+    setIsBucketBottomSheetVisible(false);
+    setIsCreateBucketBottomSheetVisible(true);
   };
 
   const handleCloseCreateBucketBottomSheet = () => {
@@ -193,7 +219,6 @@ const SwipeableCards = () => {
   };
 
   const handleCreateBucket = (bucketName: string) => {
-    // Create new bucket and add to the list
     const newBucket: LocalBucketItem = {
       id: Date.now().toString(),
       title: bucketName,
@@ -207,17 +232,6 @@ const SwipeableCards = () => {
     setBucketsData((prevBuckets) => [newBucket, ...prevBuckets]);
     setIsCreateBucketBottomSheetVisible(false);
   };
-
-  // const handleCardTap = (item: CardData) => {
-  //   console.log("Card tapped:", item.id);
-  //   // Navigate to details or show more info
-  //   if (content?.websiteUrl) {
-  //     Linking.openURL(content.websiteUrl);
-  //   } else if (content?.latitude && content?.longitude) {
-  //     const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${content.latitude},${content.longitude}`;
-  //     Linking.openURL(googleMapsUrl);
-  //   }
-  // };
 
   if (isLoading) {
     return (
@@ -278,7 +292,6 @@ const SwipeableCards = () => {
         onCreateNew={handleShowCreateBucketBottomSheet}
       />
 
-      {/* Create Bucket Bottom Sheet */}
       <CreateBucketBottomSheet
         isVisible={isCreateBucketBottomSheetVisible}
         onClose={handleCloseCreateBucketBottomSheet}

@@ -38,7 +38,7 @@ const fetchContent = async (jwt?: string): Promise<Content> => {
   }
 
   const observable$ = ajax<Content>({
-    url: `${API_URL}/content/random`,
+    url: `${API_URL}/content`,
     method: 'GET',
     headers,
     responseType: 'json',

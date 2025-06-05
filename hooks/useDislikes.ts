@@ -3,7 +3,7 @@ import Constants from 'expo-constants';
 import { firstValueFrom } from 'rxjs';
 import { ajax } from 'rxjs/ajax';
 
-type Like = {
+type Dislike = {
   id: string;
   userId: string;
   content: Array<{
@@ -17,11 +17,11 @@ type Like = {
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
 
-// Fetch likes function
-const fetchLikes = async (jwt: string): Promise<Like[]> => {
+// Fetch dislikes function
+const fetchDislikes = async (jwt: string): Promise<Dislike[]> => {
   try {
-    const observable$ = ajax<Like[]>({
-      url: `${API_URL}/likes`,
+    const observable$ = ajax<Dislike[]>({
+      url: `${API_URL}/dislikes`,
       method: 'GET',
       headers: {
         Authorization: `Bearer ${jwt}`,
@@ -33,19 +33,19 @@ const fetchLikes = async (jwt: string): Promise<Like[]> => {
     const response = await firstValueFrom(observable$);
     return response.response;
   } catch (error) {
-    console.error("Error fetching likes:", error); // Log any errors
+    console.error("Error fetching dislikes:", error);
     throw error;
   }
 };
 
-// Add like function
-type AddLikeInput = {
+// Add dislike function
+type AddDislikeInput = {
   contentIds: string[];
 };
 
-const addLike = async (input: AddLikeInput, jwt: string): Promise<void> => {
+const addDislike = async (input: AddDislikeInput, jwt: string): Promise<void> => {
   const observable$ = ajax<void>({
-    url: `${API_URL}/likes/add`,
+    url: `${API_URL}/dislikes/add`,
     method: 'POST',
     headers: {
       accept: 'application/json',
@@ -59,35 +59,35 @@ const addLike = async (input: AddLikeInput, jwt: string): Promise<void> => {
   await firstValueFrom(observable$);
 };
 
-// Custom hook for fetching likes
-export function useLikes() {
+// Custom hook for fetching dislikes
+export function useDislikes() {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(['auth']);
   const jwt = authData?.accessToken;
 
-  return useQuery<Like[], Error>({
-    queryKey: ['likes'],
+  return useQuery<Dislike[], Error>({
+    queryKey: ['dislikes'],
     queryFn: () => {
       if (!jwt) throw new Error('No JWT found');
-      return fetchLikes(jwt);
+      return fetchDislikes(jwt);
     },
-    enabled: !!jwt, // Only run if JWT is present
+    enabled: !!jwt,
   });
 }
 
-// Custom hook for adding a like
-export function useAddLike() {
+// Custom hook for adding a dislike
+export function useAddDislike() {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(['auth']);
   const jwt = authData?.accessToken;
 
   return useMutation({
-    mutationFn: (input: AddLikeInput) => {
+    mutationFn: (input: AddDislikeInput) => {
       if (!jwt) throw new Error('No JWT found');
-      return addLike(input, jwt);
+      return addDislike(input, jwt);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['likes']); // Refresh likes data
+      queryClient.invalidateQueries(['dislikes']);
     },
   });
 }
