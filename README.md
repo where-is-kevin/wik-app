@@ -10,6 +10,7 @@ The where is kevin react native application.
 - `npx create-expo-app .` to create a new expo app
 - `npm install` to install dependencies
 - `npx expo start` to start the app
+- `npx expo run:android` to build the app for android
 - `npm install --global eas-cli && eas init --id cb192ef1-a64d-4586-b178-4c4aaed12fbc` to install eas-cli and initialize the project
 - `npx expo export --platform web` to export the app for web
 - `npx serve dist` to serve the app for web

@@ -16,12 +16,8 @@ type Content = {
   googlePlacesImageUrl: string;
   bookingUrl: string | null;
   websiteUrl: string | null;
-  websiteScrape: string | null;
   description: string | null;
-  descriptionGeminiEmbedding: any;
-  descriptionMinilmEmbedding: any;
   reviews: string | null;
-  reviewsGeminiEmbedding: any;
   tags: string;
   createdAt: string;
   updatedAt: string;
@@ -77,7 +73,7 @@ const fetchContentWithParams = async (
   const queryString = new URLSearchParams(params as Record<string, string>).toString();
 
   const observable$ = ajax<Content[]>({
-    url: `${API_URL}/content/selection?${queryString}`,
+    url: `${API_URL}/content/selection/ask-kevin?${queryString}`,
     method: 'GET',
     headers,
     responseType: 'json',
