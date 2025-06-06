@@ -77,6 +77,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
           value={value}
           onChangeText={onChangeText}
           autoFocus={autoFocus}
+          autoCorrect={false}
           editable={editable}
           onFocus={onFocus}
           onBlur={onBlur}

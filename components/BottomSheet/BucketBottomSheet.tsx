@@ -23,6 +23,9 @@ import {
 import { CustomBottomSheet } from "./CustomBottomSheet";
 import CustomTouchable from "../CustomTouchableOpacity";
 import CreateBucketPlus from "../SvgComponents/CreateBucketPlus";
+import { fetchBuckets, useBuckets } from "@/hooks/useBuckets";
+import AnimatedLoader from "@/components/Loader/AnimatedLoader";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Define the BucketItem interface directly in this file
 export interface BucketItem {
@@ -35,7 +38,6 @@ export interface BucketItem {
 
 interface BucketBottomSheetProps {
   isVisible: boolean;
-  bucketItems: BucketItem[];
   onClose: () => void;
   onItemSelect: (item: BucketItem) => void;
   onCreateNew: () => void;
@@ -44,7 +46,6 @@ interface BucketBottomSheetProps {
 
 export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
   isVisible,
-  bucketItems,
   onClose,
   onItemSelect,
   onCreateNew,
@@ -52,6 +53,40 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
 }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
+  const jwt = authData?.accessToken;
+
+  // Fetch buckets data only when bottom sheet is visible
+  const { data: buckets, isLoading: bucketsLoading } = useQuery<any[], Error>({
+    queryKey: ["buckets"],
+    queryFn: () => {
+      // Your existing fetch logic
+      if (!jwt) throw new Error("No JWT found");
+      return fetchBuckets(jwt);
+    },
+    enabled: !!jwt && isVisible, // Only fetch when visible AND authenticated
+    staleTime: 5000,
+  });
+
+  // Placeholder image for buckets without images
+  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+
+  // Transform buckets data to BucketItem format
+  const bucketItems = useMemo(() => {
+    if (!buckets || buckets.length === 0) return [];
+
+    return buckets.map((bucket: any) => ({
+      id: bucket.id,
+      title: bucket.bucketName,
+      date: "22-27 June",
+      image:
+        typeof bucket.content?.[0]?.googlePlacesImageUrl === "string"
+          ? bucket.content[0].googlePlacesImageUrl
+          : PLACEHOLDER_IMAGE,
+      contentIds: bucket.contentIds || [],
+    }));
+  }, [buckets]);
 
   // Calculate dynamic height for bottom sheet
   const snapPointHeight = useMemo(() => {
@@ -90,18 +125,18 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
         activeOpacity={0.7}
         disabled={isItemInBucket}
       >
-        <Image source={{ uri: item.image }} style={styles.bucketItemImage} />
+        <Image
+          source={
+            typeof item.image === "string" ? { uri: item.image } : item.image
+          }
+          style={styles.bucketItemImage}
+        />
         <CustomView style={styles.bucketItemContent}>
           <CustomText
             fontFamily="Inter-SemiBold"
             style={[styles.bucketItemTitle, { color: colors.label_dark }]}
           >
             {item.title}
-          </CustomText>
-          <CustomText
-            style={[styles.bucketItemDate, { color: colors.gray_regular }]}
-          >
-            {item.date}
           </CustomText>
           {isItemInBucket && (
             <CustomText
@@ -112,6 +147,38 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
           )}
         </CustomView>
       </CustomTouchable>
+    );
+  };
+
+  const renderContent = () => {
+    if (bucketsLoading) {
+      return (
+        <CustomView style={styles.loadingContainer}>
+          <AnimatedLoader />
+        </CustomView>
+      );
+    }
+
+    if (bucketItems.length === 0) {
+      return (
+        <CustomView style={styles.emptyContainer}>
+          <CustomText
+            style={[styles.emptyText, { color: colors.gray_regular }]}
+          >
+            No buckets found. Create your first bucket!
+          </CustomText>
+        </CustomView>
+      );
+    }
+
+    return (
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {bucketItems.map(renderBucketItem)}
+      </ScrollView>
     );
   };
 
@@ -132,13 +199,7 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
           </CustomText>
         </CustomView>
 
-        <ScrollView
-          style={styles.scrollContainer}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {bucketItems.map(renderBucketItem)}
-        </ScrollView>
+        {renderContent()}
 
         {/* Fixed bottom section for Create New Button */}
         <CustomView
@@ -176,6 +237,7 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingBottom: 8,
   },
   header: {
     alignItems: "center",
@@ -241,5 +303,22 @@ const styles = StyleSheet.create({
   },
   createNewText: {
     fontSize: scaleFontSize(14),
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: verticalScale(40),
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: verticalScale(40),
+    paddingHorizontal: 24,
+  },
+  emptyText: {
+    fontSize: scaleFontSize(14),
+    textAlign: "center",
   },
 });

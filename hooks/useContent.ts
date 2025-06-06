@@ -29,7 +29,8 @@ type Content = {
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
 
-const fetchContent = async (jwt?: string): Promise<Content> => {
+// Fixed: Now returns Content[] instead of Content
+const fetchContent = async (jwt?: string): Promise<Content[]> => {
   const headers: Record<string, string> = {
     accept: 'application/json',
   };
@@ -37,7 +38,7 @@ const fetchContent = async (jwt?: string): Promise<Content> => {
     headers['Authorization'] = `Bearer ${jwt}`;
   }
 
-  const observable$ = ajax<Content>({
+  const observable$ = ajax<Content[]>({
     url: `${API_URL}/content`,
     method: 'GET',
     headers,
@@ -48,12 +49,13 @@ const fetchContent = async (jwt?: string): Promise<Content> => {
   return response.response;
 };
 
+// Fixed: Now returns Content[] instead of Content
 export function useContent() {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(['auth']);
   const jwt = authData?.accessToken;
 
-  return useQuery<Content, Error>({
+  return useQuery<Content[], Error>({
     queryKey: ['content'],
     queryFn: () => fetchContent(jwt),
     enabled: !!API_URL,

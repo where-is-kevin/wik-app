@@ -45,7 +45,7 @@ interface SwipeCardsProps {
   onSwipeUp: (item: CardData) => void;
   onComplete: () => void;
   onCardTap?: (item: CardData) => void;
-  onBucketPress?: () => void;
+  onBucketPress?: (value: string) => void;
 }
 
 export const SwipeCards: React.FC<SwipeCardsProps> = ({
@@ -68,6 +68,15 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   // Track touch start time and position to distinguish between tap and swipe
   const touchStartTime = useRef<number>(0);
   const touchStartPosition = useRef({ x: 0, y: 0 });
+
+  // Early return if no data
+  if (!data || data.length === 0) {
+    return (
+      <View style={styles.emptyCardsContainer}>
+        <AnimatedLoader />
+      </View>
+    );
+  }
 
   const rotate = position.x.interpolate({
     inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
@@ -111,7 +120,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => data.length > 0, // Only respond if we have data
       onPanResponderGrant: (evt) => {
         touchStartTime.current = Date.now();
         touchStartPosition.current = {
@@ -128,10 +137,18 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
           Math.pow(gesture.dx, 2) + Math.pow(gesture.dy, 2)
         );
 
+        // Safety check - make sure we have data and valid cardIndex
+        if (!data || data.length === 0 || cardIndex >= data.length) {
+          resetPosition();
+          return;
+        }
+
         // If it's a short touch with minimal movement, consider it a tap
         if (touchDuration < TAP_DURATION_THRESHOLD && distanceMoved < 10) {
           const item = data[cardIndex];
-          handleCardTap(item);
+          if (item) {
+            handleCardTap(item);
+          }
           return;
         }
 
@@ -165,39 +182,79 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     }).start(() => onSwipeComplete(direction));
   };
 
-  const onSwipeComplete = (direction: "left" | "right" | "up") => {
-    const item = data[cardIndex];
+  // In SwipeCards component, update the onSwipeComplete function:
 
-    // Process the swipe action first
-    if (direction === "right") {
-      onSwipeRight(item);
-    } else if (direction === "left") {
-      onSwipeLeft(item);
-    } else if (direction === "up") {
-      onSwipeUp(item);
+  const onSwipeComplete = (direction: "left" | "right" | "up") => {
+    // Safety checks
+    if (!data || data.length === 0) {
+      console.error("No data available for swipe action");
+      return;
     }
 
-    // Only reset position AFTER the animation completes
-    setCardIndex((prevIndex) => {
-      const nextIndex = prevIndex + 1;
+    if (cardIndex >= data.length) {
+      console.error(
+        "CardIndex out of bounds:",
+        cardIndex,
+        "data length:",
+        data.length
+      );
+      return;
+    }
 
-      // Check if we've gone through all cards
-      if (nextIndex >= data.length) {
-        // Call onComplete after a small delay to allow the last card to finish animating off screen
-        setTimeout(() => {
-          // Now reset position after the card is off-screen
-          position.setValue({ x: 0, y: 0 });
-          onComplete();
-        }, 300);
-      } else {
-        // For normal card transitions, reset position after a small delay
-        setTimeout(() => {
-          position.setValue({ x: 0, y: 0 });
-        }, 100);
+    const item = data[cardIndex];
+
+    if (!item) {
+      console.error(
+        "No item found at cardIndex:",
+        cardIndex,
+        "data length:",
+        data.length
+      );
+      return;
+    }
+
+    // Process the swipe action first
+    try {
+      if (direction === "right") {
+        onSwipeRight(item);
+      } else if (direction === "left") {
+        onSwipeLeft(item);
+      } else if (direction === "up") {
+        onSwipeUp(item);
       }
+    } catch (error) {
+      console.error("Error in swipe handler:", error);
+    }
 
-      return nextIndex;
-    });
+    // Handle different behaviors based on swipe direction
+    if (direction === "up") {
+      // For swipe up, just reset position without advancing to next card
+      setTimeout(() => {
+        position.setValue({ x: 0, y: 0 });
+      }, 100);
+    } else {
+      // For left and right swipes, advance to next card
+      setCardIndex((prevIndex) => {
+        const nextIndex = prevIndex + 1;
+
+        // Check if we've gone through all cards
+        if (nextIndex >= data.length) {
+          // Call onComplete after a small delay to allow the last card to finish animating off screen
+          setTimeout(() => {
+            // Now reset position after the card is off-screen
+            position.setValue({ x: 0, y: 0 });
+            onComplete();
+          }, 300);
+        } else {
+          // For normal card transitions, reset position after a small delay
+          setTimeout(() => {
+            position.setValue({ x: 0, y: 0 });
+          }, 100);
+        }
+
+        return nextIndex;
+      });
+    }
   };
 
   const resetPosition = () => {
@@ -277,7 +334,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                     <CustomTouchable
                       style={styles.bucketContainer}
                       bgColor={colors.label_dark}
-                      onPress={() => onBucketPress?.()}
+                      onPress={() => onBucketPress?.(item?.id)}
                     >
                       <BucketSvg />
                     </CustomTouchable>

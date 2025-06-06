@@ -87,7 +87,7 @@ export function useAddLike() {
       return addLike(input, jwt);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['likes']); // Refresh likes data
+      queryClient.invalidateQueries({ queryKey: ["likes"] }); // Refresh likes data
     },
   });
 }

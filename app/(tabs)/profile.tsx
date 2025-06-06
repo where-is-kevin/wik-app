@@ -1,4 +1,5 @@
 import CustomView from "@/components/CustomView";
+import EmptyData from "@/components/EmptyData";
 import BucketsSection from "@/components/ImageBucket/ImageBucket";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import LikesSection from "@/components/Section/LikesSection";
@@ -8,6 +9,7 @@ import { useBuckets } from "@/hooks/useBuckets";
 import { useDislikes } from "@/hooks/useDislikes";
 import { useLikes } from "@/hooks/useLikes";
 import { useUser } from "@/hooks/useUser";
+import { bucketsHaveContent, likesHaveContent } from "@/utilities/hasContent";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useMemo } from "react";
@@ -19,15 +21,12 @@ const ProfileScreen = () => {
   const { colors } = useTheme();
   const router = useRouter();
 
-  const { data: user, isLoading, error } = useUser();
+  const { data: user, isLoading } = useUser();
   const { data: likes, isLoading: likesLoading } = useLikes();
-  const { data: dislikes, isLoading: dislikesLoading } = useDislikes();
   const { data: buckets, isLoading: bucketsLoading } = useBuckets();
 
-  console.log("User data:", user);
-  console.log("Likes data:", likes);
-  console.log("Dislikes data:", dislikes);
-  console.log("Buckets data:", buckets);
+  const hasBucketsContent = bucketsHaveContent(buckets || []);
+  const hasLikesContent = likesHaveContent(likes || []);
 
   // Placeholder image from assets
   const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
@@ -109,14 +108,30 @@ const ProfileScreen = () => {
       <CustomView style={styles.container}>
         <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
           <ProfileSection user={user} />
-          <BucketsSection
-            buckets={transformedBucketsData}
-            onSeeMorePress={navigateToBucketsList}
-          />
-          <LikesSection
-            likes={transformedLikesData}
-            onSeeMorePress={navigateToLikesList}
-          />
+
+          {/* Buckets Section */}
+          {hasBucketsContent && (
+            <BucketsSection
+              buckets={transformedBucketsData}
+              onSeeMorePress={navigateToBucketsList}
+            />
+          )}
+          {!hasBucketsContent && (
+            <CustomView>
+              <EmptyData type="buckets" style={styles.sectionEmptyState} />
+            </CustomView>
+          )}
+
+          {/* Likes Section */}
+          {hasLikesContent && (
+            <LikesSection
+              likes={transformedLikesData}
+              onSeeMorePress={navigateToLikesList}
+            />
+          )}
+          {!hasLikesContent && (
+            <EmptyData type="likes" style={styles.sectionEmptyState} />
+          )}
         </ScrollView>
       </CustomView>
     </>
@@ -141,5 +156,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  sectionEmptyState: {
+    paddingVertical: 40,
+    flex: 0, // Don't take full height in sections
   },
 });

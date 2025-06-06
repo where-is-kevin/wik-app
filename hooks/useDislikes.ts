@@ -87,7 +87,7 @@ export function useAddDislike() {
       return addDislike(input, jwt);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['dislikes']);
+      queryClient.invalidateQueries({ queryKey: ["dislikes"] });
     },
   });
 }

@@ -15,13 +15,11 @@ import { useTheme } from "@/contexts/ThemeContext";
 interface BackHeaderProps {
   transparent?: boolean;
   title?: string;
-  date?: string;
 }
 
 const BackHeader: React.FC<BackHeaderProps> = ({
   transparent = false,
   title,
-  date,
 }) => {
   const router = useRouter();
   const { colors } = useTheme();
@@ -34,7 +32,7 @@ const BackHeader: React.FC<BackHeaderProps> = ({
           <ArrowLeftSvg />
         </CustomTouchable>
       </CustomView>
-      {(title || date) && (
+      {title && (
         <CustomView bgColor={colors.overlay} style={styles.titleContainer}>
           {title && (
             <CustomText
@@ -42,13 +40,6 @@ const BackHeader: React.FC<BackHeaderProps> = ({
               style={[styles.titleText, { color: colors.label_dark }]}
             >
               {title}
-            </CustomText>
-          )}
-          {date && (
-            <CustomText
-              style={[styles.dateText, { color: colors.gray_regular }]}
-            >
-              {date}
             </CustomText>
           )}
         </CustomView>

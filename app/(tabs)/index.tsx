@@ -11,12 +11,19 @@ import {
 import { SwipeCards } from "@/components/Onboarding/SwipeCards";
 import CustomView from "@/components/CustomView";
 import { horizontalScale, verticalScale } from "@/utilities/scaling";
-import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import {
   BucketBottomSheet,
   BucketItem,
 } from "@/components/BottomSheet/BucketBottomSheet";
 import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
+import AnimatedLoader from "@/components/Loader/AnimatedLoader";
+import { useAddDislike } from "@/hooks/useDislikes";
 
 // Define the interface that matches your SwipeCards component
 interface CardData {
@@ -25,7 +32,9 @@ interface CardData {
   imageUrl: string;
   price?: string;
   category?: string;
+  websiteUrl?: string;
 }
+
 interface LocalBucketItem {
   id: string;
   title: string;
@@ -34,133 +43,67 @@ interface LocalBucketItem {
 
 const SwipeableCards = () => {
   const { data: content, isLoading, error, refetch } = useContent();
-  const [swipeKey, setSwipeKey] = useState(0);
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+
   const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] =
     useState(false);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [
     isCreateBucketBottomSheetVisible,
     setIsCreateBucketBottomSheetVisible,
   ] = useState(false);
-  const [bottomSheetItems, setBottomSheetItems] = useState<BucketItem[]>([]);
-  const [bucketsData, setBucketsData] = useState<LocalBucketItem[]>([
-    {
-      id: "1",
-      title: "Douro Valley with family",
-      safeImages: [
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
-      ],
-    },
-    {
-      id: "2",
-      title: "Summer in Lagos",
-      safeImages: [
-        "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=300",
-        "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=300",
-        "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=300",
-      ],
-    },
-    {
-      id: "3",
-      title: "Hiking trip in the Azores",
-      safeImages: [
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-      ],
-    },
-    {
-      id: "4",
-      title: "Hiking trip in the Azores",
-      safeImages: [
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-      ],
-    },
-    {
-      id: "5",
-      title: "Hiking trip in the Azores",
-      safeImages: [
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-      ],
-    },
-    {
-      id: "6",
-      title: "Hiking trip in the Azores",
-      safeImages: [
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-      ],
-    },
-    {
-      id: "7",
-      title: "Hiking trip in the Azores",
-      safeImages: [
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-        "https://images.unsplash.com/photo-1551632811-561732d1e306?w=400&h=300",
-      ],
-    },
-  ]);
+
+  // Mutation hooks
+  const addBucketMutation = useAddBucket();
+  const createBucketMutation = useCreateBucket();
+  const addLikeMutation = useAddLike();
+  const dislikeMutation = useAddDislike();
+
   // Transform your content data to match SwipeCards interface
   const isBottomSheetOpen =
     isBucketBottomSheetVisible || isCreateBucketBottomSheetVisible;
 
-  // Map content data to CardData[]
-  const transformedData: CardData[] = Array.isArray(content)
+  // Fixed: Now content is always an array, so we can map directly
+  const transformedData: CardData[] = content
     ? content.map((item) => ({
         id: item.id,
         title: item.title,
         imageUrl: item.googlePlacesImageUrl,
-        price: item.price,
+        price: item.price?.toString(),
         category: item.category,
+        websiteUrl: item.websiteUrl || "",
       }))
-    : content
-      ? [{
-          id: content.id,
-          title: content.title,
-          imageUrl: content.googlePlacesImageUrl,
-          price: content.price,
-          category: content.category,
-        }]
-      : [];
+    : [];
 
-  console.log("Transformed Data:", transformedData);
-
-  const addLikeMutation = useAddLike();
-
-  // Transform bucketsData to match BucketItem interface for bottom sheet
-  const transformBucketsForBottomSheet = (): BucketItem[] => {
-    return bucketsData.map((bucket, index) => ({
-      id: bucket.id,
-      title: bucket.title,
-      date:
-        index === 0
-          ? "22-27 June"
-          : index === 1
-          ? "27 June - 27 July"
-          : "4-6 July",
-      image: bucket.safeImages[0],
-    }));
-  };
-
-  const handleLike = () => {
-    if (!content) return;
+  const handleLike = (item: CardData) => {
+    if (!item) {
+      console.error("No item provided to handleLike");
+      return;
+    }
 
     const likeData = {
-      content_ids: [content.id],
+      contentIds: [item.id],
     };
 
     addLikeMutation.mutate(likeData, {
-      onSuccess: () => {
-        console.log("Liked:", content.id);
-        refetch();
+      onError: (error) => {
+        console.error("Failed to add like:", error);
       },
+    });
+  };
+
+  const handleDislike = (item: CardData) => {
+    if (!item) {
+      console.error("No item provided to handleLike");
+      return;
+    }
+
+    const dislikeData = {
+      contentIds: [item.id],
+    };
+
+    dislikeMutation.mutate(dislikeData, {
       onError: (error) => {
         console.error("Failed to add like:", error);
       },
@@ -168,36 +111,48 @@ const SwipeableCards = () => {
   };
 
   const handleSwipeLeft = (item: CardData) => {
-    console.log("Disliked:", item.id);
-    // Don't call refetch here - let onComplete handle it
+    if (!item) {
+      console.error("No item provided to handleSwipeLeft");
+      return;
+    }
+    handleDislike(item);
   };
 
   const handleSwipeRight = (item: CardData) => {
-    console.log("Liked:", item.id);
-    // Don't call refetch here - let onComplete handle it
+    if (!item) {
+      console.error("No item provided to handleSwipeRight");
+      return;
+    }
+    handleLike(item);
   };
 
   const handleSwipeUp = (item: CardData) => {
-    console.log("Saved:", item.id);
-    // Don't call refetch here - let onComplete handle it
+    if (!item) {
+      console.error("No item provided to handleSwipeUp");
+      return;
+    }
+
+    // Check if the item has a website URL and open it
+    if (item?.websiteUrl) {
+      Linking.openURL(item.websiteUrl).catch((err) => {
+        console.error("Failed to open URL:", err);
+      });
+    } else {
+      console.log("No website URL available for this item");
+    }
   };
 
-  // Use useCallback to avoid unnecessary re-creations
+  // Simplified: Just refetch new content when cards are exhausted
   const handleComplete = useCallback(() => {
-    console.log("Card completed, fetching new content...");
-    // Only call refetch if there is content
-    refetch().then((newData) => {
-      // Only increment swipeKey if new data is available and not empty
-      if (newData && Array.isArray(newData) && newData.length > 0) {
-        setSwipeKey((prev) => prev + 1);
-      }
-      // Optionally, show a message if no more data
-    });
-  }, [refetch]);
+    console.log("All cards swiped, fetching new content...");
+    refetch();
+  }, []);
 
-  const handleShowBucketBottomSheet = () => {
-    const items = transformBucketsForBottomSheet();
-    setBottomSheetItems(items);
+  const handleShowBucketBottomSheet = (itemId?: string) => {
+    if (itemId) {
+      setSelectedItemId(itemId);
+    }
+    console.log(itemId, "bre");
     setIsBucketBottomSheetVisible(true);
   };
 
@@ -205,41 +160,50 @@ const SwipeableCards = () => {
     setIsBucketBottomSheetVisible(false);
   };
 
-  const handleItemSelect = (item: BucketItem) => {
-    setIsBucketBottomSheetVisible(false);
+  const handleItemSelect = async (item: BucketItem) => {
+    if (selectedItemId) {
+      try {
+        await addBucketMutation.mutateAsync({
+          id: item?.id,
+          bucketName: item?.title,
+          contentIds: [selectedItemId],
+        });
+
+        setIsBucketBottomSheetVisible(false);
+        setSelectedItemId(null);
+
+        console.log(`Successfully added item to bucket "${item.title}"`);
+      } catch (error) {
+        console.error("Failed to add item to bucket:", error);
+      }
+    }
   };
 
+  // Create bucket bottom sheet handlers
   const handleShowCreateBucketBottomSheet = () => {
-    setIsBucketBottomSheetVisible(false);
-    setIsCreateBucketBottomSheetVisible(true);
+    setIsBucketBottomSheetVisible(false); // Close bucket selection sheet
+    setIsCreateBucketBottomSheetVisible(true); // Open create bucket sheet
   };
 
   const handleCloseCreateBucketBottomSheet = () => {
     setIsCreateBucketBottomSheetVisible(false);
   };
 
-  const handleCreateBucket = (bucketName: string) => {
-    const newBucket: LocalBucketItem = {
-      id: Date.now().toString(),
-      title: bucketName,
-      safeImages: [
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
-        "https://images.unsplash.com/photo-1551218808-94e220e084d2?w=400&h=300",
-      ],
-    };
-
-    setBucketsData((prevBuckets) => [newBucket, ...prevBuckets]);
-    setIsCreateBucketBottomSheetVisible(false);
+  const handleCreateBucket = async (bucketName: string) => {
+    if (selectedItemId) {
+      try {
+        // Create new bucket using the API
+        await createBucketMutation.mutateAsync({
+          bucketName: bucketName,
+          contentIds: [selectedItemId],
+        });
+        setIsCreateBucketBottomSheetVisible(false);
+        setSelectedItemId(null);
+      } catch (error) {
+        console.error("Failed to create bucket:", error);
+      }
+    }
   };
-
-  if (isLoading) {
-    return (
-      <CustomView style={{ flex: 1 }}>
-        <AnimatedLoader />
-      </CustomView>
-    );
-  }
 
   if (error) {
     return (
@@ -252,6 +216,16 @@ const SwipeableCards = () => {
     );
   }
 
+  // Show loading state
+  if (isLoading) {
+    return (
+      <SafeAreaView style={{ backgroundColor: "#fff", flex: 1 }}>
+        <AnimatedLoader />
+      </SafeAreaView>
+    );
+  }
+
+  // Show empty state when no data is available
   if (!transformedData.length) {
     return (
       <View style={styles.emptyContainer}>
@@ -270,10 +244,10 @@ const SwipeableCards = () => {
           style={[
             styles.swipeContainer,
             isBottomSheetOpen && { display: "none" },
+            { height: insets.top },
           ]}
         >
           <SwipeCards
-            key={swipeKey}
             data={transformedData}
             onSwipeLeft={handleSwipeLeft}
             onSwipeRight={handleSwipeRight}
@@ -286,10 +260,10 @@ const SwipeableCards = () => {
       </CustomView>
       <BucketBottomSheet
         isVisible={isBucketBottomSheetVisible}
-        bucketItems={bottomSheetItems}
         onClose={handleCloseBucketBottomSheet}
         onItemSelect={handleItemSelect}
         onCreateNew={handleShowCreateBucketBottomSheet}
+        selectedLikeItemId={selectedItemId}
       />
 
       <CreateBucketBottomSheet
@@ -310,6 +284,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#f5f5f5",
+  },
+  statusBarBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
   },
   loadingText: {
     marginTop: 16,

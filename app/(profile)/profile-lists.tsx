@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { StyleSheet, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BackHeader from "@/components/Header/BackHeader";
@@ -20,15 +20,56 @@ import {
 } from "@/components/BottomSheet/BucketBottomSheet";
 import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
 import MasonryGrid, { LikeItem } from "@/components/MansoryGrid";
-import { useAddBucket, useBuckets, useCreateBucket } from "@/hooks/useBuckets";
-import { useLikes } from "@/hooks/useLikes";
+import {
+  useAddBucket,
+  useBuckets,
+  useCreateBucket,
+  useLikes,
+} from "@/hooks/useBuckets";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
+import { bucketsHaveContent, likesHaveContent } from "@/utilities/hasContent";
+import EmptyData from "@/components/EmptyData";
 
 interface LocalBucketItem {
   id: string;
   title: string;
   safeImages: string[];
 }
+
+// Enhanced custom hook for debounced search with reset capability
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  const timeoutRef = useRef<NodeJS.Timeout>();
+
+  useEffect(() => {
+    // Clear existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    // Set new timeout
+    timeoutRef.current = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    // Cleanup function
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [value, delay]);
+
+  // Reset function to immediately update debounced value
+  const resetDebouncedValue = (newValue: string) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    setDebouncedValue(newValue);
+  };
+
+  return [debouncedValue, resetDebouncedValue] as const;
+};
 
 const ProfileListsScreen = () => {
   const { colors } = useTheme();
@@ -40,9 +81,20 @@ const ProfileListsScreen = () => {
   );
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Real data hooks
-  const { data: buckets, isLoading: bucketsLoading } = useBuckets();
-  const { data: likes, isLoading: likesLoading } = useLikes();
+  // Debounce search query to avoid too many API calls
+  const [debouncedSearchQuery, resetDebouncedValue] = useDebounce(
+    searchQuery,
+    600
+  );
+
+  // Only call hooks for the active tab
+  const { data: buckets, isLoading: bucketsLoading } = useBuckets(
+    activeTab === "buckets" ? debouncedSearchQuery : undefined
+  );
+
+  const { data: likes, isLoading: likesLoading } = useLikes(
+    activeTab === "likes" ? debouncedSearchQuery : undefined
+  );
 
   // Mutation hooks
   const addBucketMutation = useAddBucket();
@@ -63,7 +115,6 @@ const ProfileListsScreen = () => {
     isCreateBucketBottomSheetVisible,
     setIsCreateBucketBottomSheetVisible,
   ] = useState(false);
-  const [bottomSheetItems, setBottomSheetItems] = useState<BucketItem[]>([]);
 
   // Transform real buckets data
   const transformedBucketsData = useMemo(() => {
@@ -90,6 +141,10 @@ const ProfileListsScreen = () => {
     });
   }, [buckets]);
 
+  // Check if buckets and likes have content
+  const hasBucketsContent = bucketsHaveContent(buckets || []);
+  const hasLikesContent = likesHaveContent(likes || []);
+
   // Transform real likes data
   const transformedLikesData = useMemo(() => {
     if (!likes || likes.length === 0) return [];
@@ -105,30 +160,12 @@ const ProfileListsScreen = () => {
     }));
   }, [likes]);
 
-  // Transform bucketsData to match BucketItem interface for bottom sheet
-  // Transform bucketsData to match BucketItem interface for bottom sheet
-  const transformBucketsForBottomSheet = (): BucketItem[] => {
-    if (buckets) {
-      return buckets.map((bucket) => ({
-        id: bucket.id,
-        title: bucket.bucketName,
-        date: "22-27 June",
-        image:
-          typeof bucket.content?.[0]?.googlePlacesImageUrl === "string"
-            ? bucket.content?.[0]?.googlePlacesImageUrl
-            : "",
-        contentIds: bucket.contentIds,
-      }));
-    } else return [];
-  };
   // Bucket selection bottom sheet handlers
   const handleShowBucketBottomSheet = (likeItemId?: string) => {
     // Store the item that user wants to add to bucket
     if (likeItemId) {
       setSelectedLikeItemId(likeItemId);
     }
-    const items = transformBucketsForBottomSheet();
-    setBottomSheetItems(items);
     setIsBucketBottomSheetVisible(true);
   };
 
@@ -166,12 +203,9 @@ const ProfileListsScreen = () => {
   };
 
   const handleCreateBucket = async (bucketName: string) => {
-    console.log(selectedLikeItemId);
     if (selectedLikeItemId) {
-      console.log(bucketName);
       try {
         // Create new bucket using the API
-        // Note: Adjust the input fields based on your actual CreateBucketInput interface
         await createBucketMutation.mutateAsync({
           bucketName: bucketName,
           contentIds: [selectedLikeItemId],
@@ -183,12 +217,8 @@ const ProfileListsScreen = () => {
 
         // Clear selected item
         setSelectedLikeItemId(null);
-
-        console.log(`Successfully created new bucket: "${bucketName}"`);
       } catch (error) {
         console.error("Failed to create bucket:", error);
-        // Handle error (show toast notification, etc.)
-        // You might want to show an error message to the user here
       }
     }
   };
@@ -198,13 +228,17 @@ const ProfileListsScreen = () => {
     router.push(`/event-details/${item.id}`);
   };
 
-  const filteredBucketsData = transformedBucketsData.filter((item) =>
-    item.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Handle search query change
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+  };
 
-  const filteredLikesData = transformedLikesData.filter((item) =>
-    item.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Clear search when switching tabs
+  const handleTabChange = (tab: "buckets" | "likes") => {
+    setActiveTab(tab);
+    setSearchQuery("");
+    resetDebouncedValue("");
+  };
 
   // Render buckets item
   const renderBucketItem = ({ item }: { item: LocalBucketItem }) => (
@@ -215,9 +249,9 @@ const ProfileListsScreen = () => {
   );
 
   // Show loading if data is still loading or mutations are in progress
-  if (bucketsLoading || likesLoading) {
-    return <AnimatedLoader />;
-  }
+  const isLoading =
+    (activeTab === "buckets" && bucketsLoading) ||
+    (activeTab === "likes" && likesLoading);
 
   return (
     <SafeAreaView
@@ -229,7 +263,7 @@ const ProfileListsScreen = () => {
       <CustomView style={styles.tabContainer}>
         <CustomTouchable
           style={[styles.tab]}
-          onPress={() => setActiveTab("buckets")}
+          onPress={() => handleTabChange("buckets")}
         >
           <CustomText
             style={[
@@ -255,7 +289,7 @@ const ProfileListsScreen = () => {
 
         <CustomTouchable
           style={[styles.tab]}
-          onPress={() => setActiveTab("likes")}
+          onPress={() => handleTabChange("likes")}
         >
           <CustomText
             style={[
@@ -286,34 +320,43 @@ const ProfileListsScreen = () => {
           activeTab === "buckets" ? "Search your buckets" : "Search your likes"
         }
         value={searchQuery}
-        onChangeText={setSearchQuery}
+        onChangeText={handleSearchChange}
         containerStyle={styles.searchBarContainer}
       />
+      {isLoading && <AnimatedLoader />}
 
       {/* Content */}
-      {activeTab === "likes" ? (
-        <MasonryGrid
-          data={filteredLikesData}
-          onBucketPress={handleShowBucketBottomSheet}
-          onItemPress={handleLikeItemPress}
-        />
-      ) : (
-        <FlatList
-          data={filteredBucketsData}
-          renderItem={renderBucketItem}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperStyle={styles.bucketRow}
-          contentContainerStyle={styles.bucketsContainer}
-          showsVerticalScrollIndicator={false}
-        />
+      {!isLoading && activeTab === "likes" && (
+        <>
+          {hasLikesContent && (
+            <MasonryGrid
+              data={transformedLikesData}
+              onBucketPress={handleShowBucketBottomSheet}
+              onItemPress={handleLikeItemPress}
+            />
+          )}
+          {!hasLikesContent && <EmptyData type="likes" />}
+        </>
       )}
-
-      {/* Bucket Selection Bottom Sheet */}
+      {!isLoading && activeTab === "buckets" && (
+        <>
+          {hasBucketsContent && (
+            <FlatList
+              data={transformedBucketsData}
+              renderItem={renderBucketItem}
+              keyExtractor={(item) => item.id}
+              numColumns={2}
+              columnWrapperStyle={styles.bucketRow}
+              contentContainerStyle={styles.bucketsContainer}
+              showsVerticalScrollIndicator={false}
+            />
+          )}
+          {!hasBucketsContent && <EmptyData type="buckets" />}
+        </>
+      )}
       <BucketBottomSheet
         selectedLikeItemId={selectedLikeItemId}
         isVisible={isBucketBottomSheetVisible}
-        bucketItems={bottomSheetItems}
         onClose={handleCloseBucketBottomSheet}
         onItemSelect={handleItemSelect}
         onCreateNew={handleShowCreateBucketBottomSheet}

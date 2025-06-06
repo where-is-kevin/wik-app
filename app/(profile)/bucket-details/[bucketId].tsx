@@ -1,10 +1,14 @@
 import { StyleSheet } from "react-native";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BackHeader from "@/components/Header/BackHeader";
 import { useTheme } from "@/contexts/ThemeContext";
 import SearchBar from "@/components/SearchBar/SearchBar";
-import { verticalScale } from "@/utilities/scaling";
+import {
+  verticalScale,
+  horizontalScale,
+  scaleFontSize,
+} from "@/utilities/scaling";
 import {
   BucketBottomSheet,
   BucketItem,
@@ -14,13 +18,49 @@ import MasonryGrid, { LikeItem } from "@/components/MansoryGrid";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   useBucketById,
-  useBuckets,
   useCreateBucket,
   useAddBucket,
 } from "@/hooks/useBuckets";
 import CustomText from "@/components/CustomText";
 import CustomView from "@/components/CustomView";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
+import { bucketsHaveContent } from "@/utilities/hasContent";
+import EmptyData from "@/components/EmptyData";
+
+// Enhanced custom hook for debounced search with reset capability
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  const timeoutRef = useRef<NodeJS.Timeout>();
+
+  useEffect(() => {
+    // Clear existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    // Set new timeout
+    timeoutRef.current = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    // Cleanup function
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [value, delay]);
+
+  // Reset function to immediately update debounced value
+  const resetDebouncedValue = (newValue: string) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    setDebouncedValue(newValue);
+  };
+
+  return [debouncedValue, resetDebouncedValue] as const;
+};
 
 const BucketDetailsScreen = () => {
   const { colors } = useTheme();
@@ -31,14 +71,15 @@ const BucketDetailsScreen = () => {
     null
   );
 
-  // API hooks
+  const [debouncedSearchQuery] = useDebounce(searchQuery, 600);
+
+  // API hooks - pass search query to the API
   const {
     data: bucket,
     isLoading: isBucketLoading,
     error: bucketError,
     refetch: refetchBucket,
-  } = useBucketById(bucketId || "");
-  const { data: allBuckets, isLoading: isBucketsLoading } = useBuckets();
+  } = useBucketById(bucketId || "", debouncedSearchQuery);
   const createBucketMutation = useCreateBucket();
   const addBucketMutation = useAddBucket();
 
@@ -75,23 +116,15 @@ const BucketDetailsScreen = () => {
     );
   }, [bucket?.content]);
 
-  // Transform all buckets to BucketItem format for bottom sheet
-  const otherBucketsData: BucketItem[] = useMemo(() => {
-    if (!allBuckets) return [];
+  // Since we're filtering on the server, use the API results directly
+  const filteredBucketItems = bucketItemsData;
 
-    return allBuckets.map((b) => ({
-      id: b.id,
-      title: b.bucketName,
-      date: "22-27 June", // You can format this better
-      image: b.content?.[0]?.googlePlacesImageUrl || "",
-      contentIds: b.contentIds,
-    }));
-  }, [allBuckets, bucketId]);
+  // Check if bucket has content using utility function (same pattern as other screens)
+  const hasBucketContent = bucketsHaveContent(bucket ? [bucket] : []);
 
-  // Filter bucket items based on search query
-  const filteredBucketItems = bucketItemsData.filter((item) =>
-    item.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Determine what to show
+  const hasSearchQuery = debouncedSearchQuery.trim().length > 0;
+  const hasFilteredResults = filteredBucketItems.length > 0;
 
   // Bucket selection bottom sheet handlers
   const handleShowBucketBottomSheet = (likeItemId: string) => {
@@ -101,7 +134,6 @@ const BucketDetailsScreen = () => {
 
   const handleCloseBucketBottomSheet = () => {
     setIsBucketBottomSheetVisible(false);
-    setSelectedLikeItemId(null);
   };
 
   const handleItemSelect = async (item: BucketItem) => {
@@ -117,9 +149,6 @@ const BucketDetailsScreen = () => {
         setSelectedLikeItemId(null);
 
         console.log(`Successfully added item to bucket "${item.title}"`);
-
-        // Optionally refetch current bucket data to see if item was removed
-        refetchBucket();
       } catch (error) {
         console.error("Failed to add item to bucket:", error);
       }
@@ -137,34 +166,45 @@ const BucketDetailsScreen = () => {
   };
 
   const handleCreateBucket = async (bucketName: string) => {
-    try {
-      await createBucketMutation.mutateAsync({
-        bucketName,
-        contentIds: selectedLikeItemId ? [selectedLikeItemId] : [],
-      });
+    if (selectedLikeItemId) {
+      try {
+        await createBucketMutation.mutateAsync({
+          bucketName,
+          contentIds: [selectedLikeItemId],
+        });
 
-      setIsCreateBucketBottomSheetVisible(false);
-      setSelectedLikeItemId(null);
-
-      // Optionally refetch bucket data
-      refetchBucket();
-    } catch (error) {
-      console.error("Error creating bucket:", error);
+        setIsCreateBucketBottomSheetVisible(false);
+        setSelectedLikeItemId(null);
+      } catch (error) {
+        console.error("Error creating bucket:", error);
+      }
     }
   };
 
   // Handle item press in bucket details
   const handleBucketItemPress = (item: LikeItem) => {
-    console.log("Bucket item pressed:", item.title);
     router.push(`/event-details/${item.id}`);
   };
 
+  // Handle search query change
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+  };
+
   // Loading state
-  if (isBucketLoading) {
+  if (isBucketLoading && !bucket) {
     return (
       <SafeAreaView
         style={[styles.container, { backgroundColor: colors.background }]}
       >
+        <BackHeader title="Loading..." transparent={true} />
+        <SearchBar
+          placeholder={"Search your bucket"}
+          value={searchQuery}
+          onChangeText={handleSearchChange}
+          containerStyle={styles.searchBarContainer}
+          editable={false}
+        />
         <AnimatedLoader />
       </SafeAreaView>
     );
@@ -189,31 +229,55 @@ const BucketDetailsScreen = () => {
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <BackHeader
-        title={bucket.bucketName}
-        date={"22-27 June"} // Format as needed
-        transparent={true}
-      />
+      <BackHeader title={bucket.bucketName} transparent={true} />
       <SearchBar
         placeholder={"Search your bucket"}
         value={searchQuery}
-        onChangeText={setSearchQuery}
+        onChangeText={handleSearchChange}
         containerStyle={styles.searchBarContainer}
       />
 
-      {/* Masonry Grid for bucket items */}
-      <MasonryGrid
-        data={filteredBucketItems}
-        onBucketPress={handleShowBucketBottomSheet}
-        onItemPress={handleBucketItemPress}
-        refreshing={isBucketLoading}
-        onRefresh={refetchBucket}
-      />
+      {/* Show loader under search when loading */}
+      {isBucketLoading && (
+        <CustomView style={styles.loaderContainer}>
+          <AnimatedLoader />
+        </CustomView>
+      )}
+
+      {/* Content */}
+      {hasBucketContent && hasFilteredResults && (
+        <MasonryGrid
+          data={filteredBucketItems}
+          onBucketPress={handleShowBucketBottomSheet}
+          onItemPress={handleBucketItemPress}
+          refreshing={isBucketLoading}
+          onRefresh={refetchBucket}
+        />
+      )}
+
+      {/* Empty bucket state */}
+      {!hasBucketContent && <EmptyData type="buckets" />}
+
+      {/* No search results state */}
+      {hasBucketContent && hasSearchQuery && !hasFilteredResults && (
+        <CustomView style={styles.noResultsContainer}>
+          <CustomText
+            style={[styles.noResultsTitle, { color: colors.gray_regular }]}
+            fontFamily="Inter-SemiBold"
+          >
+            No results found
+          </CustomText>
+          <CustomText
+            style={[styles.noResultsSubtitle, { color: colors.gray_regular }]}
+          >
+            Try adjusting your search terms
+          </CustomText>
+        </CustomView>
+      )}
 
       {/* Bucket Selection Bottom Sheet */}
       <BucketBottomSheet
         isVisible={isBucketBottomSheetVisible}
-        bucketItems={otherBucketsData}
         onClose={handleCloseBucketBottomSheet}
         onItemSelect={handleItemSelect}
         onCreateNew={handleShowCreateBucketBottomSheet}
@@ -240,9 +304,29 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(16),
     marginTop: verticalScale(12),
   },
+  loaderContainer: {
+    paddingVertical: verticalScale(20),
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  noResultsContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: horizontalScale(32),
+    paddingVertical: verticalScale(60),
+  },
+  noResultsTitle: {
+    fontSize: scaleFontSize(20),
+    textAlign: "center",
+    marginBottom: verticalScale(8),
+  },
+  noResultsSubtitle: {
+    fontSize: scaleFontSize(16),
+    textAlign: "center",
+    lineHeight: 24,
   },
 });
