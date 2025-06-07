@@ -16,4 +16,6 @@ The where is kevin react native application.
 - `npx serve dist` to serve the app for web
 - `npx eas deploy` to deploy the app for web add (--prod) for production
 - `npx eas build --platform android` to build the app for android
+  - `npx eas build --platform android --profile preview --local` to build the app for android in preview mode locally (this generates an apk file)
+  - `cd android && ./gradlew app:bundleRelease` to build the app for android in release mode (https://docs.expo.dev/guides/local-app-production/) (`android/app/build/outputs/bundle/release/app-release.aab`)
 - `npx eas submit --platform ios` to submit the app for ios
