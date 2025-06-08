@@ -35,9 +35,14 @@ import OnboardingAnimationStart from "@/assets/animations/onboarding-animation-s
 import OnboardingAnimationEnd from "@/assets/animations/onboarding-animation-end.json";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { useCreateUser } from "@/hooks/useUser";
+import type { CreateUserInput } from "@/hooks/useUser";
+import { useLogin } from "@/hooks/useLogin";
 
 const OnboardingScreen = () => {
   const router = useRouter();
+  const { mutate: createUser, isPending } = useCreateUser();
+  const { mutate: login } = useLogin();
   const { colors } = useTheme();
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [selections, setSelections] = useState<OnboardingSelections>({});
@@ -50,6 +55,8 @@ const OnboardingScreen = () => {
     home: "",
     travelDestination: "",
     profileImage: null,
+    description: "",
+    password: "",
   });
   const [swipeLikes, setSwipeLikes] = useState<string[]>([]);
   const [swipeSkips, setSwipeSkips] = useState<string[]>([]);
@@ -218,7 +225,54 @@ const OnboardingScreen = () => {
           JSON.stringify(completeData)
         );
 
-        router.push("/(tabs)");
+        const getSelectedOptionsString = () => {
+          return Object.entries(selections)
+            .map(([key, value]) => {
+              const step = onboardingSteps.find((s) => s.key === key);
+              if (!step || !step.options.length || value === undefined) return null;
+              if (Array.isArray(value)) {
+                return value.map((i) => step.options[i]).join(", ");
+              }
+              return step.options[value];
+            })
+            .filter(Boolean)
+            .join(" | ");
+        };
+
+        // Map personalFormData to CreateUserInput
+        const userInput: CreateUserInput = {
+          firstName: personalFormData.firstName,
+          lastName: personalFormData.lastName,
+          email: personalFormData.email,
+          home: personalFormData.home,
+          location: personalFormData.travelDestination,
+          password: personalFormData.password,
+          description: getSelectedOptionsString(),
+        };
+
+        console.log("Creating user with input:", userInput);
+
+        createUser(userInput, {
+          onSuccess: async () => {
+            try {
+              // After successful user creation, log in the user
+              await login({
+                username: userInput.email,
+                password: userInput.password,
+              });
+              router.push("/(tabs)");
+            } catch (loginErr) {
+              console.error("Login failed after signup", loginErr);
+              router.push("/(auth)");
+            }
+          },
+          onError: (err: any) => {
+            console.error("Signup failed", err?.message || "Unknown error");
+            router.push("/(auth)");
+          },
+        });
+
+        // router.push("/(tabs)");
       } catch (error) {
         console.error("Failed to save onboarding data", error);
       }

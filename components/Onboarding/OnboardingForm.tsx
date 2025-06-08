@@ -20,6 +20,8 @@ export interface PersonalFormData {
   home: string;
   travelDestination: string;
   profileImage: string | null;
+  description: string;
+  password: string;
 }
 
 export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
@@ -109,7 +111,7 @@ export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
 
       <CustomView style={styles.formGroup}>
         <CustomTextInput
-          label="Phone Number"
+          label="Home city"
           value={formData.home}
           onChangeText={(text) => handleChange("home", text)}
           placeholder="Enter your home address"
@@ -124,6 +126,18 @@ export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
           placeholder="Enter your travel destination"
         />
       </CustomView>
+
+      {/* custom view for the password input */}
+      <CustomView style={styles.formGroup}>
+        <CustomTextInput
+          label="Password"
+          value={formData.password}
+          onChangeText={(text) => handleChange("password", text)}
+          placeholder="Enter your password"
+          secureTextEntry={true}
+        />
+      </CustomView>
+      
     </KeyboardAwareScrollView>
   );
 };

@@ -3,7 +3,6 @@ import CustomTouchable from "@/components/CustomTouchableOpacity";
 import CustomView from "@/components/CustomView";
 import LoginLogoSvg from "@/components/SvgComponents/LoginLogoSvg";
 import CustomTextInput from "@/components/TextInput/CustomTextInput";
-import { commonStyles } from "@/constants/commonStyles";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
   horizontalScale,
@@ -13,7 +12,6 @@ import {
 import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
 import { Dimensions, Platform, StyleSheet } from "react-native";
-import GoogleSvg from "@/components/SvgComponents/GoogleSvg";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLogin } from "@/hooks/useLogin";
@@ -53,12 +51,9 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
 
   const handleSignUp = (): void => {
     console.log("Sign up clicked");
-    router.replace("/(auth)/signup");
+    router.replace("/(onboarding)");
   };
 
-  const handleGoogleSignIn = (): void => {
-    console.log("Google sign in clicked");
-  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />

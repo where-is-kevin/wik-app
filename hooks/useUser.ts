@@ -1,7 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import Constants from 'expo-constants';
-import { firstValueFrom } from 'rxjs';
-import { ajax } from 'rxjs/ajax';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Constants from "expo-constants";
+import { firstValueFrom } from "rxjs";
+import { ajax } from "rxjs/ajax";
 
 type User = {
   id: string;
@@ -20,12 +20,12 @@ const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
 const fetchUser = async (jwt: string): Promise<User> => {
   const observable$ = ajax<User>({
     url: `${API_URL}/oauth2/user`,
-    method: 'GET',
+    method: "GET",
     headers: {
       Authorization: `Bearer ${jwt}`,
-      accept: 'application/json',
+      accept: "application/json",
     },
-    responseType: 'json',
+    responseType: "json",
   });
 
   const response = await firstValueFrom(observable$);
@@ -33,25 +33,28 @@ const fetchUser = async (jwt: string): Promise<User> => {
 };
 
 // Create user function
-type CreateUserInput = {
+export type CreateUserInput = {
   firstName: string;
   lastName: string;
   email: string;
+  home: string;
+  location: string;
   password: string;
+  description: string;
 };
 
 const createUser = async (input: CreateUserInput): Promise<User> => {
-  console.log('API URL:', API_URL);
+  console.log("API URL:", API_URL);
   console.log(Constants.expoConfig?.extra);
   const observable$ = ajax<User>({
     url: `${API_URL}/oauth2/user`,
-    method: 'POST',
+    method: "POST",
     headers: {
-      accept: 'application/json',
-      'Content-Type': 'application/json',
+      accept: "application/json",
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(input),
-    responseType: 'json',
+    responseType: "json",
   });
 
   const response = await firstValueFrom(observable$);
@@ -60,13 +63,13 @@ const createUser = async (input: CreateUserInput): Promise<User> => {
 
 export function useUser() {
   const queryClient = useQueryClient();
-  const authData = queryClient.getQueryData<{ accessToken?: string }>(['auth']);
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken;
 
   return useQuery<User, Error>({
-    queryKey: ['user'],
+    queryKey: ["user"],
     queryFn: () => {
-      if (!jwt) throw new Error('No JWT found');
+      if (!jwt) throw new Error("No JWT found");
       return fetchUser(jwt);
     },
     enabled: !!jwt, // Only run if JWT is present
@@ -82,28 +85,28 @@ export function useCreateUser() {
 
 export function useUpdateUser() {
   const queryClient = useQueryClient();
-  const authData = queryClient.getQueryData<{ accessToken?: string }>(['auth']);
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken;
 
   return useMutation({
     mutationFn: async (updated: any) => {
       const observable$ = ajax({
         url: `${API_URL}/oauth2/user`,
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
-          accept: 'application/json',
+          "Content-Type": "application/json",
+          accept: "application/json",
           Authorization: `Bearer ${jwt}`,
         },
         body: JSON.stringify(updated),
-        responseType: 'json',
+        responseType: "json",
       });
 
       const response = await firstValueFrom(observable$);
       return response.response;
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(['user'], data);
+      queryClient.setQueryData(["user"], data);
     },
   });
 }
