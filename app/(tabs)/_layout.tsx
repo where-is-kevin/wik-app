@@ -3,13 +3,14 @@ import PigeonSvg from "@/components/SvgComponents/PigeonSvg";
 import StarSvg from "@/components/SvgComponents/StarSvg";
 import UserSvg from "@/components/SvgComponents/UserSvg";
 import { Tabs } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { StyleSheet } from "react-native";
+import React from "react";
+import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
-  Easing,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  withSequence,
+  SharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomText from "../../components/CustomText";
@@ -17,30 +18,52 @@ import { scaleFontSize } from "../../utilities/scaling";
 
 export default function TabLayout() {
   const { bottom } = useSafeAreaInsets();
-  const activeTabIndex = useSharedValue(0);
-  const [isTabBarVisible, setIsTabBarVisible] = useState(true);
-  const tabBarOpacity = useSharedValue(isTabBarVisible ? 1 : 0);
 
-  // Animated style for the tab bar
-  const animatedTabBarStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(tabBarOpacity.value, {
-      duration: 300,
-      easing: Easing.linear,
-    }),
+  // Individual jiggle values for each tab
+  const profileJiggle = useSharedValue(0);
+  const indexJiggle = useSharedValue(0);
+  const askKevinJiggle = useSharedValue(0);
+  const settingsJiggle = useSharedValue(0);
+
+  // Function to trigger simple left-right jiggle
+  const triggerJiggle = (jiggleValue: SharedValue<number>) => {
+    jiggleValue.value = withSequence(
+      withTiming(1.2, { duration: 150 }),
+      withTiming(-1.2, { duration: 150 }),
+      withTiming(0, { duration: 150 })
+    );
+  };
+
+  // Function to get tab-specific styles
+  const getTabWrapperStyle = (tabName: string, focused: boolean) => {
+    const isWiderTab =
+      tabName === "index" || tabName === "ask-kevin" || tabName === "settings";
+
+    return [
+      isWiderTab ? styles.widerTabWrapper : styles.tabWrapper,
+      focused && styles.focusedTabBackground,
+    ];
+  };
+
+  // Create jiggle styles for each tab
+  const profileJiggleStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: profileJiggle.value }],
   }));
 
-  // Animated style for the active tab index
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: withTiming(-activeTabIndex.value * 100) }],
+  const indexJiggleStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: indexJiggle.value }],
   }));
 
-  // Update tabBarOpacity when isTabBarVisible changes
-  useEffect(() => {
-    tabBarOpacity.value = isTabBarVisible ? 1 : 0;
-  }, [isTabBarVisible, tabBarOpacity]);
+  const askKevinJiggleStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: askKevinJiggle.value }],
+  }));
+
+  const settingsJiggleStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: settingsJiggle.value }],
+  }));
 
   return (
-    <Animated.View style={[{ flex: 1 }, animatedStyle]}>
+    <View style={{ flex: 1 }}>
       <Tabs
         initialRouteName="index"
         screenOptions={{
@@ -48,9 +71,16 @@ export default function TabLayout() {
           headerShown: false,
           tabBarStyle: [
             styles.tabBarStyle,
-            animatedTabBarStyle, // Apply animated opacity to the tab bar
+            {
+              height: 80,
+              ...(bottom > 0 ? { alignItems: "center" } : { paddingTop: 21 }),
+            },
           ],
-          tabBarShowLabel: false, // Hide default labels
+          tabBarShowLabel: false,
+          tabBarButton: (props) => (
+            // @ts-ignore
+            <Pressable {...props} android_ripple={null} />
+          ),
         }}
       >
         <Tabs.Screen
@@ -59,14 +89,14 @@ export default function TabLayout() {
             tabBarIcon: ({ focused }) => (
               <Animated.View
                 style={[
-                  styles.tabWrapper,
-                  focused && styles.focusedTabBackground, // Add background for focused tab
+                  getTabWrapperStyle("profile", focused),
+                  profileJiggleStyle,
                 ]}
               >
                 <UserSvg color={focused ? "#3C62FA" : "#A3A3A8"} />
                 {focused && (
                   <CustomText
-                    fontFamily="Inter-Regular"
+                    fontFamily="Inter-Medium"
                     style={[
                       styles.tabBarLabel,
                       focused && styles.activeTabBarLabel,
@@ -78,6 +108,9 @@ export default function TabLayout() {
               </Animated.View>
             ),
           }}
+          listeners={{
+            tabPress: () => triggerJiggle(profileJiggle),
+          }}
         />
         <Tabs.Screen
           name="index"
@@ -85,16 +118,12 @@ export default function TabLayout() {
             headerShown: false,
             tabBarIcon: ({ focused }) => (
               <Animated.View
-                style={[
-                  styles.tabWrapper,
-                  focused && styles.focusedTabBackground, // Add background for focused tab
-                ]}
+                style={[getTabWrapperStyle("index", focused), indexJiggleStyle]}
               >
                 <PigeonSvg color={focused ? "#3C62FA" : "#A3A3A8"} />
-                {/* Grey when not focused */}
                 {focused && (
                   <CustomText
-                    fontFamily="Inter-Regular"
+                    fontFamily="Inter-Medium"
                     style={[
                       styles.tabBarLabel,
                       focused && styles.activeTabBarLabel,
@@ -106,6 +135,9 @@ export default function TabLayout() {
               </Animated.View>
             ),
           }}
+          listeners={{
+            tabPress: () => triggerJiggle(indexJiggle),
+          }}
         />
         <Tabs.Screen
           name="ask-kevin"
@@ -114,27 +146,29 @@ export default function TabLayout() {
             tabBarIcon: ({ focused }) => (
               <Animated.View
                 style={[
-                  styles.tabWrapper,
-                  focused && styles.focusedTabBackground, // Add background for focused tab
+                  getTabWrapperStyle("ask-kevin", focused),
+                  askKevinJiggleStyle,
                 ]}
               >
                 <StarSvg color={focused ? "#3C62FA" : "#A3A3A8"} />
-                {/* Grey when not focused */}
                 {focused && (
                   <CustomText
-                    fontFamily="Inter-Regular"
+                    fontFamily="Inter-Medium"
                     style={[
                       styles.tabBarLabel,
                       focused && styles.activeTabBarLabel,
                     ]}
-                    numberOfLines={1} // Ensure text fits in one line
-                    ellipsizeMode="clip" // Add ellipsis if text is too long
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
                   >
                     Ask Kevin
                   </CustomText>
                 )}
               </Animated.View>
             ),
+          }}
+          listeners={{
+            tabPress: () => triggerJiggle(askKevinJiggle),
           }}
         />
         <Tabs.Screen
@@ -144,15 +178,14 @@ export default function TabLayout() {
             tabBarIcon: ({ focused }) => (
               <Animated.View
                 style={[
-                  styles.tabWrapper,
-                  focused && styles.focusedTabBackground, // Add background for focused tab
+                  getTabWrapperStyle("settings", focused),
+                  settingsJiggleStyle,
                 ]}
               >
                 <CogSvg color={focused ? "#3C62FA" : "#A3A3A8"} />
-                {/* Grey when not focused */}
                 {focused && (
                   <CustomText
-                    fontFamily="Inter-Regular"
+                    fontFamily="Inter-Medium"
                     style={[
                       styles.tabBarLabel,
                       focused && styles.activeTabBarLabel,
@@ -164,44 +197,51 @@ export default function TabLayout() {
               </Animated.View>
             ),
           }}
+          listeners={{
+            tabPress: () => triggerJiggle(settingsJiggle),
+          }}
         />
       </Tabs>
-    </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   tabWrapper: {
-    flexDirection: "row", // Align icon and text horizontally
-    alignItems: "center", // Center align items vertically
-    justifyContent: "center", // Center align items horizontally
-    paddingVertical: 6, // Reduce vertical padding
-    paddingHorizontal: 10, // Reduce horizontal padding to fit text on one line
-    borderRadius: 20, // Rounded corners for the tab
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: 44,
+    minWidth: 95,
+  },
+  widerTabWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: 44,
+    minWidth: 108,
   },
   focusedTabBackground: {
-    width: "auto", // Allow width to adjust based on content
-    backgroundColor: "rgba(118, 75, 250, 0.1)", // Light purple background for focused tab
+    backgroundColor: "rgba(118, 75, 250, 0.1)",
   },
   tabBarLabel: {
-    fontSize: scaleFontSize(11), // Slightly reduce font size
-    color: "#637083", // Gray color for inactive state
-    marginLeft: 6, // Reduce spacing between the icon and text
+    fontSize: scaleFontSize(12),
+    color: "#637083",
+    marginLeft: 6,
+    flexShrink: 1,
   },
   activeTabBarLabel: {
-    color: "#3C62FA", // Purple color for active state
-    fontWeight: "600", // Slightly bold for active label
+    color: "#3C62FA",
   },
   tabBarStyle: {
-    flexDirection: "row", // Align tabs horizontally
-    justifyContent: "space-between", // Space tabs evenly
-    alignItems: "center", // Center align items vertically
-    paddingHorizontal: 12, // Match the horizontal padding from the prompt
-    gap: 10, // Add spacing between tabs
-    height: 80, // Match the height from the prompt
-    backgroundColor: "#FFFFFF", // White background
-    borderWidth: 1, // Add border
-    borderColor: "#F2F2F3", // Light gray border color
-    borderRadius: 0, // Remove rounded corners
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingHorizontal: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#F2F2F3",
+    borderRadius: 0,
   },
 });

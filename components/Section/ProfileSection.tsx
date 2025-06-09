@@ -34,6 +34,7 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
   const onEditPress = () => {
     router.push("/(profile)");
   };
+  console.log(user);
 
   return (
     <CustomView

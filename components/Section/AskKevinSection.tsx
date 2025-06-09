@@ -21,14 +21,9 @@ import SendSvgSmall from "../SvgComponents/SendSvgSmall";
 type AskKevinSectionProps = {
   onSend?: (message: string) => void;
   onInputChange?: (text: string) => void; // Add this new prop
-  onSettingsPress?: () => void;
 };
 
-const AskKevinSection = ({
-  onSend,
-  onInputChange,
-  onSettingsPress,
-}: AskKevinSectionProps) => {
+const AskKevinSection = ({ onSend, onInputChange }: AskKevinSectionProps) => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const [input, setInput] = useState("");
@@ -39,11 +34,6 @@ const AskKevinSection = ({
 
     Keyboard.dismiss();
     onSend?.(input.trim()); // Let parent handle state update
-  };
-
-  const handleSettings = () => {
-    // console.log("AskKevin: Settings pressed");
-    onSettingsPress?.();
   };
 
   const handleInputFocus = () => {
@@ -83,23 +73,15 @@ const AskKevinSection = ({
             onFocus={handleInputFocus}
             returnKeyType="send"
           />
-          <TouchableOpacity
-            style={styles.sendButton}
-            onPress={handleSend}
-            disabled={input.trim() === ""} // Optional: disable when empty
-          >
-            <SendSvgSmall stroke="#0B2E34" />
-          </TouchableOpacity>
         </CustomView>
 
         {/* Settings Button with Red Dot */}
-        <TouchableOpacity style={styles.iconButton} onPress={handleSettings}>
-          <MaterialCommunityIcons
-            name="tune-variant"
-            size={24}
-            color={colors.profile_name_black}
-          />
-          <View style={styles.redDot} />
+        <TouchableOpacity
+          style={styles.sendButton}
+          onPress={handleSend}
+          disabled={input.trim() === ""} // Optional: disable when empty
+        >
+          <SendSvgSmall stroke="#0B2E34" />
         </TouchableOpacity>
       </CustomView>
     </CustomView>
@@ -146,24 +128,8 @@ const styles = StyleSheet.create({
     fontSize: scaleFontSize(18),
     flex: 1,
   },
-  iconButton: {
-    padding: 4,
-    marginLeft: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    position: "relative",
-  },
-  redDot: {
-    position: "absolute",
-    top: 2,
-    right: 2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#FF2D55",
-  },
   sendButton: {
-    marginLeft: 8,
+    marginLeft: 12,
     justifyContent: "center",
     alignItems: "center",
   },

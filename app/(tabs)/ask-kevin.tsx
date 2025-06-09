@@ -75,18 +75,18 @@ const PaginatedContentList = () => {
   }, []);
 
   // Transform data to match LikeItem interface
-const transformedData: LikeItem[] =
-  data && Array.isArray(data.items)
-    ? data.items.map((item, index) => ({
-        id: item.id,
-        title: item.title,
-        foodImage: item.googlePlacesImageUrl || "",
-        landscapeImage: "",
-        isExperience: true,
-        hasIcon: true,
-        height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall", // Random height for masonry effect
-      }))
-    : [];
+  const transformedData: LikeItem[] =
+    data && Array.isArray(data.items)
+      ? data.items.map((item, index) => ({
+          id: item.id,
+          title: item.title,
+          foodImage: item.googlePlacesImageUrl || "",
+          landscapeImage: "",
+          isExperience: true,
+          hasIcon: true,
+          height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall", // Random height for masonry effect
+        }))
+      : [];
 
   const handleBucketPress = () => {
     // Handle bucket press logic here
