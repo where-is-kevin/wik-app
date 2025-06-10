@@ -7,10 +7,12 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { verticalScale } from "@/utilities/scaling";
 import AddImageButton from "../Button/AddImageButton";
 import * as ImagePicker from "expo-image-picker";
+import NextButton from "../Button/NextButton";
 
 interface PersonalDetailsFormProps {
   onFormChange: (formData: PersonalFormData) => void;
   formData: PersonalFormData;
+  onPressNext: () => void;
 }
 
 export interface PersonalFormData {
@@ -27,6 +29,7 @@ export interface PersonalFormData {
 export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
   onFormChange,
   formData,
+  onPressNext,
 }) => {
   const { colors } = useTheme();
 
@@ -36,6 +39,20 @@ export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
       [field]: value,
     });
   };
+
+  // Validation function to check if all required fields are filled
+  const isFormValid = () => {
+    return (
+      formData.firstName.trim() !== "" &&
+      formData.lastName.trim() !== "" &&
+      formData.email.trim() !== "" &&
+      formData.home.trim() !== "" &&
+      formData.travelDestination.trim() !== "" &&
+      formData.password.trim() !== ""
+    );
+  };
+
+  const isButtonDisabled = !isFormValid();
 
   const handleImageSelection = async () => {
     // Request permission to access the media library
@@ -70,9 +87,9 @@ export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
       enableOnAndroid={true}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
-      extraScrollHeight={20}
+      extraScrollHeight={-60}
       enableAutomaticScroll={true}
-      extraHeight={10}
+      enableResetScrollToCoords={false}
       scrollEnabled={true}
     >
       <AddImageButton
@@ -137,7 +154,16 @@ export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
           secureTextEntry={true}
         />
       </CustomView>
-      
+      <NextButton
+        onPress={onPressNext}
+        customStyles={[
+          { marginVertical: 0, marginTop: verticalScale(12) },
+          isButtonDisabled ? styles.nextButtonDisabled : {},
+        ]}
+        bgColor={colors.lime}
+        title="Next"
+        disabled={isButtonDisabled}
+      />
     </KeyboardAwareScrollView>
   );
 };
@@ -151,5 +177,8 @@ const styles = StyleSheet.create({
   },
   formGroup: {
     marginBottom: verticalScale(12),
+  },
+  nextButtonDisabled: {
+    opacity: 0.7,
   },
 });

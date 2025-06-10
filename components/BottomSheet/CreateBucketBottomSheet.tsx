@@ -1,6 +1,6 @@
 // CreateBucketBottomSheet.tsx
 import React, { useState } from "react";
-import { StyleSheet, ScrollView } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
 import CustomText from "@/components/CustomText";
 import CustomView from "@/components/CustomView";
@@ -9,6 +9,7 @@ import { CustomBottomSheet } from "./CustomBottomSheet";
 import CustomButton from "../Button/CustomButton";
 import CustomTextInput from "../TextInput/CustomTextInput";
 import NextButton from "../Button/NextButton";
+import { ScrollView } from "react-native-gesture-handler";
 
 interface CreateBucketBottomSheetProps {
   isVisible: boolean;

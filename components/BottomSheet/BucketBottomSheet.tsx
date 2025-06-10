@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  ScrollView,
   Dimensions,
   StatusBar,
   Platform,
@@ -26,6 +25,7 @@ import CreateBucketPlus from "../SvgComponents/CreateBucketPlus";
 import { fetchBuckets, useBuckets } from "@/hooks/useBuckets";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ScrollView } from "react-native-gesture-handler";
 
 // Define the BucketItem interface directly in this file
 export interface BucketItem {
@@ -140,7 +140,10 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
           </CustomText>
           {isItemInBucket && (
             <CustomText
-              style={[styles.alreadyInBucketText, { color: colors.light_blue }]}
+              style={[
+                styles.alreadyInBucketText,
+                { color: colors.bucket_green },
+              ]}
             >
               Already in bucket
             </CustomText>
@@ -281,7 +284,6 @@ const styles = StyleSheet.create({
   alreadyInBucketText: {
     fontSize: scaleFontSize(12),
     marginTop: 2,
-    fontStyle: "italic",
   },
   bottomSection: {
     borderTopWidth: 1,

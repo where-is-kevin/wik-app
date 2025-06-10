@@ -8,7 +8,7 @@ interface NextButtonProps {
   title?: string;
   onPress: () => void;
   disabled?: boolean;
-  customStyles?: ViewStyle;
+  customStyles?: ViewStyle | ViewStyle[];
   bgColor?: string;
   textColor?: string;
 }

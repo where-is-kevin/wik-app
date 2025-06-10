@@ -67,8 +67,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    height: 60,
-    paddingVertical: 10,
+    minHeight: 60, // Changed from height to minHeight
     paddingHorizontal: horizontalScale(20),
     borderRadius: 31,
     marginBottom: verticalScale(12),
@@ -88,6 +87,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: scaleFontSize(15),
+    lineHeight: scaleFontSize(20), // Added explicit line height
   },
   iconContainer: {
     justifyContent: "center",

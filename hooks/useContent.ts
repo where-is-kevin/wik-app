@@ -45,6 +45,27 @@ const fetchContent = async (jwt?: string): Promise<Content[]> => {
   return response.response;
 };
 
+// Fetch content by ID function
+const fetchContentById = async (contentId: string, jwt: string): Promise<Content> => {
+  try {
+    const observable$ = ajax<Content>({
+      url: `${API_URL}/content/${contentId}`,
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        accept: "application/json",
+      },
+      responseType: "json",
+    });
+
+    const response = await firstValueFrom(observable$);
+    return response.response;
+  } catch (error) {
+    console.error("Error fetching content by ID:", error);
+    throw error;
+  }
+};
+
 // Fixed: Now returns Content[] instead of Content
 export function useContent() {
   const queryClient = useQueryClient();
@@ -92,5 +113,20 @@ export function useContentWithParams(params: { query?: string; limit?: number; o
     queryKey: ['content', params],
     queryFn: () => fetchContentWithParams(params, jwt),
     enabled: !!API_URL,
+  });
+}
+
+export function useContentById(contentId: string) {
+  const queryClient = useQueryClient();
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
+  const jwt = authData?.accessToken;
+
+  return useQuery<Content, Error>({
+    queryKey: ["content", contentId],
+    queryFn: () => {
+      if (!jwt) throw new Error("No JWT found");
+      return fetchContentById(contentId, jwt);
+    },
+    enabled: !!jwt && !!contentId,
   });
 }

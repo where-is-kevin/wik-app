@@ -2,12 +2,12 @@ import React, { useRef, useState } from "react";
 import {
   StyleSheet,
   View,
-  Image,
   Animated,
   PanResponder,
   Dimensions,
   ImageBackground,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import CustomText from "@/components/CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -69,6 +69,9 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   const touchStartTime = useRef<number>(0);
   const touchStartPosition = useRef({ x: 0, y: 0 });
 
+  // Track which card is currently being interacted with
+  const currentInteractingCardRef = useRef<CardData | null>(null);
+
   // Early return if no data
   if (!data || data.length === 0) {
     return (
@@ -103,9 +106,12 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   });
 
   const handleCardTap = (item: CardData) => {
+    console.log("Card tapped - ID:", item.id, "Title:", item.title);
+
     if (onCardTap) {
       onCardTap(item);
     } else {
+      console.log("Navigating to event-details with ID:", item.id);
       router.push(`/event-details/${item.id}`);
     }
   };
@@ -118,10 +124,12 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     setImageLoaded((prev) => ({ ...prev, [itemId]: true }));
   };
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => data.length > 0, // Only respond if we have data
+  const createPanResponder = (item: CardData, isCurrentCard: boolean) => {
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => isCurrentCard && data.length > 0,
       onPanResponderGrant: (evt) => {
+        // Set the current interacting card
+        currentInteractingCardRef.current = item;
         touchStartTime.current = Date.now();
         touchStartPosition.current = {
           x: evt.nativeEvent.locationX,
@@ -129,7 +137,9 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
         };
       },
       onPanResponderMove: (event, gesture) => {
-        position.setValue({ x: gesture.dx, y: gesture.dy });
+        if (isCurrentCard) {
+          position.setValue({ x: gesture.dx, y: gesture.dy });
+        }
       },
       onPanResponderRelease: (event, gesture) => {
         const touchDuration = Date.now() - touchStartTime.current;
@@ -137,34 +147,40 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
           Math.pow(gesture.dx, 2) + Math.pow(gesture.dy, 2)
         );
 
-        // Safety check - make sure we have data and valid cardIndex
-        if (!data || data.length === 0 || cardIndex >= data.length) {
+        // Safety check
+        if (!data || data.length === 0 || !currentInteractingCardRef.current) {
           resetPosition();
           return;
         }
 
+        // Use the tracked card instead of cardIndex
+        const interactedItem = currentInteractingCardRef.current;
+
         // If it's a short touch with minimal movement, consider it a tap
         if (touchDuration < TAP_DURATION_THRESHOLD && distanceMoved < 10) {
-          const item = data[cardIndex];
-          if (item) {
-            handleCardTap(item);
-          }
+          console.log("Tapped card ID:", interactedItem.id);
+          handleCardTap(interactedItem);
+          resetPosition();
           return;
         }
 
-        // Handle swipes
-        if (gesture.dx > SWIPE_THRESHOLD) {
-          forceSwipe("right");
-        } else if (gesture.dx < -SWIPE_THRESHOLD) {
-          forceSwipe("left");
-        } else if (gesture.dy < -SWIPE_UP_THRESHOLD) {
-          forceSwipe("up");
+        // Handle swipes (only for current card)
+        if (isCurrentCard) {
+          if (gesture.dx > SWIPE_THRESHOLD) {
+            forceSwipe("right");
+          } else if (gesture.dx < -SWIPE_THRESHOLD) {
+            forceSwipe("left");
+          } else if (gesture.dy < -SWIPE_UP_THRESHOLD) {
+            forceSwipe("up");
+          } else {
+            resetPosition();
+          }
         } else {
           resetPosition();
         }
       },
-    })
-  ).current;
+    });
+  };
 
   const forceSwipe = (direction: "left" | "right" | "up") => {
     const x =
@@ -181,8 +197,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
       useNativeDriver: false,
     }).start(() => onSwipeComplete(direction));
   };
-
-  // In SwipeCards component, update the onSwipeComplete function:
 
   const onSwipeComplete = (direction: "left" | "right" | "up") => {
     // Safety checks
@@ -282,7 +296,10 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
           return null;
         }
 
-        if (i === cardIndex) {
+        const isCurrentCard = i === cardIndex;
+        const panResponder = createPanResponder(item, isCurrentCard);
+
+        if (isCurrentCard) {
           const isCurrentImageLoaded = imageLoaded[item.id];
 
           // Show AnimatedLoader until image is loaded
@@ -334,7 +351,10 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                     <CustomTouchable
                       style={styles.bucketContainer}
                       bgColor={colors.label_dark}
-                      onPress={() => onBucketPress?.(item?.id)}
+                      onPress={() => {
+                        console.log("Bucket pressed for:", item.id);
+                        onBucketPress?.(item.id);
+                      }}
                     >
                       <BucketSvg />
                     </CustomTouchable>
@@ -353,47 +373,52 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                   </CustomView>
                 </CustomView>
 
-                {/* Content overlay on the image */}
-                <View style={styles.cardContent}>
-                  {item.category && (
-                    <CustomView
-                      bgColor={colors.bordo}
-                      style={styles.tagContainer}
-                    >
-                      <CustomText
-                        fontFamily="Inter-SemiBold"
-                        style={[styles.venueText, { color: colors.pink }]}
+                {/* Content overlay with gradient */}
+                <LinearGradient
+                  colors={["transparent", "rgba(0,0,0,0.3)", "rgba(0,0,0,0.8)"]}
+                  style={styles.gradientOverlay}
+                >
+                  <View style={styles.cardContent}>
+                    {item.category && (
+                      <CustomView
+                        bgColor={colors.bordo}
+                        style={styles.tagContainer}
                       >
-                        {item.category}
-                      </CustomText>
-                    </CustomView>
-                  )}
-                  <CustomText
-                    fontFamily="Inter-SemiBold"
-                    style={[styles.cardTitle, { color: colors.background }]}
-                  >
-                    {item.title}
-                  </CustomText>
-                  <CustomText
-                    fontFamily="Inter-SemiBold"
-                    style={[styles.priceText, { color: colors.lime }]}
-                  >
-                    {item.price || ""}{" "}
+                        <CustomText
+                          fontFamily="Inter-SemiBold"
+                          style={[styles.venueText, { color: colors.pink }]}
+                        >
+                          {item.category}
+                        </CustomText>
+                      </CustomView>
+                    )}
                     <CustomText
                       fontFamily="Inter-SemiBold"
-                      style={[styles.perPersonText, { color: colors.lime }]}
+                      style={[styles.cardTitle, { color: colors.background }]}
                     >
-                      /person
+                      {item.title}
                     </CustomText>
-                  </CustomText>
+                    <CustomText
+                      fontFamily="Inter-SemiBold"
+                      style={[styles.priceText, { color: colors.lime }]}
+                    >
+                      {item?.price ? `£${item.price}` : "Unknown"}{" "}
+                      <CustomText
+                        fontFamily="Inter-SemiBold"
+                        style={[styles.perPersonText, { color: colors.lime }]}
+                      >
+                        /person
+                      </CustomText>
+                    </CustomText>
 
-                  <CustomText
-                    fontFamily="Inter-SemiBold"
-                    style={[styles.addressText, { color: colors.background }]}
-                  >
-                    Address
-                  </CustomText>
-                </View>
+                    <CustomText
+                      fontFamily="Inter-SemiBold"
+                      style={[styles.addressText, { color: colors.background }]}
+                    >
+                      Address
+                    </CustomText>
+                  </View>
+                </LinearGradient>
               </ImageBackground>
             </Animated.View>
           );
@@ -422,14 +447,20 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                 onError={() => handleImageLoad(item.id)}
                 onLoadStart={() => handleImageLoadStart(item.id)}
               >
-                <View style={styles.cardContent}>
-                  <CustomText
-                    fontFamily="Inter-SemiBold"
-                    style={styles.cardTitle}
-                  >
-                    {item.title}
-                  </CustomText>
-                </View>
+                {/* Simple gradient for next card preview */}
+                <LinearGradient
+                  colors={["transparent", "rgba(0,0,0,0.5)"]}
+                  style={styles.gradientOverlay}
+                >
+                  <View style={styles.cardContent}>
+                    <CustomText
+                      fontFamily="Inter-SemiBold"
+                      style={[styles.cardTitle, { color: colors.background }]}
+                    >
+                      {item.title}
+                    </CustomText>
+                  </View>
+                </LinearGradient>
               </ImageBackground>
             </Animated.View>
           );
@@ -481,6 +512,14 @@ const styles = StyleSheet.create({
   },
   imageBackground: {
     resizeMode: "cover",
+  },
+  gradientOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "50%",
+    justifyContent: "flex-end",
   },
   shareContainer: {
     alignSelf: "flex-end",

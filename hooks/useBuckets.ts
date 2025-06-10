@@ -123,27 +123,6 @@ const fetchBucketById = async (bucketId: string, jwt: string, searchQuery?: stri
   }
 };
 
-// Fetch content by ID function
-const fetchContentById = async (contentId: string, jwt: string): Promise<Content> => {
-  try {
-    const observable$ = ajax<Content>({
-      url: `${API_URL}/content/${contentId}`,
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${jwt}`,
-        accept: "application/json",
-      },
-      responseType: "json",
-    });
-
-    const response = await firstValueFrom(observable$);
-    return response.response;
-  } catch (error) {
-    console.error("Error fetching content by ID:", error);
-    throw error;
-  }
-};
-
 // Add bucket function
 type AddBucketInput = {
   id: string;
@@ -240,22 +219,6 @@ export function useBucketById(bucketId: string, searchQuery?: string) {
       return fetchBucketById(bucketId, jwt, searchQuery); // Pass searchQuery to API
     },
     enabled: !!jwt && !!bucketId,
-  });
-}
-
-// Custom hook for fetching content by ID
-export function useContentById(contentId: string) {
-  const queryClient = useQueryClient();
-  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
-  const jwt = authData?.accessToken;
-
-  return useQuery<Content, Error>({
-    queryKey: ["content", contentId],
-    queryFn: () => {
-      if (!jwt) throw new Error("No JWT found");
-      return fetchContentById(contentId, jwt);
-    },
-    enabled: !!jwt && !!contentId,
   });
 }
 

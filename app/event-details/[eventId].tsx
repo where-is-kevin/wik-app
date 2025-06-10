@@ -5,10 +5,10 @@ import {
   PanResponder,
   Dimensions,
   ImageBackground,
-  TouchableOpacity,
   StatusBar,
   ScrollView,
   View,
+  Linking,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
@@ -25,14 +25,19 @@ import {
 import BackHeader from "@/components/Header/BackHeader";
 import TestImage from "@/assets/images/test-bg.png";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
-import SendSvgSmall from "@/components/SvgComponents/SendSvgSmall";
 import CustomView from "@/components/CustomView";
-import MoreSvg from "@/components/SvgComponents/MoreSvg";
 import BucketSvg from "@/components/SvgComponents/BucketSvg";
 import ShareButton from "@/components/Button/ShareButton";
+import { useContentById } from "@/hooks/useContent";
+import AnimatedLoader from "@/components/Loader/AnimatedLoader";
+import {
+  BucketBottomSheet,
+  BucketItem,
+} from "@/components/BottomSheet/BucketBottomSheet";
+import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
+import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
-const SCREEN_WIDTH = Dimensions.get("window").width;
 
 interface EventDetailsScreenProps {}
 
@@ -41,6 +46,25 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
+
+  // Get the event ID from params
+  const eventId = params.eventId as string;
+
+  // Fetch content data using the eventId
+  const { data: contentData, isLoading, error } = useContentById(eventId);
+
+  // Bucket functionality state
+  const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] =
+    useState(false);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [
+    isCreateBucketBottomSheetVisible,
+    setIsCreateBucketBottomSheetVisible,
+  ] = useState(false);
+
+  // Mutation hooks for bucket functionality
+  const addBucketMutation = useAddBucket();
+  const createBucketMutation = useCreateBucket();
 
   // Estimated header height - adjusted based on your setup
   const ESTIMATED_HEADER_HEIGHT = verticalScale(10) + 12 + 24;
@@ -51,13 +75,6 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   const panelHeight = useRef(new Animated.Value(PANEL_MIN_HEIGHT)).current;
   const [isPanelExpanded, setIsPanelExpanded] = useState(false);
   const [isScrollEnabled, setIsScrollEnabled] = useState(false);
-
-  // Get the event details from params
-  const eventId = params.eventId as string;
-  const title = (params.title as string) || "Winery Erdevik";
-  const description = (params.description as string) || "Winery Erdevik";
-  const imageUrl = params.imageUrl as string;
-  const price = (params.price as string) || "£45";
 
   // Ref to access the ScrollView
   const scrollViewRef = useRef<ScrollView>(null);
@@ -122,128 +139,325 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
     });
   };
 
-  return (
-    <CustomView style={styles.container}>
-      <StatusBar translucent backgroundColor="transparent" />
-      <ImageBackground source={TestImage} style={styles.backgroundImage}>
-        <SafeAreaView
-          style={[styles.headerContainer, { backgroundColor: colors.overlay }]}
-        >
-          <BackHeader transparent={true} />
-        </SafeAreaView>
-      </ImageBackground>
+  // Bucket functionality handlers
+  const handleShowBucketBottomSheet = () => {
+    if (eventId) {
+      setSelectedItemId(eventId);
+      setIsBucketBottomSheetVisible(true);
+    }
+  };
 
-      {/* Sliding Panel */}
-      <Animated.View
-        style={[
-          styles.panel,
-          { height: panelHeight, backgroundColor: colors.background },
-        ]}
-      >
-        {/* Panel Handle - Visual indicator for dragging */}
-        <View style={styles.panelHandle} {...panResponder.panHandlers}>
-          <View style={styles.panelHandleBar} />
+  const handleCloseBucketBottomSheet = () => {
+    setIsBucketBottomSheetVisible(false);
+    setSelectedItemId(null);
+  };
+
+  const handleItemSelect = async (item: BucketItem) => {
+    if (selectedItemId) {
+      try {
+        await addBucketMutation.mutateAsync({
+          id: item?.id,
+          bucketName: item?.title,
+          contentIds: [selectedItemId],
+        });
+
+        setIsBucketBottomSheetVisible(false);
+        setSelectedItemId(null);
+
+        console.log(`Successfully added item to bucket "${item.title}"`);
+      } catch (error) {
+        console.error("Failed to add item to bucket:", error);
+      }
+    }
+  };
+
+  const handleShowCreateBucketBottomSheet = () => {
+    setIsBucketBottomSheetVisible(false);
+    setIsCreateBucketBottomSheetVisible(true);
+  };
+
+  const handleCloseCreateBucketBottomSheet = () => {
+    setIsCreateBucketBottomSheetVisible(false);
+  };
+
+  const handleCreateBucket = async (bucketName: string) => {
+    if (selectedItemId) {
+      try {
+        await createBucketMutation.mutateAsync({
+          bucketName: bucketName,
+          contentIds: [selectedItemId],
+        });
+        setIsCreateBucketBottomSheetVisible(false);
+        setSelectedItemId(null);
+        console.log(`Successfully created bucket "${bucketName}"`);
+      } catch (error) {
+        console.error("Failed to create bucket:", error);
+      }
+    }
+  };
+
+  // Helper function to format price
+  const formatPrice = (price: number | null) => {
+    if (price === null) return "Price on request";
+    return `£${price}`;
+  };
+
+  // Helper function to get image source
+  const getImageSource = () => {
+    if (contentData?.googlePlacesImageUrl) {
+      return { uri: contentData.googlePlacesImageUrl };
+    }
+    return TestImage; // Fallback to default image
+  };
+
+  const openOnMap = () => {
+    if (contentData?.websiteUrl) {
+      Linking.openURL(contentData.websiteUrl).catch((err) => {
+        console.error("Failed to open URL:", err);
+      });
+    } else {
+      console.log("No website URL available for this item");
+    }
+  };
+
+  // Show loading state
+  if (isLoading) {
+    return <AnimatedLoader />;
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <CustomView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <CustomText
+            style={[styles.errorText, { color: colors.gray_regular }]}
+          >
+            Failed to load event details
+          </CustomText>
+          <CustomTouchable
+            style={[
+              styles.retryButton,
+              { backgroundColor: colors.gray_regular },
+            ]}
+            onPress={() => router.back()}
+          >
+            <CustomText
+              style={[styles.retryButtonText, { color: colors.gray_regular }]}
+            >
+              Go Back
+            </CustomText>
+          </CustomTouchable>
         </View>
+      </CustomView>
+    );
+  }
 
-        {/* ScrollView for the panel content */}
-        <ScrollView
-          ref={scrollViewRef}
-          scrollEnabled={isScrollEnabled}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollViewContent}
-          scrollEventThrottle={16}
+  // Show not found state
+  if (!contentData) {
+    return (
+      <CustomView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <CustomText style={[styles.errorText, { color: colors.label_dark }]}>
+            Event not found
+          </CustomText>
+          <CustomTouchable
+            style={[
+              styles.retryButton,
+              { backgroundColor: colors.gray_regular },
+            ]}
+            onPress={() => router.back()}
+          >
+            <CustomText
+              style={[styles.retryButtonText, { color: colors.text_white }]}
+            >
+              Go Back
+            </CustomText>
+          </CustomTouchable>
+        </View>
+      </CustomView>
+    );
+  }
+
+  return (
+    <>
+      <CustomView style={styles.container}>
+        <StatusBar translucent backgroundColor="transparent" />
+        <ImageBackground
+          source={getImageSource()}
+          style={styles.backgroundImage}
         >
-          {/* Panel Content */}
-          <CustomView style={styles.panelContent}>
-            {/* EVENT Badge */}
-            <CustomView style={styles.badgeContainer}>
-              <CustomView
-                bgColor={colors.profile_name_black}
-                style={styles.experienceTag}
-              >
+          <SafeAreaView
+            style={[
+              styles.headerContainer,
+              { backgroundColor: colors.overlay },
+            ]}
+          >
+            <BackHeader transparent={true} />
+          </SafeAreaView>
+        </ImageBackground>
+
+        {/* Sliding Panel */}
+        <Animated.View
+          style={[
+            styles.panel,
+            { height: panelHeight, backgroundColor: colors.background },
+          ]}
+        >
+          {/* Panel Handle - Visual indicator for dragging */}
+          <View style={styles.panelHandle} {...panResponder.panHandlers}>
+            <View style={styles.panelHandleBar} />
+          </View>
+
+          {/* ScrollView for the panel content */}
+          <ScrollView
+            ref={scrollViewRef}
+            scrollEnabled={isScrollEnabled}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollViewContent}
+            scrollEventThrottle={16}
+          >
+            {/* Panel Content */}
+            <CustomView style={styles.panelContent}>
+              {/* EVENT Badge */}
+              <CustomView style={styles.badgeContainer}>
+                <CustomView
+                  bgColor={colors.profile_name_black}
+                  style={styles.experienceTag}
+                >
+                  <CustomText
+                    fontFamily="Inter-SemiBold"
+                    style={[styles.experienceText, { color: colors.lime }]}
+                  >
+                    {contentData.category.toUpperCase()}
+                  </CustomText>
+                </CustomView>
+
+                {/* Action Buttons */}
+                <CustomView style={styles.row}>
+                  <CustomTouchable
+                    style={styles.bucketContainer}
+                    bgColor={colors.label_dark}
+                    onPress={handleShowBucketBottomSheet}
+                  >
+                    <BucketSvg />
+                  </CustomTouchable>
+                  <CustomTouchable
+                    bgColor={colors.onboarding_gray}
+                    style={styles.shareButton}
+                  >
+                    <ShareButton
+                      width={14}
+                      height={14}
+                      title={contentData.title}
+                      message={`Check out this ${contentData.category}: ${contentData.title}`}
+                      url={contentData.websiteUrl || contentData.googleMapsUrl}
+                    />
+                  </CustomTouchable>
+                </CustomView>
+              </CustomView>
+
+              {/* Title Section */}
+              <CustomView style={styles.titleSection}>
                 <CustomText
                   fontFamily="Inter-SemiBold"
-                  style={[styles.experienceText, { color: colors.lime }]}
+                  style={[styles.title, { color: colors.label_dark }]}
                 >
-                  EXPERIENCE
+                  {contentData.title}
+                </CustomText>
+                {/* Price Info */}
+                <CustomText
+                  fontFamily="Inter-SemiBold"
+                  style={[styles.priceText, { color: colors.event_gray }]}
+                >
+                  {formatPrice(contentData.price)}{" "}
+                  {contentData.price && (
+                    <CustomText
+                      fontFamily="Inter-SemiBold"
+                      style={[
+                        styles.perPersonText,
+                        { color: colors.event_gray },
+                      ]}
+                    >
+                      /person
+                    </CustomText>
+                  )}
                 </CustomText>
               </CustomView>
 
-              {/* Share Button */}
-              <CustomView style={styles.row}>
-                <CustomTouchable
-                  style={styles.bucketContainer}
-                  bgColor={colors.label_dark}
-                >
-                  <BucketSvg />
-                </CustomTouchable>
-                <CustomTouchable
-                  bgColor={colors.onboarding_gray}
-                  style={styles.shareButton}
-                >
-                  <ShareButton
-                    width={14}
-                    height={14}
-                    title={title || ""}
-                    message={`Check out this bucket: ${title}`}
-                    url={"www.google.com"}
-                  />
-                </CustomTouchable>
-              </CustomView>
-            </CustomView>
-
-            {/* Title Section */}
-            <CustomView style={styles.titleSection}>
-              <CustomText
-                fontFamily="Inter-SemiBold"
-                style={[styles.title, { color: colors.label_dark }]}
-              >
-                {title}
-              </CustomText>
-              {/* Price Info */}
-              <CustomText
-                fontFamily="Inter-SemiBold"
-                style={[styles.priceText, { color: colors.event_gray }]}
-              >
-                {price}{" "}
+              {/* About Section */}
+              <CustomView style={styles.aboutSection}>
                 <CustomText
                   fontFamily="Inter-SemiBold"
-                  style={[styles.perPersonText, { color: colors.event_gray }]}
+                  style={[styles.aboutTitle, { color: colors.label_dark }]}
                 >
-                  /person
+                  About
                 </CustomText>
-              </CustomText>
+                <CustomText
+                  style={[styles.aboutText, { color: colors.gray_regular }]}
+                >
+                  {contentData.description || "No description available."}
+                </CustomText>
+              </CustomView>
+              {contentData.phone && (
+                <CustomTouchable
+                  style={styles.contactButton}
+                  onPress={() => {
+                    if (contentData.phone) {
+                      const phoneNumber = contentData.phone.replace(/\s+/g, "");
+                      const phoneUrl = `tel:${phoneNumber}`;
 
-              {/* Address */}
-              <CustomText
-                fontFamily="Inter-SemiBold"
-                style={[styles.addressText, { color: colors.label_dark }]}
-              >
-                Address
-              </CustomText>
-            </CustomView>
+                      Linking.openURL(phoneUrl).catch((err) => {
+                        console.error("Failed to open phone dialer:", err);
+                      });
+                    }
+                  }}
+                >
+                  <CustomText
+                    fontFamily="Inter-Medium"
+                    style={[styles.phoneText, { color: colors.gray_regular }]}
+                  >
+                    📞 {contentData.phone}
+                  </CustomText>
+                </CustomTouchable>
+              )}
 
-            {/* About Section */}
-            <CustomView style={styles.aboutSection}>
-              <CustomText
-                fontFamily="Inter-SemiBold"
-                style={[styles.aboutTitle, { color: colors.label_dark }]}
-              >
-                About
-              </CustomText>
-              <CustomText
-                style={[styles.aboutText, { color: colors.gray_regular }]}
-              >
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer
-                libero. Sed cursus ante dapibus diam. Sed nisi. Nulla quis sem
-                at nibh elementum imperdiet. Duis sagittis ipsum. Praesent
-                mauris. Fusce nec tellus sed augue semper porta.
-              </CustomText>
+              {/* Location */}
+              {contentData?.googleMapsUrl && (
+                <CustomTouchable
+                  style={styles.locationButton}
+                  onPress={openOnMap}
+                >
+                  <CustomText
+                    fontFamily="Inter-Medium"
+                    style={[
+                      styles.locationText,
+                      { color: colors.gray_regular },
+                    ]}
+                  >
+                    📍 View on Map
+                  </CustomText>
+                </CustomTouchable>
+              )}
             </CustomView>
-          </CustomView>
-        </ScrollView>
-      </Animated.View>
-    </CustomView>
+          </ScrollView>
+        </Animated.View>
+      </CustomView>
+
+      <BucketBottomSheet
+        isVisible={isBucketBottomSheetVisible}
+        onClose={handleCloseBucketBottomSheet}
+        onItemSelect={handleItemSelect}
+        onCreateNew={handleShowCreateBucketBottomSheet}
+        selectedLikeItemId={selectedItemId}
+      />
+
+      <CreateBucketBottomSheet
+        isVisible={isCreateBucketBottomSheetVisible}
+        onClose={handleCloseCreateBucketBottomSheet}
+        onCreateBucket={handleCreateBucket}
+      />
+    </>
   );
 };
 
@@ -292,6 +506,7 @@ const styles = StyleSheet.create({
   },
   panelContent: {
     paddingHorizontal: horizontalScale(20),
+    paddingBottom: verticalScale(20),
   },
   badgeContainer: {
     flexDirection: "row",
@@ -315,9 +530,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  titleSection: {},
+  titleSection: {
+    marginBottom: verticalScale(16),
+  },
   title: {
     fontSize: scaleFontSize(24),
+  },
+  ratingContainer: {
+    marginBottom: verticalScale(4),
+  },
+  ratingText: {
+    fontSize: scaleFontSize(14),
   },
   priceText: {
     fontSize: scaleFontSize(24),
@@ -326,11 +549,20 @@ const styles = StyleSheet.create({
   perPersonText: {
     fontSize: scaleFontSize(12),
   },
-  addressText: {
+  phoneText: {
     fontSize: scaleFontSize(14),
   },
+  locationText: {
+    fontSize: scaleFontSize(14),
+  },
+  contactButton: {
+    marginBottom: verticalScale(4),
+  },
+  locationButton: {
+    marginTop: verticalScale(6),
+  },
   aboutSection: {
-    marginTop: verticalScale(16),
+    marginBottom: verticalScale(16),
   },
   aboutTitle: {
     fontSize: scaleFontSize(14),
@@ -338,7 +570,43 @@ const styles = StyleSheet.create({
   },
   aboutText: {
     fontSize: scaleFontSize(14),
-    lineHeight: 16,
+    lineHeight: 20,
+  },
+  tagsSection: {
+    marginBottom: verticalScale(16),
+  },
+  tagsTitle: {
+    fontSize: scaleFontSize(14),
+    marginBottom: verticalScale(8),
+  },
+  tagsText: {
+    fontSize: scaleFontSize(14),
+    lineHeight: 20,
+  },
+  reviewsSection: {
+    marginBottom: verticalScale(16),
+  },
+  reviewsTitle: {
+    fontSize: scaleFontSize(14),
+    marginBottom: verticalScale(8),
+  },
+  reviewsText: {
+    fontSize: scaleFontSize(14),
+    lineHeight: 20,
+  },
+  actionButtonsContainer: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: verticalScale(16),
+  },
+  actionButton: {
+    flex: 1,
+    paddingVertical: verticalScale(12),
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  actionButtonText: {
+    fontSize: scaleFontSize(14),
   },
   experienceTag: {
     paddingHorizontal: 8,
@@ -359,6 +627,36 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
+  },
+  // Loading and Error States
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: horizontalScale(20),
+  },
+  loadingText: {
+    marginTop: verticalScale(16),
+    fontSize: scaleFontSize(16),
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: horizontalScale(20),
+  },
+  errorText: {
+    fontSize: scaleFontSize(16),
+    textAlign: "center",
+    marginBottom: verticalScale(16),
+  },
+  retryButton: {
+    paddingHorizontal: horizontalScale(24),
+    paddingVertical: verticalScale(12),
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    fontSize: scaleFontSize(14),
   },
 });
 

@@ -41,6 +41,7 @@ type ThemeColors = {
   light_blue: string;
   pink: string;
   bordo: string;
+  bucket_green: string;
 };
 
 // Define the themes
@@ -74,6 +75,7 @@ const themes = {
     light_blue: "#3C62FA",
     pink: "#FC6EFE",
     bordo: "#6A0C31",
+    bucket_green: "#009982",
   },
   dark: {
     text: "#ECEDEE",
@@ -104,6 +106,7 @@ const themes = {
     light_blue: "#3C62FA",
     pink: "#FC6EFE",
     bordo: "#6A0C31",
+    bucket_green: "#009982",
   },
 };
 

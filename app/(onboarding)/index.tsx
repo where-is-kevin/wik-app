@@ -229,7 +229,8 @@ const OnboardingScreen = () => {
           return Object.entries(selections)
             .map(([key, value]) => {
               const step = onboardingSteps.find((s) => s.key === key);
-              if (!step || !step.options.length || value === undefined) return null;
+              if (!step || !step.options.length || value === undefined)
+                return null;
               if (Array.isArray(value)) {
                 return value.map((i) => step.options[i]).join(", ");
               }
@@ -381,6 +382,7 @@ const OnboardingScreen = () => {
         </CustomText>
 
         <OnboardingForm
+          onPressNext={handleNext}
           formData={personalFormData}
           onFormChange={handleFormChange}
         />
@@ -484,7 +486,8 @@ const OnboardingScreen = () => {
       <CustomView style={styles.footer}>
         {stepData &&
           stepData.type !== "logo-selection" &&
-          stepData.type !== "card-swipe" && (
+          stepData.type !== "card-swipe" &&
+          stepData.type !== "personal-form" && (
             <NextButton
               onPress={handleNext}
               customStyles={
