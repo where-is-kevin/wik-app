@@ -6,7 +6,6 @@ import CustomText from "@/components/CustomText";
 import CustomView from "@/components/CustomView";
 import { scaleFontSize, verticalScale } from "@/utilities/scaling";
 import { CustomBottomSheet } from "./CustomBottomSheet";
-import CustomButton from "../Button/CustomButton";
 import CustomTextInput from "../TextInput/CustomTextInput";
 import NextButton from "../Button/NextButton";
 import { ScrollView } from "react-native-gesture-handler";

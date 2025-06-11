@@ -42,6 +42,7 @@ type ThemeColors = {
   pink: string;
   bordo: string;
   bucket_green: string;
+  tag_gray_text: string;
 };
 
 // Define the themes
@@ -76,6 +77,7 @@ const themes = {
     pink: "#FC6EFE",
     bordo: "#6A0C31",
     bucket_green: "#009982",
+    tag_gray_text: "#D8E0FF",
   },
   dark: {
     text: "#ECEDEE",
@@ -107,6 +109,7 @@ const themes = {
     pink: "#FC6EFE",
     bordo: "#6A0C31",
     bucket_green: "#009982",
+    tag_gray_text: "#D8E0FF",
   },
 };
 

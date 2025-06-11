@@ -15,11 +15,13 @@ import { useTheme } from "@/contexts/ThemeContext";
 interface BackHeaderProps {
   transparent?: boolean;
   title?: string;
+  hasBackButton?: boolean;
 }
 
 const BackHeader: React.FC<BackHeaderProps> = ({
   transparent = false,
   title,
+  hasBackButton = true,
 }) => {
   const router = useRouter();
   const { colors } = useTheme();
@@ -28,12 +30,20 @@ const BackHeader: React.FC<BackHeaderProps> = ({
       style={[styles.header, transparent && styles.transparentHeader]}
     >
       <CustomView bgColor={colors.overlay} style={styles.buttonContainer}>
-        <CustomTouchable bgColor={colors.overlay} onPress={() => router.back()}>
-          <ArrowLeftSvg />
-        </CustomTouchable>
+        {hasBackButton && (
+          <CustomTouchable
+            bgColor={colors.overlay}
+            onPress={() => router.back()}
+          >
+            <ArrowLeftSvg />
+          </CustomTouchable>
+        )}
       </CustomView>
       {title && (
-        <CustomView bgColor={colors.overlay} style={styles.titleContainer}>
+        <CustomView
+          bgColor={colors.overlay}
+          style={[styles.titleContainer, !hasBackButton && { marginRight: 0 }]}
+        >
           {title && (
             <CustomText
               fontFamily="Inter-SemiBold"
