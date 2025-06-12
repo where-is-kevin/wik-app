@@ -93,6 +93,7 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
           </CustomTouchable>
 
           <CustomTouchable
+            disabled={isPending}
             bgColor={colors.lime}
             style={styles.signInButton}
             onPress={handleSignIn}

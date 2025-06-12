@@ -1,13 +1,10 @@
 import React, { useState } from "react";
-import { StyleSheet, ScrollView } from "react-native";
+import { StyleSheet, ScrollView, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSendFeedback } from "@/hooks/useFeedback";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import CustomView from "@/components/CustomView";
 import CustomText from "@/components/CustomText";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
@@ -18,13 +15,12 @@ import {
   verticalScale,
   scaleFontSize,
 } from "@/utilities/scaling";
-import CustomButton from "@/components/Button/CustomButton";
 import CustomTextInput from "@/components/TextInput/CustomTextInput";
 import NextButton from "@/components/Button/NextButton";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 const FeedbackForm = () => {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const [rating, setRating] = useState(0);
   const [likes, setLikes] = useState<string[]>([]);
@@ -47,6 +43,9 @@ const FeedbackForm = () => {
     "Only English",
   ];
 
+  // Check if required fields are filled
+  const isFormValid = rating > 0 && likes.length > 0;
+
   const toggleSelection = (
     option: string,
     selectedList: string[],
@@ -60,6 +59,9 @@ const FeedbackForm = () => {
   };
 
   const handleSubmit = () => {
+    // Double check validation before submitting
+    if (!isFormValid) return;
+
     const feedbackData = {
       rating,
       likes,
@@ -69,14 +71,14 @@ const FeedbackForm = () => {
 
     sendFeedback.mutate(feedbackData, {
       onSuccess: () => {
-        console.log("Feedback submitted successfully", feedbackData);
         setRating(0);
         setLikes([]);
         setImprovements([]);
         setFeedback("");
-        router.back();
+        Alert.alert("Success", "Your response has successfully been saved!");
       },
       onError: (error) => {
+        Alert.alert("Error", "There was an error with saving your response.");
         console.error("Feedback submission error:", error);
       },
     });
@@ -115,10 +117,16 @@ const FeedbackForm = () => {
       >
         <BackHeader title="Feedback" transparent={true} />
 
-        <ScrollView
-          style={styles.scrollView}
+        <KeyboardAwareScrollView
+          style={styles.container}
           contentContainerStyle={styles.scrollContent}
+          enableOnAndroid={true}
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          enableAutomaticScroll={true}
+          enableResetScrollToCoords={false}
+          scrollEnabled={true}
+          bounces={false}
         >
           {/* Title Section */}
           <CustomView style={styles.titleSection}>
@@ -200,6 +208,7 @@ const FeedbackForm = () => {
             </CustomText>
             <CustomTextInput
               multiline
+              customTextStyles={styles.textArea}
               value={feedback}
               onChangeText={setFeedback}
               fixedHeight={77}
@@ -208,14 +217,17 @@ const FeedbackForm = () => {
           </CustomView>
 
           <NextButton
-            title={sendFeedback.isLoading ? "Submitting..." : "Send feedback"}
+            title={sendFeedback.isPending ? "Submitting..." : "Send feedback"}
             onPress={handleSubmit}
-            disabled={sendFeedback.isLoading}
+            disabled={sendFeedback.isPending || !isFormValid}
             bgColor={colors.lime}
             textColor={colors.label_dark}
-            customStyles={styles.submitButton}
+            customStyles={[
+              styles.submitButton,
+              !isFormValid && { opacity: 0.7 },
+            ]}
           />
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </SafeAreaView>
     </>
   );
@@ -275,6 +287,9 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: "#FFFFFF",
     fontSize: scaleFontSize(16),
+  },
+  textArea: {
+    fontSize: scaleFontSize(14),
   },
 });
 
