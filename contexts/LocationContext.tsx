@@ -1,0 +1,199 @@
+// contexts/LocationContext.tsx
+import React, { createContext, useContext, useEffect, useState } from "react";
+import * as Location from "expo-location";
+import { AppState, AppStateStatus } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+interface LocationData {
+  latitude: number;
+  longitude: number;
+  timestamp: number;
+}
+
+interface LocationContextType {
+  location: LocationData | null;
+  isLoading: boolean;
+  error: string | null;
+  requestLocationPermission: () => Promise<boolean>;
+  refreshLocation: () => Promise<void>;
+  hasLocationPermission: boolean;
+}
+
+const LocationContext = createContext<LocationContextType | undefined>(
+  undefined
+);
+
+const LOCATION_STORAGE_KEY = "user_location";
+const LOCATION_EXPIRY_TIME = 5 * 60 * 1000; // 5 minutes
+
+export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const [location, setLocation] = useState<LocationData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasLocationPermission, setHasLocationPermission] = useState(false);
+
+  // Load cached location on mount
+  useEffect(() => {
+    loadCachedLocation();
+    checkLocationPermission();
+  }, []);
+
+  // Handle app state changes
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === "active" && hasLocationPermission) {
+        // Refresh location when app becomes active
+        refreshLocationIfStale();
+      }
+    };
+
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange
+    );
+    return () => subscription?.remove();
+  }, [hasLocationPermission]);
+
+  const loadCachedLocation = async () => {
+    try {
+      const cachedLocation = await AsyncStorage.getItem(LOCATION_STORAGE_KEY);
+      if (cachedLocation) {
+        const parsedLocation = JSON.parse(cachedLocation);
+        setLocation(parsedLocation);
+      }
+    } catch (error) {
+      console.error("Error loading cached location:", error);
+    }
+  };
+
+  const checkLocationPermission = async () => {
+    try {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      setHasLocationPermission(status === "granted");
+    } catch (error) {
+      console.error("Error checking location permission:", error);
+    }
+  };
+
+  const requestLocationPermission = async (): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const { status } = await Location.requestForegroundPermissionsAsync();
+
+      if (status !== "granted") {
+        setError("Location permission denied");
+        setHasLocationPermission(false);
+        return false;
+      }
+
+      setHasLocationPermission(true);
+      await getCurrentLocation();
+      return true;
+    } catch (error) {
+      setError("Failed to request location permission");
+      console.error("Location permission error:", error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getCurrentLocation = async (): Promise<LocationData | null> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const locationResult = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: 1000,
+        distanceInterval: 10,
+      });
+
+      const newLocation: LocationData = {
+        latitude: locationResult.coords.latitude,
+        longitude: locationResult.coords.longitude,
+        timestamp: Date.now(),
+      };
+
+      setLocation(newLocation);
+      await AsyncStorage.setItem(
+        LOCATION_STORAGE_KEY,
+        JSON.stringify(newLocation)
+      );
+
+      return newLocation;
+    } catch (error) {
+      setError("Failed to get current location");
+      console.error("Get location error:", error);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const refreshLocation = async (): Promise<void> => {
+    if (!hasLocationPermission) {
+      setError("Location permission not granted");
+      return;
+    }
+    await getCurrentLocation();
+  };
+
+  const refreshLocationIfStale = async () => {
+    if (!location || Date.now() - location.timestamp > LOCATION_EXPIRY_TIME) {
+      await refreshLocation();
+    }
+  };
+
+  const value: LocationContextType = {
+    location,
+    isLoading,
+    error,
+    requestLocationPermission,
+    refreshLocation,
+    hasLocationPermission,
+  };
+
+  return (
+    <LocationContext.Provider value={value}>
+      {children}
+    </LocationContext.Provider>
+  );
+};
+
+export const useLocation = (): LocationContextType => {
+  const context = useContext(LocationContext);
+  if (!context) {
+    throw new Error("useLocation must be used within a LocationProvider");
+  }
+  return context;
+};
+
+// Custom hook for API calls that need location
+export const useLocationForAPI = () => {
+  const { location, refreshLocation, hasLocationPermission } = useLocation();
+
+  const getLocationForAPI = async (): Promise<{
+    lat: number;
+    lon: number;
+  } | null> => {
+    if (!hasLocationPermission) {
+      return null;
+    }
+
+    // Check if location is stale (older than 5 minutes)
+    if (!location || Date.now() - location.timestamp > LOCATION_EXPIRY_TIME) {
+      await refreshLocation();
+    }
+
+    return location
+      ? { lat: location.latitude, lon: location.longitude }
+      : null;
+  };
+
+  return { getLocationForAPI, hasLocationPermission };
+};

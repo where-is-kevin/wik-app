@@ -52,6 +52,12 @@
           "backgroundColor": "#ffffff"
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Kevin to use your location to show nearby events and content."
+        }
+      ],
       "expo-speech-recognition",
       [
         "expo-image-picker",

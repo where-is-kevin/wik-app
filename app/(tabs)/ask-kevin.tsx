@@ -9,10 +9,13 @@ import { Dimensions, StyleSheet, Text, View } from "react-native";
 import MasonryGrid, { LikeItem } from "@/components/MansoryGrid";
 import { horizontalScale, verticalScale } from "@/utilities/scaling";
 import CustomText from "@/components/CustomText";
+import { useLocationForAPI } from "@/contexts/LocationContext";
 
 const PaginatedContentList = () => {
   const { query } = useLocalSearchParams(); // Get the query parameter from the route
   const { colors } = useTheme();
+  const { getLocationForAPI, hasLocationPermission } = useLocationForAPI();
+  console.log(hasLocationPermission);
   const [params, setParams] = useState({
     query: query || "cake", // Use the query parameter or default to 'cake'
     limit: 10,
@@ -22,6 +25,19 @@ const PaginatedContentList = () => {
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data, isLoading, isError, refetch } = useContentWithParams(params);
+
+  useEffect(() => {
+    const updateLocationParams = async () => {
+      if (hasLocationPermission) {
+        const locationData = await getLocationForAPI();
+        if (locationData) {
+          console.log(locationData);
+        }
+      }
+    };
+
+    updateLocationParams();
+  }, [hasLocationPermission, getLocationForAPI]);
 
   const onRefresh = async () => {
     setRefreshing(true);

@@ -39,7 +39,7 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
       },
       {
         onSuccess: () => {
-          router.replace("/(tabs)");
+          router.push("/location-permission");
         },
         onError: (err: any) => {
           alert(err?.detail || err?.response?.data?.detail || "Login failed");

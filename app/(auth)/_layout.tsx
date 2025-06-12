@@ -9,6 +9,7 @@ export default function AuthLayout() {
       }}
     >
       <Stack.Screen name="index" />
+      <Stack.Screen name="location-permission" />
     </Stack>
   );
 }
