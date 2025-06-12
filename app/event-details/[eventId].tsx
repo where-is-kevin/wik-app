@@ -36,6 +36,7 @@ import {
 } from "@/components/BottomSheet/BucketBottomSheet";
 import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
+import CategoryTag from "@/components/Tag/CategoryTag";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 
@@ -212,7 +213,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
   const openOnMap = () => {
     if (contentData?.websiteUrl) {
-      Linking.openURL(contentData.websiteUrl).catch((err) => {
+      Linking.openURL(contentData.googleMapsUrl).catch((err) => {
         console.error("Failed to open URL:", err);
       });
     } else {
@@ -321,17 +322,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
             <CustomView style={styles.panelContent}>
               {/* EVENT Badge */}
               <CustomView style={styles.badgeContainer}>
-                <CustomView
-                  bgColor={colors.profile_name_black}
-                  style={styles.experienceTag}
-                >
-                  <CustomText
-                    fontFamily="Inter-SemiBold"
-                    style={[styles.experienceText, { color: colors.lime }]}
-                  >
-                    {contentData.category.toUpperCase()}
-                  </CustomText>
-                </CustomView>
+                <CategoryTag category={contentData.category} colors={colors} />
 
                 {/* Action Buttons */}
                 <CustomView style={styles.row}>

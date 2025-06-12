@@ -20,7 +20,7 @@ type ProfileSectionProps = {
     lastName: string;
     email: string;
     profileImageUrl?: string;
-    description?: string;
+    personalSummary?: string;
     location?: string;
     home?: string;
   };
@@ -66,20 +66,23 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
           <EditSvg />
         </CustomTouchable>
       </CustomView>
-
-      {/* description */}
-      <CustomText
-        style={[styles.profileBio, { color: colors.profile_name_black }]}
-      >
-        {user?.description || ""}
-      </CustomText>
+      {user?.personalSummary && (
+        <CustomText
+          style={[styles.profileBio, { color: colors.profile_name_black }]}
+        >
+          {user?.personalSummary || ""}
+        </CustomText>
+      )}
 
       {/* Location Tags */}
       <CustomView
         bgColor={colors.onboarding_gray}
-        style={styles.locationContainer}
+        style={[
+          styles.locationContainer,
+          !user?.personalSummary && { marginTop: verticalScale(10) },
+        ]}
       >
-        <CustomTouchable
+        <CustomView
           bgColor={colors.profile_name_black}
           style={styles.locationTag}
         >
@@ -88,11 +91,11 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
             fontFamily="Inter-Medium"
             style={[styles.locationText, { color: colors.text_white }]}
           >
-            {user?.location || "Lisbon, Portugal"}
+            {user?.location || "No location"}
           </CustomText>
-        </CustomTouchable>
+        </CustomView>
 
-        <CustomTouchable
+        <CustomView
           bgColor={colors.opacity_lime}
           style={styles.secondaryLocationTag}
         >
@@ -101,9 +104,9 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
             fontFamily="Inter-Medium"
             style={[styles.locationText, { color: colors.profile_name_black }]}
           >
-            {user?.home || "Lisbon, Portugal"}
+            {user?.home || "No location"}
           </CustomText>
-        </CustomTouchable>
+        </CustomView>
       </CustomView>
     </CustomView>
   );

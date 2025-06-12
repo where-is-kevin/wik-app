@@ -19,20 +19,28 @@ const login = async (data: {
 
   console.log('Login params:', params.toString());
 
-  const observable$ = ajax({
-    url: `${API_URL}/oauth2/login`,
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      accept: 'application/json',
-    },
-    body: params.toString(),
-    responseType: 'json',
-  });
+  try {
+    const observable$ = ajax({
+      url: `${API_URL}/oauth2/login`,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        accept: 'application/json',
+      },
+      body: params.toString(),
+      responseType: 'json',
+    });
 
-  // Convert Observable to Promise for React Query
-  const response = await firstValueFrom(observable$);
-  return response.response;
+    // Convert Observable to Promise for React Query
+    const response = await firstValueFrom(observable$);
+    return response.response;
+  } catch (error: any) {
+    if (error?.response) {
+      // Throw the actual API response so it can be accessed in the component
+      throw error.response;
+    }
+    throw error;
+  }
 };
 
 export function useLogin() {

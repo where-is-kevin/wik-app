@@ -204,7 +204,7 @@ export const onboardingSteps: OnboardingStep[] = [
       subtitle: "Finalise setting up your profile",
       type: "personal-form" as const,
       options: [],
-      condition: { key: "userType", value: 1 }, // Only for personal users
+      // condition: { key: "userType", value: 1 }, // Only for personal users
     },
     {
       key: "travelPreferences",

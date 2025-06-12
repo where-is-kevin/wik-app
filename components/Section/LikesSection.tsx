@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Image,
@@ -46,11 +46,35 @@ const LikeItemComponent: React.FC<LikeItemProps> = ({
   onMorePress,
 }) => {
   const { colors } = useTheme();
+
+  // Local placeholder image
+  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+
+  // State to track if image has failed to load
+  const [imageError, setImageError] = useState<boolean>(false);
+
+  // Function to handle image loading error
+  const handleImageError = () => {
+    setImageError(true);
+  };
+
+  // Function to get the appropriate image source
+  const getImageSource = () => {
+    if (imageError || !image) {
+      return PLACEHOLDER_IMAGE;
+    }
+    return { uri: image };
+  };
+
   return (
     <CustomView style={styles.container}>
       {/* Image container with its own touchable */}
       <CustomTouchable style={styles.imageContainer} onPress={onPress}>
-        <Image source={{ uri: image }} style={styles.image} />
+        <Image
+          source={getImageSource()}
+          style={styles.image}
+          onError={handleImageError}
+        />
       </CustomTouchable>
 
       {/* Title row with more options button */}

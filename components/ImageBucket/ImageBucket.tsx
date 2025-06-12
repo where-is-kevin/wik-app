@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -50,6 +50,33 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
   // Local placeholder image
   const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
+  // State to track which images have failed to load
+  const [imageErrors, setImageErrors] = useState<boolean[]>([
+    false,
+    false,
+    false,
+  ]);
+
+  // Function to handle image loading errors
+  const handleImageError = (index: number) => {
+    setImageErrors((prev) => {
+      const newErrors = [...prev];
+      newErrors[index] = true;
+      return newErrors;
+    });
+  };
+
+  // Function to get the appropriate image source
+  const getImageSource = (imageUrl: string | any, index: number) => {
+    // If there's an error or no valid URL, use placeholder
+    if (imageErrors[index] || !imageUrl) {
+      return PLACEHOLDER_IMAGE;
+    }
+
+    // If it's a string URL, return uri object, otherwise return as is (local image)
+    return typeof imageUrl === "string" ? { uri: imageUrl } : imageUrl;
+  };
+
   // Ensuring we have at least 3 images, using local placeholder if needed
   const safeImages = [
     images?.[0] || PLACEHOLDER_IMAGE,
@@ -64,12 +91,9 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
         {/* Main large image (left side) */}
         <CustomView style={styles.mainImageContainer}>
           <Image
-            source={
-              typeof safeImages[0] === "string"
-                ? { uri: safeImages[0] }
-                : safeImages[0]
-            }
+            source={getImageSource(safeImages[0], 0)}
             style={styles.mainImage}
+            onError={() => handleImageError(0)}
           />
         </CustomView>
 
@@ -77,12 +101,9 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
         <CustomView style={styles.rightColumn}>
           <CustomView style={styles.smallImageContainer}>
             <Image
-              source={
-                typeof safeImages[1] === "string"
-                  ? { uri: safeImages[1] }
-                  : safeImages[1]
-              }
+              source={getImageSource(safeImages[1], 1)}
               style={styles.smallImage}
+              onError={() => handleImageError(1)}
             />
           </CustomView>
 
@@ -90,12 +111,9 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
             style={[styles.smallImageContainer, styles.bottomImageContainer]}
           >
             <Image
-              source={
-                typeof safeImages[2] === "string"
-                  ? { uri: safeImages[2] }
-                  : safeImages[2]
-              }
+              source={getImageSource(safeImages[2], 2)}
               style={styles.smallImage}
+              onError={() => handleImageError(2)}
             />
           </CustomView>
         </CustomView>

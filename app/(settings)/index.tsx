@@ -44,7 +44,11 @@ const FeedbackForm = () => {
   ];
 
   // Check if required fields are filled
-  const isFormValid = rating > 0 && likes.length > 0;
+  const isFormValid =
+    rating > 0 ||
+    likes.length > 0 ||
+    improvements.length > 0 ||
+    feedback.trim() !== "";
 
   const toggleSelection = (
     option: string,
@@ -210,6 +214,7 @@ const FeedbackForm = () => {
               multiline
               customTextStyles={styles.textArea}
               value={feedback}
+              numOfLines={3}
               onChangeText={setFeedback}
               fixedHeight={77}
               placeholder="Tell us everything."
@@ -224,7 +229,7 @@ const FeedbackForm = () => {
             textColor={colors.label_dark}
             customStyles={[
               styles.submitButton,
-              !isFormValid && { opacity: 0.7 },
+              !isFormValid ? { opacity: 0.7 } : {},
             ]}
           />
         </KeyboardAwareScrollView>
@@ -236,6 +241,7 @@ const FeedbackForm = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingBottom: 4,
   },
   scrollView: {
     flex: 1,
@@ -243,6 +249,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: horizontalScale(24),
     paddingTop: verticalScale(12),
+    flexGrow: 1,
   },
   titleSection: {
     marginBottom: verticalScale(20),
@@ -283,7 +290,9 @@ const styles = StyleSheet.create({
     fontSize: scaleFontSize(11),
     textTransform: "uppercase",
   },
-  submitButton: {},
+  submitButton: {
+    marginTop: "auto",
+  },
   submitButtonText: {
     color: "#FFFFFF",
     fontSize: scaleFontSize(16),

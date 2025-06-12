@@ -54,8 +54,7 @@ const OnboardingScreen = () => {
     email: "",
     home: "",
     travelDestination: "",
-    profileImage: null,
-    description: "",
+    personalSummary: "",
     password: "",
   });
   const [swipeLikes, setSwipeLikes] = useState<string[]>([]);
@@ -210,21 +209,6 @@ const OnboardingScreen = () => {
   const handleNext = async () => {
     if (currentStepIndex === filteredSteps.length - 1) {
       try {
-        await AsyncStorage.setItem("onboardingComplete", "true");
-
-        const completeData = {
-          selections,
-          personalDetails: personalFormData,
-          likes: swipeLikes,
-          dislikes: swipeDislikes,
-          skips: swipeSkips,
-        };
-
-        await AsyncStorage.setItem(
-          "onboardingData",
-          JSON.stringify(completeData)
-        );
-
         const getSelectedOptionsString = () => {
           return Object.entries(selections)
             .map(([key, value]) => {
@@ -249,9 +233,8 @@ const OnboardingScreen = () => {
           location: personalFormData.travelDestination,
           password: personalFormData.password,
           description: getSelectedOptionsString(),
+          personalSummary: personalFormData.personalSummary,
         };
-
-        console.log("Creating user with input:", userInput);
 
         createUser(userInput, {
           onSuccess: async () => {
@@ -285,6 +268,8 @@ const OnboardingScreen = () => {
   const handleBack = () => {
     if (currentStepIndex > 0) {
       setCurrentStepIndex(currentStepIndex - 1);
+    } else {
+      router.back();
     }
   };
 
@@ -475,7 +460,7 @@ const OnboardingScreen = () => {
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <StatusBar style="dark" />
-      {currentStepIndex > 0 && stepData?.type !== "final-slide" && (
+      {stepData?.type !== "final-slide" && (
         <CustomTouchable style={styles.header} onPress={handleBack}>
           <ArrowLeftSvg />
         </CustomTouchable>
@@ -491,15 +476,19 @@ const OnboardingScreen = () => {
             <NextButton
               onPress={handleNext}
               customStyles={
-                isNextButtonDisabled() ? styles.nextButtonDisabled : {}
+                isNextButtonDisabled() || isPending
+                  ? styles.nextButtonDisabled
+                  : {}
               }
               bgColor={colors.lime}
               title={
-                currentStepIndex === filteredSteps.length - 1
+                isPending
+                  ? "Finalizing..."
+                  : currentStepIndex === filteredSteps.length - 1
                   ? "Finish"
                   : "Next"
               }
-              disabled={isNextButtonDisabled()}
+              disabled={isNextButtonDisabled() || isPending}
             />
           )}
         <CustomView style={styles.progressContainer}>

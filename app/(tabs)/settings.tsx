@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   Platform,
   View,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -21,11 +22,15 @@ import {
 } from "@/utilities/scaling";
 import CustomText from "@/components/CustomText";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useDeleteUser } from "@/hooks/useDeleteUser"; // Import your hook
 
 const settingsData = [
   { id: "1", title: "Feedback" },
   { id: "2", title: "Privacy and security" },
-  { id: "3", title: "Log Out" },
+  { id: "3", title: "Change password" },
+  { id: "4", title: "Log out" },
+  { id: "5", title: "Delete user" },
 ];
 
 const Settings = () => {
@@ -33,6 +38,7 @@ const Settings = () => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const queryClient = useQueryClient();
+  const deleteUserMutation = useDeleteUser();
 
   const handleFeedback = () => {
     router.push("/(settings)");
@@ -40,13 +46,51 @@ const Settings = () => {
 
   const handlePrivacyAndSecurity = () => {
     console.log("Navigating to Privacy & Security");
+    router.push("/privacy-policy");
+  };
+
+  const handleChangePassword = () => {
+    router.push("/change-password");
     // Add navigation logic here when Privacy & Security is implemented
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     console.log("Logging out...");
     queryClient.removeQueries({ queryKey: ["jwt"] });
+    await AsyncStorage.clear();
     router.replace("/(auth)");
+  };
+
+  const handleDeleteUser = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            deleteUserMutation.mutate(undefined, {
+              onSuccess: () => {
+                // Navigation will be handled by the hook's onSuccess
+                router.replace("/(auth)");
+              },
+              onError: (error) => {
+                Alert.alert(
+                  "Error",
+                  "Failed to delete account. Please try again.",
+                  [{ text: "OK" }]
+                );
+              },
+            });
+          },
+        },
+      ]
+    );
   };
 
   const handlePress = (id: string) => {
@@ -58,7 +102,13 @@ const Settings = () => {
         handlePrivacyAndSecurity();
         break;
       case "3":
+        handleChangePassword();
+        break;
+      case "4":
         handleLogout();
+        break;
+      case "5":
+        handleDeleteUser();
         break;
       default:
         console.log("Unknown setting selected");
@@ -78,15 +128,32 @@ const Settings = () => {
           styles.settingItem,
           {
             backgroundColor: colors?.background,
+            opacity: item.id === "5" ? 0.7 : 1, // Reduced opacity for delete user
           },
         ]}
         onPress={() => handlePress(item.id)}
         activeOpacity={0.7}
+        disabled={item.id === "5" && deleteUserMutation.isPending} // Disable during deletion
       >
-        <CustomText style={[styles.settingText, { color: colors?.label_dark }]}>
+        <CustomText
+          style={[
+            styles.settingText,
+            {
+              color: item.id === "5" ? "#FF3B30" : colors?.label_dark, // Red color for delete user
+            },
+          ]}
+        >
           {item.title}
+          {item.id === "5" && deleteUserMutation.isPending && " (Deleting...)"}
         </CustomText>
-        <Ionicons name="chevron-forward" size={16} color={colors?.event_gray} />
+        {/* Hide chevron for logout and delete user */}
+        {item.id !== "4" && item.id !== "5" && (
+          <Ionicons
+            name="chevron-forward"
+            size={16}
+            color={colors?.event_gray}
+          />
+        )}
       </CustomTouchable>
 
       {/* Separator - only show if not the last item */}

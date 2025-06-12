@@ -4,9 +4,9 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 import CustomView from "@/components/CustomView";
 import CustomTextInput from "@/components/TextInput/CustomTextInput";
 import { useTheme } from "@/contexts/ThemeContext";
-import { verticalScale } from "@/utilities/scaling";
-import AddImageButton from "../Button/AddImageButton";
-import * as ImagePicker from "expo-image-picker";
+import { scaleFontSize, verticalScale } from "@/utilities/scaling";
+// import AddImageButton from "../Button/AddImageButton";
+// import * as ImagePicker from "expo-image-picker";
 import NextButton from "../Button/NextButton";
 
 interface PersonalDetailsFormProps {
@@ -21,9 +21,9 @@ export interface PersonalFormData {
   email: string;
   home: string;
   travelDestination: string;
-  profileImage: string | null;
-  description: string;
+  // profileImage: string | null;
   password: string;
+  personalSummary: string;
 }
 
 export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
@@ -54,31 +54,31 @@ export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
 
   const isButtonDisabled = !isFormValid();
 
-  const handleImageSelection = async () => {
-    // Request permission to access the media library
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  // const handleImageSelection = async () => {
+  //   // Request permission to access the media library
+  //   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (status !== "granted") {
-      alert("Sorry, we need camera roll permissions to make this work!");
-      return;
-    }
+  //   if (status !== "granted") {
+  //     alert("Sorry, we need camera roll permissions to make this work!");
+  //     return;
+  //   }
 
-    // Launch the image picker
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+  //   // Launch the image picker
+  //   const result = await ImagePicker.launchImageLibraryAsync({
+  //     mediaTypes: ImagePicker.MediaTypeOptions.Images,
+  //     allowsEditing: true,
+  //     aspect: [1, 1],
+  //     quality: 0.8,
+  //   });
 
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      // Update form data with the selected image URI
-      onFormChange({
-        ...formData,
-        profileImage: result.assets[0].uri,
-      });
-    }
-  };
+  //   if (!result.canceled && result.assets && result.assets.length > 0) {
+  //     // Update form data with the selected image URI
+  //     onFormChange({
+  //       ...formData,
+  //       profileImage: result.assets[0].uri,
+  //     });
+  //   }
+  // };
 
   return (
     <KeyboardAwareScrollView
@@ -92,10 +92,10 @@ export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
       enableResetScrollToCoords={false}
       scrollEnabled={true}
     >
-      <AddImageButton
+      {/* <AddImageButton
         onPress={handleImageSelection}
         imageUri={formData.profileImage}
-      />
+      /> */}
       <CustomView style={styles.formGroup}>
         <CustomTextInput
           label="First name"
@@ -123,6 +123,18 @@ export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
           placeholder="Enter your email address"
           keyboardType="email-address"
           autoCapitalize="none"
+        />
+      </CustomView>
+      <CustomView style={styles.formGroup}>
+        <CustomTextInput
+          label="Personal summary"
+          multiline
+          customTextStyles={styles.textArea}
+          value={formData.personalSummary}
+          numOfLines={3}
+          onChangeText={(text) => handleChange("personalSummary", text)}
+          fixedHeight={77}
+          placeholder="Tell us everything."
         />
       </CustomView>
 
@@ -181,4 +193,5 @@ const styles = StyleSheet.create({
   nextButtonDisabled: {
     opacity: 0.7,
   },
+  textArea: {},
 });

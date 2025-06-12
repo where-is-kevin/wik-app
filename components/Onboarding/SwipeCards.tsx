@@ -22,6 +22,7 @@ import AnimatedLoader from "../Loader/AnimatedLoader";
 import CustomView from "../CustomView";
 import BucketSvg from "../SvgComponents/BucketSvg";
 import ShareButton from "../Button/ShareButton";
+import CategoryTag from "../Tag/CategoryTag";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
@@ -380,17 +381,11 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                 >
                   <View style={styles.cardContent}>
                     {item.category && (
-                      <CustomView
-                        bgColor={colors.bordo}
+                      <CategoryTag
                         style={styles.tagContainer}
-                      >
-                        <CustomText
-                          fontFamily="Inter-SemiBold"
-                          style={[styles.venueText, { color: colors.pink }]}
-                        >
-                          {item.category}
-                        </CustomText>
-                      </CustomView>
+                        category={item.category}
+                        colors={colors}
+                      />
                     )}
                     <CustomText
                       fontFamily="Inter-SemiBold"
@@ -533,7 +528,6 @@ const styles = StyleSheet.create({
   tagContainer: {
     borderRadius: 12,
     paddingVertical: 6,
-    paddingHorizontal: 12,
     marginBottom: verticalScale(9),
     justifyContent: "center",
     alignItems: "center",

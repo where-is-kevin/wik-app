@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { StyleSheet, Image } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -37,6 +37,26 @@ const LikeCard: React.FC<LikeCardProps> = ({
   style,
 }) => {
   const { colors } = useTheme();
+
+  // Local placeholder image
+  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+
+  // State to track if image has failed to load
+  const [imageError, setImageError] = useState<boolean>(false);
+
+  // Function to handle image loading error
+  const handleImageError = () => {
+    setImageError(true);
+  };
+
+  // Function to get the appropriate image source
+  const getImageSource = () => {
+    if (imageError || !item.foodImage) {
+      return PLACEHOLDER_IMAGE;
+    }
+    return { uri: item.foodImage };
+  };
+
   const cardHeight =
     item.height === "tall" ? verticalScale(217) : verticalScale(117);
   const imageHeight =
@@ -59,7 +79,11 @@ const LikeCard: React.FC<LikeCardProps> = ({
           style={[styles.imageContainer, { height: imageHeight }]}
           onPress={onPress}
         >
-          <Image source={{ uri: item.foodImage }} style={styles.image} />
+          <Image
+            source={getImageSource()}
+            style={styles.image}
+            onError={handleImageError}
+          />
 
           {/* Experience tag in top left */}
           {item.isExperience && (

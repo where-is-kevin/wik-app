@@ -19,10 +19,15 @@ import NavigationHeader from "@/components/Header/NavigationHeader";
 import { useTheme } from "@/contexts/ThemeContext";
 import CustomView from "@/components/CustomView";
 import CustomTextInput from "@/components/TextInput/CustomTextInput";
-import { horizontalScale, verticalScale } from "@/utilities/scaling";
+import {
+  horizontalScale,
+  scaleFontSize,
+  verticalScale,
+} from "@/utilities/scaling";
 import NextButton from "@/components/Button/NextButton";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import EditProfileSvg from "@/components/SvgComponents/EditProfileSvg";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 const UpdateProfile = () => {
   const { colors } = useTheme();
@@ -37,7 +42,7 @@ const UpdateProfile = () => {
     email: "",
     location: "",
     home: "",
-    profileImageUrl: "",
+    personalSummary: "",
     createdAt: new Date().toISOString(),
   });
 
@@ -50,7 +55,7 @@ const UpdateProfile = () => {
         lastName: user.lastName || "",
         location: user.location || "",
         home: user.home || "",
-        profileImageUrl: user.profileImageUrl || "",
+        personalSummary: user.personalSummary || "",
         createdAt: user.createdAt || new Date().toISOString(),
       });
     }
@@ -78,18 +83,19 @@ const UpdateProfile = () => {
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <NavigationHeader header="Edit profile" />
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        // keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      <KeyboardAwareScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        enableOnAndroid={true}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        enableAutomaticScroll={true}
+        enableResetScrollToCoords={false}
+        scrollEnabled={true}
+        bounces={false}
       >
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ flexGrow: 1 }}
-          keyboardShouldPersistTaps="handled"
-        >
-          <CustomView style={styles.inputContainer}>
-            <View style={styles.avatarContainer}>
+        <CustomView style={styles.inputContainer}>
+          {/* <View style={styles.avatarContainer}>
               <Image
                 source={{
                   uri:
@@ -104,49 +110,57 @@ const UpdateProfile = () => {
               >
                 <EditProfileSvg />
               </CustomTouchable>
-            </View>
-            <CustomTextInput
-              label="First name"
-              placeholder="First name"
-              value={form.firstName}
-              onChangeText={(text) => handleChange("firstName", text)}
-            />
+            </View> */}
+          <CustomTextInput
+            label="First name"
+            placeholder="First name"
+            value={form.firstName}
+            onChangeText={(text) => handleChange("firstName", text)}
+          />
 
-            <CustomTextInput
-              label="Last name"
-              placeholder="Last name"
-              value={form.lastName}
-              onChangeText={(text) => handleChange("lastName", text)}
-            />
-            <CustomTextInput
-              label="Email"
-              placeholder="Email"
-              value={form.email}
-              onChangeText={(text) => handleChange("email", text)}
-            />
+          <CustomTextInput
+            label="Last name"
+            placeholder="Last name"
+            value={form.lastName}
+            onChangeText={(text) => handleChange("lastName", text)}
+          />
+          <CustomTextInput
+            label="Email"
+            placeholder="Email"
+            value={form.email}
+            onChangeText={(text) => handleChange("email", text)}
+          />
 
-            <CustomTextInput
-              label="Home"
-              placeholder="Home"
-              value={form.home}
-              onChangeText={(text) => handleChange("home", text)}
-            />
-            <CustomTextInput
-              label="Travel destination"
-              placeholder="Travel destination"
-              value={form.location}
-              onChangeText={(text) => handleChange("location", text)}
-            />
-          </CustomView>
+          <CustomTextInput
+            label="Home"
+            placeholder="Home"
+            value={form.home}
+            onChangeText={(text) => handleChange("home", text)}
+          />
+          <CustomTextInput
+            label="Travel destination"
+            placeholder="Travel destination"
+            value={form.location}
+            onChangeText={(text) => handleChange("location", text)}
+          />
+          <CustomTextInput
+            multiline
+            label="Personal summary"
+            customTextStyles={styles.textArea}
+            value={form.personalSummary}
+            onChangeText={(text) => handleChange("personalSummary", text)}
+            fixedHeight={77}
+            placeholder="Tell us everything about yourself."
+          />
           <NextButton
             onPress={handleSubmit}
             bgColor={colors.lime}
-            customStyles={{ marginHorizontal: horizontalScale(24) }}
+            customStyles={{ marginTop: "auto" }}
             title={isPending ? "Updating..." : "Update"}
             disabled={isPending}
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </CustomView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 };
@@ -154,9 +168,13 @@ const UpdateProfile = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingBottom: verticalScale(10),
+    paddingBottom: 2,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   inputContainer: {
+    marginTop: verticalScale(16),
     flex: 1,
     gap: verticalScale(12),
     paddingTop: verticalScale(6),
@@ -179,6 +197,9 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 1000,
     zIndex: 10,
+  },
+  textArea: {
+    fontSize: scaleFontSize(14),
   },
 });
 

@@ -186,6 +186,7 @@ const styles = StyleSheet.create({
   },
   visibilityToggle: {
     paddingHorizontal: 15,
+    marginRight: 1,
   },
   visibilityToggleText: {
     fontSize: scaleFontSize(14),

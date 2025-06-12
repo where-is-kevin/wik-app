@@ -43,6 +43,7 @@ type ThemeColors = {
   bordo: string;
   bucket_green: string;
   tag_gray_text: string;
+  venue_orange: string;
 };
 
 // Define the themes
@@ -78,6 +79,7 @@ const themes = {
     bordo: "#6A0C31",
     bucket_green: "#009982",
     tag_gray_text: "#D8E0FF",
+    venue_orange: "#F84808",
   },
   dark: {
     text: "#ECEDEE",
@@ -110,6 +112,7 @@ const themes = {
     bordo: "#6A0C31",
     bucket_green: "#009982",
     tag_gray_text: "#D8E0FF",
+    venue_orange: "#F84808",
   },
 };
 

@@ -12,24 +12,34 @@ type User = {
   location: string;
   home: string;
   profileImageUrl: string;
+  personalSummary: string;
   createdAt: string;
 };
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
 
 const fetchUser = async (jwt: string): Promise<User> => {
-  const observable$ = ajax<User>({
-    url: `${API_URL}/oauth2/user`,
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${jwt}`,
-      accept: "application/json",
-    },
-    responseType: "json",
-  });
+  try {
+    const observable$ = ajax<User>({
+      url: `${API_URL}/oauth2/user`,
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        accept: "application/json",
+      },
+      responseType: "json",
+    });
 
-  const response = await firstValueFrom(observable$);
-  return response.response;
+    const response = await firstValueFrom(observable$);
+    return response.response;
+  } catch (error: any) {
+    console.error("Error fetching user:", error);
+    if (error?.response) {
+      // Throw the actual API response so it can be accessed in the component
+      throw error.response;
+    }
+    throw error;
+  }
 };
 
 // Create user function
@@ -41,24 +51,57 @@ export type CreateUserInput = {
   location: string;
   password: string;
   description: string;
+  personalSummary: string;
 };
 
 const createUser = async (input: CreateUserInput): Promise<User> => {
-  console.log("API URL:", API_URL);
-  console.log(Constants.expoConfig?.extra);
-  const observable$ = ajax<User>({
-    url: `${API_URL}/oauth2/user`,
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(input),
-    responseType: "json",
-  });
+  try {
+    const observable$ = ajax<User>({
+      url: `${API_URL}/oauth2/user`,
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+      responseType: "json",
+    });
 
-  const response = await firstValueFrom(observable$);
-  return response.response;
+    const response = await firstValueFrom(observable$);
+    return response.response;
+  } catch (error: any) {
+    if (error?.response) {
+      // Throw the actual API response so it can be accessed in the component
+      throw error.response;
+    }
+    throw error;
+  }
+};
+
+const updateUser = async (jwt: string, updated: any): Promise<User> => {
+  try {
+    const observable$ = ajax<User>({
+      url: `${API_URL}/oauth2/user`,
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        accept: "application/json",
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: JSON.stringify(updated),
+      responseType: "json",
+    });
+
+    const response = await firstValueFrom(observable$);
+    return response.response;
+  } catch (error: any) {
+    console.error("Error updating user:", error);
+    if (error?.response) {
+      // Throw the actual API response so it can be accessed in the component
+      throw error.response;
+    }
+    throw error;
+  }
 };
 
 export function useUser() {
@@ -90,20 +133,8 @@ export function useUpdateUser() {
 
   return useMutation({
     mutationFn: async (updated: any) => {
-      const observable$ = ajax({
-        url: `${API_URL}/oauth2/user`,
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          accept: "application/json",
-          Authorization: `Bearer ${jwt}`,
-        },
-        body: JSON.stringify(updated),
-        responseType: "json",
-      });
-
-      const response = await firstValueFrom(observable$);
-      return response.response;
+      if (!jwt) throw new Error("No JWT found");
+      return updateUser(jwt, updated);
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["user"], data);
