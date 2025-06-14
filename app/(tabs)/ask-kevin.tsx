@@ -74,19 +74,24 @@ const PaginatedContentList = () => {
     };
   }, []);
 
+  const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1536236502598-7dd171f8e852?q=80&w=1974";
+
   // Transform data to match LikeItem interface
   const transformedData: LikeItem[] =
     data && Array.isArray(data.items)
       ? data.items.map((item, index) => ({
           id: item.id,
           title: item.title,
-          foodImage: item.googlePlacesImageUrl || "",
+          foodImage:
+            item.internalImages && item.internalImages.length > 0
+              ? item.internalImages[0]
+              : PLACEHOLDER_IMAGE,
           landscapeImage: "",
-          isExperience: true,
+          isExperience: item.category === "experience",
           hasIcon: true,
           height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall", // Random height for masonry effect
         }))
-      : [];
+    : [];
 
   const handleBucketPress = () => {
     // Handle bucket press logic here

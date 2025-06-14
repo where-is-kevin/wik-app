@@ -23,8 +23,8 @@ interface SignInScreenProps {
 const windowHeight = Dimensions.get("window").height;
 
 const SignInScreen: React.FC<SignInScreenProps> = () => {
-  const [email, setEmail] = useState<string>("marko.trifunovic135@gmail.com");
-  const [password, setPassword] = useState<string>("marko1234");
+  const [email, setEmail] = useState<string>("user@example.com");
+  const [password, setPassword] = useState<string>("string");
   const { colors } = useTheme();
   const router = useRouter();
   const { mutate: login, isPending } = useLogin();
