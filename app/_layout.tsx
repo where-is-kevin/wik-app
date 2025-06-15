@@ -40,23 +40,18 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <LocationProvider>
-            {/* StatusBar ensures consistent UI across devices */}
             <StatusBar style="auto" />
             <Stack>
+              {/* Root index handles auth routing */}
+              <Stack.Screen name="index" options={{ headerShown: false }} />
               {/* Authentication screens */}
               <Stack.Screen name="(auth)" options={{ headerShown: false }} />
               {/* Onboarding screens */}
-              <Stack.Screen
-                name="(onboarding)"
-                options={{ headerShown: false }}
-              />
+              <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
               {/* Main tab navigation */}
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="(profile)" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="(settings)"
-                options={{ headerShown: false }}
-              />
+              <Stack.Screen name="(settings)" options={{ headerShown: false }} />
               <Stack.Screen
                 name="event-details/[eventId]"
                 options={{ headerShown: false }}

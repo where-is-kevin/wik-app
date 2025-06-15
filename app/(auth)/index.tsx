@@ -15,6 +15,7 @@ import { Dimensions, Platform, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useLogin } from "@/hooks/useLogin";
 
 interface SignInScreenProps {
@@ -26,6 +27,7 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
   const [email, setEmail] = useState<string>("user@example.com");
   const [password, setPassword] = useState<string>("string");
   const { colors } = useTheme();
+  const { checkAuthAndNavigate } = useAuthGuard();
   const router = useRouter();
   const { mutate: login, isPending } = useLogin();
   const isFormValid = email.trim() !== "" && password.trim() !== "";
@@ -38,8 +40,8 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
         password,
       },
       {
-        onSuccess: () => {
-          router.push("/location-permission");
+        onSuccess: async () => {
+          await checkAuthAndNavigate(); // Navigate after login
         },
         onError: (err: any) => {
           alert(err?.detail || err?.response?.data?.detail || "Login failed");
@@ -94,17 +96,6 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
                 placeholder="Enter your password"
               />
             </CustomView>
-            {/* <CustomTouchable
-              style={styles.forgotPasswordContainer}
-              onPress={handleForgotPassword}
-            >
-              <CustomText
-                fontFamily="Inter-SemiBold"
-                style={[styles.forgotPasswordText, { color: colors.link_blue }]}
-              >
-                Forgot password?
-              </CustomText>
-            </CustomTouchable> */}
 
             <CustomTouchable
               disabled={isPending || !isFormValid}

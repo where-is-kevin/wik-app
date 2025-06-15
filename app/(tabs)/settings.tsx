@@ -22,8 +22,8 @@ import {
 } from "@/utilities/scaling";
 import CustomText from "@/components/CustomText";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useDeleteUser } from "@/hooks/useDeleteUser"; // Import your hook
+import { useDeleteUser } from "@/hooks/useDeleteUser";
+import { useAuthGuard } from "@/hooks/useAuthGuard"; // Add this import
 
 const settingsData = [
   { id: "1", title: "Feedback" },
@@ -39,6 +39,7 @@ const Settings = () => {
   const { colors } = useTheme();
   const queryClient = useQueryClient();
   const deleteUserMutation = useDeleteUser();
+  const { logout } = useAuthGuard(); // Use the proper logout function
 
   const handleFeedback = () => {
     router.push("/(settings)");
@@ -51,14 +52,11 @@ const Settings = () => {
 
   const handleChangePassword = () => {
     router.push("/change-password");
-    // Add navigation logic here when Privacy & Security is implemented
   };
 
   const handleLogout = async () => {
     console.log("Logging out...");
-    queryClient.removeQueries({ queryKey: ["jwt"] });
-    await AsyncStorage.clear();
-    router.replace("/(auth)");
+    await logout(); // Use the auth guard's logout function
   };
 
   const handleDeleteUser = () => {
@@ -76,8 +74,8 @@ const Settings = () => {
           onPress: () => {
             deleteUserMutation.mutate(undefined, {
               onSuccess: () => {
-                // Navigation will be handled by the hook's onSuccess
-                router.replace("/(auth)");
+                // Clear auth data and navigate
+                logout();
               },
               onError: (error) => {
                 Alert.alert(
@@ -128,25 +126,24 @@ const Settings = () => {
           styles.settingItem,
           {
             backgroundColor: colors?.background,
-            opacity: item.id === "5" ? 0.7 : 1, // Reduced opacity for delete user
+            opacity: item.id === "5" ? 0.7 : 1,
           },
         ]}
         onPress={() => handlePress(item.id)}
         activeOpacity={0.7}
-        disabled={item.id === "5" && deleteUserMutation.isPending} // Disable during deletion
+        disabled={item.id === "5" && deleteUserMutation.isPending}
       >
         <CustomText
           style={[
             styles.settingText,
             {
-              color: item.id === "5" ? "#FF3B30" : colors?.label_dark, // Red color for delete user
+              color: item.id === "5" ? "#FF3B30" : colors?.label_dark,
             },
           ]}
         >
           {item.title}
           {item.id === "5" && deleteUserMutation.isPending && " (Deleting...)"}
         </CustomText>
-        {/* Hide chevron for logout and delete user */}
         {item.id !== "4" && item.id !== "5" && (
           <Ionicons
             name="chevron-forward"
@@ -156,7 +153,6 @@ const Settings = () => {
         )}
       </CustomTouchable>
 
-      {/* Separator - only show if not the last item */}
       {index < settingsData.length - 1 && (
         <View
           style={[

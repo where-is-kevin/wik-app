@@ -5,7 +5,7 @@ import {
   verticalScale,
 } from "@/utilities/scaling";
 import { useRouter } from "expo-router";
-import { Image, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomText from "../CustomText";
 import CustomTouchable from "../CustomTouchableOpacity";
@@ -13,6 +13,7 @@ import CustomView from "../CustomView";
 import EditSvg from "../SvgComponents/EditSvg";
 import HomeSvg from "../SvgComponents/HomeSvg";
 import LocationSvg from "../SvgComponents/LocationSvg";
+import OptimizedImage from "../OptimizedImage/OptimizedImage";
 
 type ProfileSectionProps = {
   user?: {
@@ -30,10 +31,25 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors } = useTheme();
+  
+  // Default fallback image for profile
+  const DEFAULT_PROFILE_IMAGE = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&h=200&auto=format";
 
   const onEditPress = () => {
     router.push("/(profile)");
   };
+
+  // Helper function to get valid image URL
+  const getValidImageUrl = (imageUrl?: string): string | null => {
+    if (typeof imageUrl === 'string' && imageUrl.trim() !== '') {
+      return imageUrl;
+    }
+    return null;
+  };
+
+  // Get safe profile image source
+  const validProfileImageUrl = getValidImageUrl(user?.profileImageUrl) || DEFAULT_PROFILE_IMAGE;
+
   console.log(user);
 
   return (
@@ -45,13 +61,13 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
       ]}
     >
       {/* Profile Image */}
-      <Image
-        source={{
-          uri:
-            user?.profileImageUrl ||
-            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&h=200&auto=format",
-        }}
+      <OptimizedImage
+        source={{ uri: validProfileImageUrl }}
         style={styles.profileImage}
+        resizeMode="cover"
+        priority="high"
+        showLoader={false} // Avatar usually doesn't need loader as it's small
+        fallbackSource={DEFAULT_PROFILE_IMAGE}
       />
 
       {/* Name and Edit Icon */}
@@ -125,7 +141,7 @@ const styles = StyleSheet.create({
   profileImage: {
     width: 80,
     height: 80,
-    borderRadius: 360,
+    borderRadius: 40, // Half of width/height for perfect circle
     marginBottom: verticalScale(12),
   },
   nameContainer: {

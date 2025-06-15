@@ -11,7 +11,9 @@
     "ios": {
       "supportsTablet": false,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Allow Kevin to use your location to show nearby events and content.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow Kevin to use your location to show nearby events and content."
       },
       "bundleIdentifier": "com.whereiskevin.wikapp"
     },
@@ -20,8 +22,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "permissions": [
-      ],
+      "permissions": [],
       "package": "com.whereiskevin.wikapp"
     },
     "web": {

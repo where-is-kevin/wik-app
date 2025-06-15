@@ -155,6 +155,7 @@ export const CustomBottomSheet = forwardRef<
           snapPoints={memoizedSnapPoints}
           onChange={handleSheetChanges}
           enablePanDownToClose={enablePanDownToClose}
+          enableDynamicSizing={false}
           backgroundStyle={defaultBackgroundStyle}
           handleIndicatorStyle={defaultHandleIndicatorStyle}
         >

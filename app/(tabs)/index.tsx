@@ -70,10 +70,14 @@ const SwipeableCards = () => {
         id: item.id,
         title: item.title,
         imageUrl:
-          item.internalImages && item.internalImages.length > 0
-            ? item.internalImages[0]
+          item.internalImageUrls
+ && item.internalImageUrls
+.length > 0
+            ? item.internalImageUrls
+[0]
             : item.googlePlacesImageUrl,
         price: item.price?.toString(),
+        rating: item?.rating?.toString(),
         category: item.category,
         websiteUrl: item.websiteUrl || "",
       }))

@@ -99,8 +99,8 @@ const PaginatedContentList = () => {
           id: item.id,
           title: item.title,
           foodImage:
-            item.internalImages && item.internalImages.length > 0
-              ? item.internalImages[0]
+            item.internalImageUrls && item.internalImageUrls.length > 0
+              ? item.internalImageUrls[0]
               : PLACEHOLDER_IMAGE,
           landscapeImage: "",
           isExperience: item.category === "experience",

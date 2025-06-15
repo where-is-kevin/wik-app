@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React, { useCallback } from "react";
 import {
   View,
-  Image,
   TouchableOpacity,
   StyleSheet,
   FlatList,
@@ -15,8 +14,8 @@ import CustomView from "../CustomView";
 import CustomText from "../CustomText";
 import CustomTouchable from "../CustomTouchableOpacity";
 import { useTheme } from "@/contexts/ThemeContext";
-import MoreSvg from "../SvgComponents/MoreSvg";
 import ShareButton from "../Button/ShareButton";
+import OptimizedImage from "../OptimizedImage/OptimizedImage";
 
 // TypeScript interfaces
 interface LikeItem {
@@ -50,30 +49,28 @@ const LikeItemComponent: React.FC<LikeItemProps> = ({
   // Local placeholder image
   const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
-  // State to track if image has failed to load
-  const [imageError, setImageError] = useState<boolean>(false);
-
-  // Function to handle image loading error
-  const handleImageError = () => {
-    setImageError(true);
-  };
-
-  // Function to get the appropriate image source
-  const getImageSource = () => {
-    if (imageError || !image) {
-      return PLACEHOLDER_IMAGE;
+  // Helper function to get valid image URL
+  const getValidImageUrl = useCallback((imageUrl: string): string | null => {
+    if (typeof imageUrl === 'string' && imageUrl.trim() !== '') {
+      return imageUrl;
     }
-    return { uri: image };
-  };
+    return null;
+  }, []);
+
+  // Get safe image source
+  const validImageUrl = getValidImageUrl(image);
 
   return (
     <CustomView style={styles.container}>
       {/* Image container with its own touchable */}
       <CustomTouchable style={styles.imageContainer} onPress={onPress}>
-        <Image
-          source={getImageSource()}
+        <OptimizedImage
+          source={validImageUrl ? { uri: validImageUrl } : PLACEHOLDER_IMAGE}
           style={styles.image}
-          onError={handleImageError}
+          resizeMode="cover"
+          priority="normal"
+          showLoader={true}
+          fallbackSource={PLACEHOLDER_IMAGE}
         />
       </CustomTouchable>
 
@@ -89,7 +86,7 @@ const LikeItemComponent: React.FC<LikeItemProps> = ({
         <ShareButton
           title={title}
           message={`Check out this bucket: ${title}`}
-          url={image} // Use the first image as the shared content
+          url={validImageUrl || ""} // Use the validated image URL
         />
       </CustomView>
     </CustomView>
@@ -102,14 +99,19 @@ const LikesSection: React.FC<LikesSectionProps> = ({
   onSeeMorePress,
 }) => {
   const { colors } = useTheme();
-  const renderLikeItem = ({ item }: { item: LikeItem }) => (
+  
+  const renderLikeItem = useCallback(({ item }: { item: LikeItem }) => (
     <LikeItemComponent
+      key={item.id}
       title={item.title}
       image={item.image}
       onPress={item.onPress}
       onMorePress={item.onMorePress}
     />
-  );
+  ), []);
+
+  const keyExtractor = useCallback((item: LikeItem, index: number) => 
+    item.id || `like-${index}`, []);
 
   return (
     <CustomView style={styles.sectionContainer}>
@@ -138,11 +140,20 @@ const LikesSection: React.FC<LikesSectionProps> = ({
       <FlatList
         data={likes}
         renderItem={renderLikeItem}
-        keyExtractor={(item, index) => item.id || `like-${index}`}
+        keyExtractor={keyExtractor}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.flatListContent}
         ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
+        removeClippedSubviews={true}
+        initialNumToRender={3}
+        maxToRenderPerBatch={5}
+        windowSize={10}
+        getItemLayout={(data, index) => ({
+          length: 177 + horizontalScale(12), // item width + separator
+          offset: (177 + horizontalScale(12)) * index,
+          index,
+        })}
       />
     </CustomView>
   );
@@ -172,7 +183,9 @@ const styles = StyleSheet.create({
     fontSize: scaleFontSize(14),
     width: "80%", // Leave room for the more button
   },
-  sectionContainer: {},
+  sectionContainer: {
+    paddingVertical: verticalScale(16),
+  },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",

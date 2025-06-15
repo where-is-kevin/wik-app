@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { StyleSheet, Image } from "react-native";
+import React from "react";
+import { StyleSheet } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
@@ -12,6 +12,7 @@ import CustomTouchable from "@/components/CustomTouchableOpacity";
 import CustomText from "@/components/CustomText";
 import ShareButton from "../Button/ShareButton";
 import BucketSvg from "../SvgComponents/BucketSvg";
+import OptimizedImage from "../OptimizedImage/OptimizedImage";
 
 interface ExperienceCard {
   id: string;
@@ -41,26 +42,21 @@ const LikeCard: React.FC<LikeCardProps> = ({
   // Local placeholder image
   const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
-  // State to track if image has failed to load
-  const [imageError, setImageError] = useState<boolean>(false);
-
-  // Function to handle image loading error
-  const handleImageError = () => {
-    setImageError(true);
-  };
-
-  // Function to get the appropriate image source
-  const getImageSource = () => {
-    if (imageError || !item.foodImage) {
-      return PLACEHOLDER_IMAGE;
+  // Helper function to get valid image URL
+  const getValidImageUrl = (imageUrl: string): string | null => {
+    if (typeof imageUrl === 'string' && imageUrl.trim() !== '') {
+      return imageUrl;
     }
-    return { uri: item.foodImage };
+    return null;
   };
 
   const cardHeight =
     item.height === "tall" ? verticalScale(217) : verticalScale(117);
   const imageHeight =
     item.height === "tall" ? verticalScale(187) : verticalScale(87);
+
+  // Get safe image source
+  const validImageUrl = getValidImageUrl(item.foodImage);
 
   return (
     <CustomTouchable
@@ -79,10 +75,13 @@ const LikeCard: React.FC<LikeCardProps> = ({
           style={[styles.imageContainer, { height: imageHeight }]}
           onPress={onPress}
         >
-          <Image
-            source={getImageSource()}
+          <OptimizedImage
+            source={validImageUrl ? { uri: validImageUrl } : PLACEHOLDER_IMAGE}
             style={styles.image}
-            onError={handleImageError}
+            resizeMode="cover"
+            priority="normal"
+            showLoader={true}
+            fallbackSource={PLACEHOLDER_IMAGE}
           />
 
           {/* Experience tag in top left */}
@@ -124,7 +123,7 @@ const LikeCard: React.FC<LikeCardProps> = ({
           <ShareButton
             title={item.title}
             message={`Check out this bucket: ${item.title}`}
-            url={item.foodImage}
+            url={validImageUrl || ""}
           />
         </CustomView>
       </CustomView>
@@ -151,7 +150,6 @@ const styles = StyleSheet.create({
   image: {
     width: "100%",
     height: "100%",
-    resizeMode: "cover",
   },
   experienceTag: {
     position: "absolute",

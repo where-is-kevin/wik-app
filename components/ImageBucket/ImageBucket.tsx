@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   View,
   Text,
-  Image,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
@@ -18,18 +17,19 @@ import CustomText from "../CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
 import CustomTouchable from "../CustomTouchableOpacity";
 import ShareButton from "../Button/ShareButton";
+import OptimizedImage from "../OptimizedImage/OptimizedImage";
 
 interface BucketItem {
   id?: string;
   title: string;
-  images: string[];
+  images: (string | number)[];
   onPress?: () => void;
   onMorePress?: () => void;
 }
 
 interface ImageBucketProps {
   title: string;
-  images: string[];
+  images: (string | number)[];
   onPress?: () => void;
   onMorePress?: () => void;
 }
@@ -38,6 +38,33 @@ interface BucketsSectionProps {
   buckets: BucketItem[];
   onSeeMorePress?: () => void;
 }
+
+// Helper function to validate and filter image URLs
+const getValidImageUrl = (image: string | number): string | null => {
+  if (typeof image === 'string' && image.trim() !== '') {
+    return image;
+  }
+  return null;
+};
+
+// Helper function to get safe images array
+const getSafeImages = (images: (string | number)[]): (string | null)[] => {
+  if (!Array.isArray(images)) {
+    return [null, null, null];
+  }
+  
+  // Filter out invalid entries and get first 3 valid URLs
+  const validImages = images
+    .map(img => getValidImageUrl(img))
+    .filter(img => img !== null);
+  
+  // Return exactly 3 entries, padding with null if needed
+  return [
+    validImages[0] || null,
+    validImages[1] || null,
+    validImages[2] || null,
+  ];
+};
 
 export const ImageBucket: React.FC<ImageBucketProps> = ({
   title,
@@ -50,39 +77,8 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
   // Local placeholder image
   const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
-  // State to track which images have failed to load
-  const [imageErrors, setImageErrors] = useState<boolean[]>([
-    false,
-    false,
-    false,
-  ]);
-
-  // Function to handle image loading errors
-  const handleImageError = (index: number) => {
-    setImageErrors((prev) => {
-      const newErrors = [...prev];
-      newErrors[index] = true;
-      return newErrors;
-    });
-  };
-
-  // Function to get the appropriate image source
-  const getImageSource = (imageUrl: string | any, index: number) => {
-    // If there's an error or no valid URL, use placeholder
-    if (imageErrors[index] || !imageUrl) {
-      return PLACEHOLDER_IMAGE;
-    }
-
-    // If it's a string URL, return uri object, otherwise return as is (local image)
-    return typeof imageUrl === "string" ? { uri: imageUrl } : imageUrl;
-  };
-
-  // Ensuring we have at least 3 images, using local placeholder if needed
-  const safeImages = [
-    images?.[0] || PLACEHOLDER_IMAGE,
-    images?.[1] || PLACEHOLDER_IMAGE,
-    images?.[2] || PLACEHOLDER_IMAGE,
-  ];
+  // Get safe images with validation
+  const safeImages = getSafeImages(images);
 
   return (
     <CustomView style={styles.container}>
@@ -90,30 +86,39 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
       <TouchableOpacity style={styles.imageContainer} onPress={onPress}>
         {/* Main large image (left side) */}
         <CustomView style={styles.mainImageContainer}>
-          <Image
-            source={getImageSource(safeImages[0], 0)}
+          <OptimizedImage
+            source={safeImages[0] ? { uri: safeImages[0] } : PLACEHOLDER_IMAGE}
             style={styles.mainImage}
-            onError={() => handleImageError(0)}
+            resizeMode="cover"
+            priority="normal"
+            showLoader={true}
+            fallbackSource={PLACEHOLDER_IMAGE}
           />
         </CustomView>
 
         {/* Right column with two smaller images */}
         <CustomView style={styles.rightColumn}>
           <CustomView style={styles.smallImageContainer}>
-            <Image
-              source={getImageSource(safeImages[1], 1)}
+            <OptimizedImage
+              source={safeImages[1] ? { uri: safeImages[1] } : PLACEHOLDER_IMAGE}
               style={styles.smallImage}
-              onError={() => handleImageError(1)}
+              resizeMode="cover"
+              priority="normal"
+              showLoader={true}
+              fallbackSource={PLACEHOLDER_IMAGE}
             />
           </CustomView>
 
           <CustomView
             style={[styles.smallImageContainer, styles.bottomImageContainer]}
           >
-            <Image
-              source={getImageSource(safeImages[2], 2)}
+            <OptimizedImage
+              source={safeImages[2] ? { uri: safeImages[2] } : PLACEHOLDER_IMAGE}
               style={styles.smallImage}
-              onError={() => handleImageError(2)}
+              resizeMode="cover"
+              priority="normal"
+              showLoader={true}
+              fallbackSource={PLACEHOLDER_IMAGE}
             />
           </CustomView>
         </CustomView>
@@ -131,7 +136,7 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
         <ShareButton
           title={title}
           message={`Check out this bucket: ${title}`}
-          url={typeof safeImages[0] === "string" ? safeImages[0] : ""} // Use the first image as the shared content
+          url={safeImages[0] || ""} // Use the first valid image as the shared content
         />
       </CustomView>
     </CustomView>
@@ -144,6 +149,7 @@ const BucketsSection: React.FC<BucketsSectionProps> = ({
   onSeeMorePress,
 }) => {
   const { colors } = useTheme();
+  
   const renderBucketItem = ({ item }: { item: BucketItem }) => (
     <ImageBucket
       title={item.title}
@@ -192,8 +198,6 @@ const BucketsSection: React.FC<BucketsSectionProps> = ({
 };
 
 const { width } = Dimensions.get("window");
-// We're now using fixed dimensions for the image bucket but keeping the original
-// itemWidth for the horizontal FlatList spacing if needed elsewhere
 
 const styles = StyleSheet.create({
   container: {

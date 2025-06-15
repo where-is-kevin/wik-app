@@ -1,11 +1,10 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useCallback } from "react";
 import {
   StyleSheet,
   View,
   Animated,
   PanResponder,
   Dimensions,
-  ImageBackground,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -16,13 +15,13 @@ import {
   scaleFontSize,
   verticalScale,
 } from "@/utilities/scaling";
-import SendSvg from "../SvgComponents/SengSvg";
 import CustomTouchable from "../CustomTouchableOpacity";
 import AnimatedLoader from "../Loader/AnimatedLoader";
 import CustomView from "../CustomView";
 import BucketSvg from "../SvgComponents/BucketSvg";
 import ShareButton from "../Button/ShareButton";
 import CategoryTag from "../Tag/CategoryTag";
+import { OptimizedImageBackground } from "../OptimizedImage/OptimizedImage";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
@@ -36,6 +35,7 @@ interface CardData {
   title: string;
   imageUrl: string;
   price?: string;
+  rating?: string;
   category?: string;
 }
 
@@ -61,10 +61,12 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   const { colors } = useTheme();
   const router = useRouter();
   const [cardIndex, setCardIndex] = React.useState(0);
-  const [imageLoaded, setImageLoaded] = useState<{ [key: string]: boolean }>(
-    {}
-  );
+  const [imageLoaded, setImageLoaded] = useState<{ [key: string]: boolean }>({});
   const position = useRef(new Animated.ValueXY()).current;
+
+  // Single animation values for feedback
+  const feedbackOpacity = useRef(new Animated.Value(0)).current;
+  const feedbackScale = useRef(new Animated.Value(0.8)).current;
 
   // Track touch start time and position to distinguish between tap and swipe
   const touchStartTime = useRef<number>(0);
@@ -72,6 +74,46 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 
   // Track which card is currently being interacted with
   const currentInteractingCardRef = useRef<CardData | null>(null);
+
+  // Local placeholder image
+  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+
+  // Helper function to validate image URLs
+  const getValidImageUrl = useCallback((imageUrl: string): string | null => {
+    if (typeof imageUrl === 'string' && imageUrl.trim() !== '') {
+      return imageUrl;
+    }
+    return null;
+  }, []);
+
+  // Helper function to update feedback opacity based on gesture distance
+  const updateFeedbackOpacity = useCallback((gesture: { dx: number; dy: number }) => {
+    const absDx = Math.abs(gesture.dx);
+    const absDy = Math.abs(gesture.dy);
+
+    // Calculate the strongest direction and its opacity
+    let maxOpacity = 0;
+    
+    if (gesture.dx > 0 && gesture.dx > absDy) {
+      // Right swipe
+      maxOpacity = Math.min(gesture.dx / 150, 1);
+    } else if (gesture.dx < 0 && absDx > absDy) {
+      // Left swipe
+      maxOpacity = Math.min(absDx / 150, 1);
+    } else if (gesture.dy < 0 && absDy > absDx) {
+      // Up swipe
+      maxOpacity = Math.min(absDy / 150, 1);
+    }
+
+    feedbackOpacity.setValue(maxOpacity);
+    feedbackScale.setValue(maxOpacity > 0 ? 1 : 0.8);
+  }, [feedbackOpacity, feedbackScale]);
+
+  // Helper function to immediately hide all feedback
+  const hideAllFeedback = useCallback(() => {
+    feedbackOpacity.setValue(0);
+    feedbackScale.setValue(0.8);
+  }, [feedbackOpacity, feedbackScale]);
 
   // Early return if no data
   if (!data || data.length === 0) {
@@ -106,7 +148,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     extrapolate: "clamp",
   });
 
-  const handleCardTap = (item: CardData) => {
+  const handleCardTap = useCallback((item: CardData) => {
     console.log("Card tapped - ID:", item.id, "Title:", item.title);
 
     if (onCardTap) {
@@ -115,21 +157,21 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
       console.log("Navigating to event-details with ID:", item.id);
       router.push(`/event-details/${item.id}`);
     }
-  };
+  }, [onCardTap, router]);
 
-  const handleImageLoadStart = (itemId: string) => {
-    setImageLoaded((prev) => ({ ...prev, [itemId]: false }));
-  };
-
-  const handleImageLoad = (itemId: string) => {
+  const handleImageLoad = useCallback((itemId: string) => {
     setImageLoaded((prev) => ({ ...prev, [itemId]: true }));
-  };
+  }, []);
 
-  const createPanResponder = (item: CardData, isCurrentCard: boolean) => {
+  const handleImageError = useCallback((itemId: string) => {
+    console.log("Image load error for item:", itemId);
+    setImageLoaded((prev) => ({ ...prev, [itemId]: true })); // Still mark as loaded to show fallback
+  }, []);
+
+  const createPanResponder = useCallback((item: CardData, isCurrentCard: boolean) => {
     return PanResponder.create({
       onStartShouldSetPanResponder: () => isCurrentCard && data.length > 0,
       onPanResponderGrant: (evt) => {
-        // Set the current interacting card
         currentInteractingCardRef.current = item;
         touchStartTime.current = Date.now();
         touchStartPosition.current = {
@@ -140,6 +182,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
       onPanResponderMove: (event, gesture) => {
         if (isCurrentCard) {
           position.setValue({ x: gesture.dx, y: gesture.dy });
+          updateFeedbackOpacity(gesture);
         }
       },
       onPanResponderRelease: (event, gesture) => {
@@ -148,24 +191,21 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
           Math.pow(gesture.dx, 2) + Math.pow(gesture.dy, 2)
         );
 
-        // Safety check
         if (!data || data.length === 0 || !currentInteractingCardRef.current) {
           resetPosition();
           return;
         }
 
-        // Use the tracked card instead of cardIndex
         const interactedItem = currentInteractingCardRef.current;
 
-        // If it's a short touch with minimal movement, consider it a tap
         if (touchDuration < TAP_DURATION_THRESHOLD && distanceMoved < 10) {
           console.log("Tapped card ID:", interactedItem.id);
           handleCardTap(interactedItem);
           resetPosition();
+          hideAllFeedback();
           return;
         }
 
-        // Handle swipes (only for current card)
         if (isCurrentCard) {
           if (gesture.dx > SWIPE_THRESHOLD) {
             forceSwipe("right");
@@ -175,21 +215,23 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
             forceSwipe("up");
           } else {
             resetPosition();
+            hideAllFeedback();
           }
         } else {
           resetPosition();
+          hideAllFeedback();
         }
       },
     });
-  };
+  }, [data, handleCardTap, updateFeedbackOpacity, hideAllFeedback]);
 
-  const forceSwipe = (direction: "left" | "right" | "up") => {
+  const forceSwipe = useCallback((direction: "left" | "right" | "up") => {
     const x =
       direction === "right"
         ? SCREEN_WIDTH
         : direction === "left"
-        ? -SCREEN_WIDTH
-        : 0;
+          ? -SCREEN_WIDTH
+          : 0;
     const y = direction === "up" ? -SCREEN_HEIGHT : 0;
 
     Animated.timing(position, {
@@ -197,10 +239,11 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
       duration: SWIPE_OUT_DURATION,
       useNativeDriver: false,
     }).start(() => onSwipeComplete(direction));
-  };
+  }, [position]);
 
-  const onSwipeComplete = (direction: "left" | "right" | "up") => {
-    // Safety checks
+  const onSwipeComplete = useCallback((direction: "left" | "right" | "up") => {
+    hideAllFeedback();
+
     if (!data || data.length === 0) {
       console.error("No data available for swipe action");
       return;
@@ -228,7 +271,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
       return;
     }
 
-    // Process the swipe action first
     try {
       if (direction === "right") {
         onSwipeRight(item);
@@ -241,43 +283,56 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
       console.error("Error in swipe handler:", error);
     }
 
-    // Handle different behaviors based on swipe direction
     if (direction === "up") {
-      // For swipe up, just reset position without advancing to next card
       setTimeout(() => {
         position.setValue({ x: 0, y: 0 });
+        hideAllFeedback();
       }, 100);
     } else {
-      // For left and right swipes, advance to next card
       setCardIndex((prevIndex) => {
         const nextIndex = prevIndex + 1;
 
-        // Check if we've gone through all cards
         if (nextIndex >= data.length) {
-          // Call onComplete after a small delay to allow the last card to finish animating off screen
           setTimeout(() => {
-            // Now reset position after the card is off-screen
             position.setValue({ x: 0, y: 0 });
+            hideAllFeedback();
             onComplete();
           }, 300);
         } else {
-          // For normal card transitions, reset position after a small delay
           setTimeout(() => {
             position.setValue({ x: 0, y: 0 });
+            hideAllFeedback();
           }, 100);
         }
 
         return nextIndex;
       });
     }
-  };
+  }, [data, cardIndex, onSwipeRight, onSwipeLeft, onSwipeUp, onComplete, position, hideAllFeedback]);
 
-  const resetPosition = () => {
+  const resetPosition = useCallback(() => {
     Animated.spring(position, {
       toValue: { x: 0, y: 0 },
       friction: 4,
       useNativeDriver: false,
     }).start();
+    hideAllFeedback();
+  }, [position, hideAllFeedback]);
+
+  const renderSwipeFeedback = () => {
+    return (
+      <Animated.View
+        style={[
+          styles.swipeFeedbackCenter,
+          {
+            opacity: feedbackOpacity,
+            transform: [{ scale: feedbackScale }],
+          },
+        ]}
+      >
+        <CustomText style={styles.feedbackIcon}>❤️</CustomText>
+      </Animated.View>
+    );
   };
 
   const renderCards = () => {
@@ -299,6 +354,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 
         const isCurrentCard = i === cardIndex;
         const panResponder = createPanResponder(item, isCurrentCard);
+        const validImageUrl = getValidImageUrl(item.imageUrl);
 
         if (isCurrentCard) {
           const isCurrentImageLoaded = imageLoaded[item.id];
@@ -308,13 +364,14 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
             return (
               <View key={item.id} style={styles.loaderContainer}>
                 <AnimatedLoader />
-                {/* Preload image in background */}
-                <ImageBackground
-                  source={{ uri: item.imageUrl }}
+                {/* Preload image in background using OptimizedImage */}
+                <OptimizedImageBackground
+                  source={validImageUrl ? { uri: validImageUrl } : PLACEHOLDER_IMAGE}
                   style={{ width: 0, height: 0 }}
                   onLoad={() => handleImageLoad(item.id)}
-                  onError={() => handleImageLoad(item.id)}
-                  onLoadStart={() => handleImageLoadStart(item.id)}
+                  onError={() => handleImageError(item.id)}
+                  showLoader={false}
+                  fallbackSource={PLACEHOLDER_IMAGE}
                 />
               </View>
             );
@@ -338,10 +395,13 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
               ]}
               {...panResponder.panHandlers}
             >
-              <ImageBackground
-                source={{ uri: item.imageUrl }}
+              <OptimizedImageBackground
+                source={validImageUrl ? { uri: validImageUrl } : PLACEHOLDER_IMAGE}
                 style={styles.cardImage}
-                imageStyle={styles.imageBackground}
+                resizeMode="cover"
+                priority="high"
+                showLoader={false}
+                fallbackSource={PLACEHOLDER_IMAGE}
               >
                 {/* VENUE badge */}
                 <CustomView
@@ -368,7 +428,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                         height={14}
                         title={""}
                         message={`Check out this bucket: `}
-                        url={"www.google.com"}
+                        url={validImageUrl || ""}
                       />
                     </CustomTouchable>
                   </CustomView>
@@ -393,17 +453,24 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                     >
                       {item.title}
                     </CustomText>
+
                     <CustomText
                       fontFamily="Inter-SemiBold"
                       style={[styles.priceText, { color: colors.lime }]}
                     >
-                      {item?.price ? `£${item.price}` : "Unknown"}{" "}
-                      <CustomText
-                        fontFamily="Inter-SemiBold"
-                        style={[styles.perPersonText, { color: colors.lime }]}
-                      >
-                        /person
-                      </CustomText>
+                      {item?.price ? (
+                        <>
+                          {item.price}
+                          <CustomText
+                            fontFamily="Inter-SemiBold"
+                            style={[styles.perPersonText, { color: colors.lime }]}
+                          >
+                            {" "}/person
+                          </CustomText>
+                        </>
+                      ) : (
+                        item?.rating ? `${item.rating}★` : "No rating"
+                      )}
                     </CustomText>
 
                     <CustomText
@@ -414,7 +481,10 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                     </CustomText>
                   </View>
                 </LinearGradient>
-              </ImageBackground>
+              </OptimizedImageBackground>
+
+              {/* Swipe feedback overlays */}
+              {renderSwipeFeedback()}
             </Animated.View>
           );
         }
@@ -434,13 +504,15 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                 },
               ]}
             >
-              <ImageBackground
-                source={{ uri: item.imageUrl }}
+              <OptimizedImageBackground
+                source={validImageUrl ? { uri: validImageUrl } : PLACEHOLDER_IMAGE}
                 style={styles.cardImage}
-                imageStyle={styles.imageBackground}
+                resizeMode="cover"
+                priority="normal"
+                showLoader={false}
+                fallbackSource={PLACEHOLDER_IMAGE}
                 onLoad={() => handleImageLoad(item.id)}
-                onError={() => handleImageLoad(item.id)}
-                onLoadStart={() => handleImageLoadStart(item.id)}
+                onError={() => handleImageError(item.id)}
               >
                 {/* Simple gradient for next card preview */}
                 <LinearGradient
@@ -456,7 +528,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                     </CustomText>
                   </View>
                 </LinearGradient>
-              </ImageBackground>
+              </OptimizedImageBackground>
             </Animated.View>
           );
         }
@@ -504,9 +576,6 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     justifyContent: "space-between",
-  },
-  imageBackground: {
-    resizeMode: "cover",
   },
   gradientOverlay: {
     position: "absolute",
@@ -590,5 +659,22 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
+  },
+  // Swipe feedback styles - FIXED positioning
+  swipeFeedbackCenter: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    marginTop: -25, // Half of the height (50/2)
+    marginLeft: -25, // Half of the width (50/2)
+    justifyContent: "center",
+    alignItems: "center",
+    width: 50,
+    height: 50,
+    zIndex: 1000,
+  },
+  feedbackIcon: {
+    fontSize: 40,
+    textAlign: "center",
   },
 });

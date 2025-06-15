@@ -1,20 +1,21 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useMemo, useCallback, useState } from "react";
 import {
   StyleSheet,
-  Animated,
-  PanResponder,
   Dimensions,
-  ImageBackground,
   StatusBar,
-  ScrollView,
   View,
   Linking,
+  FlatList,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import BottomSheet, { 
+  BottomSheetScrollView,
+} from '@gorhom/bottom-sheet';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import CustomText from "@/components/CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
@@ -37,8 +38,10 @@ import {
 import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import CategoryTag from "@/components/Tag/CategoryTag";
+import { FastImageBackground } from "@/components/OptimizedImage/OptimizedImage";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
+const SCREEN_WIDTH = Dimensions.get("window").width;
 
 interface EventDetailsScreenProps {}
 
@@ -54,6 +57,24 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   // Fetch content data using the eventId
   const { data: contentData, isLoading, error } = useContentById(eventId);
 
+  // Image carousel state
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const imageCarouselRef = useRef<FlatList>(null);
+
+  // Calculate dynamic heights based on your header
+  const ESTIMATED_HEADER_HEIGHT = verticalScale(10) + 12 + 24;
+  const PANEL_MIN_HEIGHT = SCREEN_HEIGHT * 0.3;
+  const PANEL_MAX_HEIGHT = SCREEN_HEIGHT - insets.top - ESTIMATED_HEADER_HEIGHT;
+
+  // Bottom sheet setup with dynamic snap points
+  const bottomSheetRef = useRef<BottomSheet>(null);
+  const snapPoints = useMemo(() => {
+    const minHeightPercentage = (PANEL_MIN_HEIGHT / SCREEN_HEIGHT) * 100;
+    const maxHeightPercentage = (PANEL_MAX_HEIGHT / SCREEN_HEIGHT) * 100;
+    console.log('Snap points calculated:', [`${minHeightPercentage.toFixed(1)}%`, `${maxHeightPercentage.toFixed(1)}%`]);
+    return [`${minHeightPercentage.toFixed(1)}%`, `${maxHeightPercentage.toFixed(1)}%`];
+  }, [PANEL_MIN_HEIGHT, PANEL_MAX_HEIGHT]);
+
   // Bucket functionality state
   const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] =
     useState(false);
@@ -67,78 +88,51 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   const addBucketMutation = useAddBucket();
   const createBucketMutation = useCreateBucket();
 
-  // Estimated header height - adjusted based on your setup
-  const ESTIMATED_HEADER_HEIGHT = verticalScale(10) + 12 + 24;
-  // Panel heights
-  const PANEL_MIN_HEIGHT = SCREEN_HEIGHT * 0.3;
-  const PANEL_MAX_HEIGHT = SCREEN_HEIGHT - insets.top - ESTIMATED_HEADER_HEIGHT;
+  // Handle sheet changes
+  const handleSheetChanges = useCallback((index: number) => {
+    // Optional: Add any logic when sheet changes
+  }, []);
 
-  const panelHeight = useRef(new Animated.Value(PANEL_MIN_HEIGHT)).current;
-  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
-  const [isScrollEnabled, setIsScrollEnabled] = useState(false);
-
-  // Ref to access the ScrollView
-  const scrollViewRef = useRef<ScrollView>(null);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gesture) => {
-        // Allow ScrollView to take over when panel is expanded and user is scrolling up
-        if (isPanelExpanded && gesture.dy < 0) {
-          return false;
-        }
-        return true;
-      },
-      onPanResponderMove: (_, gesture) => {
-        // Calculate new panel height based on gesture
-        const newHeight = isPanelExpanded
-          ? PANEL_MAX_HEIGHT - gesture.dy
-          : PANEL_MIN_HEIGHT - gesture.dy;
-
-        // Constrain panel height between min and max values
-        if (newHeight >= PANEL_MIN_HEIGHT && newHeight <= PANEL_MAX_HEIGHT) {
-          panelHeight.setValue(newHeight);
-        }
-      },
-      onPanResponderRelease: (_, gesture) => {
-        // Determine if panel should snap to min or max height
-        if (isPanelExpanded) {
-          if (gesture.dy > 50) {
-            // Collapse panel if dragged down more than 50 units
-            snapPanel(false);
-          } else {
-            // Keep panel expanded
-            snapPanel(true);
-          }
-        } else {
-          if (gesture.dy < -50) {
-            // Expand panel if dragged up more than 50 units
-            snapPanel(true);
-          } else {
-            // Keep panel collapsed
-            snapPanel(false);
-          }
-        }
-      },
-    })
-  ).current;
-
-  const snapPanel = (expand: boolean) => {
-    setIsPanelExpanded(expand);
-    setIsScrollEnabled(expand); // Only enable scroll when panel is expanded
-
-    Animated.spring(panelHeight, {
-      toValue: expand ? PANEL_MAX_HEIGHT : PANEL_MIN_HEIGHT,
-      friction: 8,
-      useNativeDriver: false,
-    }).start(() => {
-      // Scroll to top when panel is collapsed
-      if (!expand && scrollViewRef.current) {
-        scrollViewRef.current.scrollTo({ y: 0, animated: false });
-      }
-    });
+  // Get images array with fallback
+  const getImages = () => {
+    if (contentData?.internalImageUrls && contentData.internalImageUrls.length > 0) {
+      return contentData.internalImageUrls;
+    }
+    if (contentData?.googlePlacesImageUrl) {
+      return [contentData.googlePlacesImageUrl];
+    }
+    return [TestImage]; // Fallback to default image
   };
+
+  const images = useMemo(() => getImages(), [contentData]);
+
+  // Handle image scroll
+  const onImageScroll = (event: any) => {
+    const slideSize = event.nativeEvent.layoutMeasurement.width;
+    const index = Math.floor(event.nativeEvent.contentOffset.x / slideSize);
+    setCurrentImageIndex(index);
+  };
+
+  // Render image item
+  const renderImageItem = ({ item }: { item: string }) => (
+    <FastImageBackground
+      source={typeof item === 'string' ? { uri: item } : item}
+      style={styles.backgroundImage}
+      resizeMode="cover"
+      priority="high"
+      showLoader={true}
+      fallbackSource={TestImage}
+    >
+      <SafeAreaView
+        style={[
+          styles.headerContainer,
+          { backgroundColor: colors.overlay },
+        ]}
+      >
+        <BackHeader transparent={true} />
+      </SafeAreaView>
+    </FastImageBackground>
+  );
 
   // Bucket functionality handlers
   const handleShowBucketBottomSheet = () => {
@@ -200,24 +194,16 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   // Helper function to format price
   const formatPrice = (price: number | null) => {
     if (price === null) return "Price on request";
-    return `£${price}`;
-  };
-
-  // Helper function to get image source
-  const getImageSource = () => {
-    if (contentData?.googlePlacesImageUrl) {
-      return { uri: contentData.googlePlacesImageUrl };
-    }
-    return TestImage; // Fallback to default image
+    return `${price}`;
   };
 
   const openOnMap = () => {
-    if (contentData?.websiteUrl) {
+    if (contentData?.googleMapsUrl) {
       Linking.openURL(contentData.googleMapsUrl).catch((err) => {
         console.error("Failed to open URL:", err);
       });
     } else {
-      console.log("No website URL available for this item");
+      console.log("No Google Maps URL available for this item");
     }
   };
 
@@ -281,42 +267,59 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   }
 
   return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <CustomView style={styles.container}>
         <StatusBar translucent backgroundColor="transparent" />
-        <ImageBackground
-          source={getImageSource()}
-          style={styles.backgroundImage}
-        >
-          <SafeAreaView
-            style={[
-              styles.headerContainer,
-              { backgroundColor: colors.overlay },
-            ]}
-          >
-            <BackHeader transparent={true} />
-          </SafeAreaView>
-        </ImageBackground>
+        
+        {/* Image Carousel */}
+        <FlatList
+          ref={imageCarouselRef}
+          data={images}
+          renderItem={renderImageItem}
+          keyExtractor={(item, index) => `image-${index}`}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={onImageScroll}
+          style={styles.imageCarousel}
+        />
 
-        {/* Sliding Panel */}
-        <Animated.View
-          style={[
-            styles.panel,
-            { height: panelHeight, backgroundColor: colors.background },
-          ]}
-        >
-          {/* Panel Handle - Visual indicator for dragging */}
-          <View style={styles.panelHandle} {...panResponder.panHandlers}>
-            <View style={styles.panelHandleBar} />
+        {/* Image Indicators */}
+        {images.length > 1 && (
+          <View style={styles.imageIndicators}>
+            {images.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.indicator,
+                  {
+                    backgroundColor: index === currentImageIndex 
+                      ? colors.text_white 
+                      : 'rgba(255, 255, 255, 0.5)'
+                  }
+                ]}
+              />
+            ))}
           </View>
+        )}
 
-          {/* ScrollView for the panel content */}
-          <ScrollView
-            ref={scrollViewRef}
-            scrollEnabled={isScrollEnabled}
-            showsVerticalScrollIndicator={false}
+        {/* Bottom Sheet */}
+        <BottomSheet
+          ref={bottomSheetRef}
+          index={0}
+          snapPoints={snapPoints}
+          onChange={handleSheetChanges}
+          backgroundStyle={{ backgroundColor: colors.background }}
+          handleIndicatorStyle={{ backgroundColor: '#F2F2F7', width: 40, height: 4 }}
+          enablePanDownToClose={false}
+          enableOverDrag={false}
+          enableDynamicSizing={false}
+          animateOnMount={true}
+          style={styles.bottomSheetShadow}
+        >
+          <BottomSheetScrollView 
             contentContainerStyle={styles.scrollViewContent}
-            scrollEventThrottle={16}
+            showsVerticalScrollIndicator={false}
           >
             {/* Panel Content */}
             <CustomView style={styles.panelContent}>
@@ -356,13 +359,15 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                 >
                   {contentData.title}
                 </CustomText>
-                {/* Price Info */}
-                <CustomText
-                  fontFamily="Inter-SemiBold"
-                  style={[styles.priceText, { color: colors.event_gray }]}
-                >
-                  {formatPrice(contentData.price)}{" "}
-                  {contentData.price && (
+                
+                {/* Price or Rating Display */}
+                {contentData.price ? (
+                  // Show Price with /person
+                  <CustomText
+                    fontFamily="Inter-SemiBold"
+                    style={[styles.priceText, { color: colors.event_gray }]}
+                  >
+                    {formatPrice(contentData.price)}
                     <CustomText
                       fontFamily="Inter-SemiBold"
                       style={[
@@ -372,8 +377,18 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                     >
                       /person
                     </CustomText>
-                  )}
-                </CustomText>
+                  </CustomText>
+                ) : contentData.rating ? (
+                  // Show Rating with Star
+                  <CustomView style={styles.ratingContainer}>
+                    <CustomText
+                      fontFamily="Inter-SemiBold"
+                      style={[styles.ratingText, { color: colors.event_gray }]}
+                    >
+                      ⭐ {contentData.rating}
+                    </CustomText>
+                  </CustomView>
+                ) : null}
               </CustomView>
 
               {/* About Section */}
@@ -390,6 +405,8 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                   {contentData.description || "No description available."}
                 </CustomText>
               </CustomView>
+
+              {/* Phone */}
               {contentData.phone && (
                 <CustomTouchable
                   style={styles.contactButton}
@@ -431,10 +448,11 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                 </CustomTouchable>
               )}
             </CustomView>
-          </ScrollView>
-        </Animated.View>
+          </BottomSheetScrollView>
+        </BottomSheet>
       </CustomView>
 
+      {/* Your existing bottom sheets */}
       <BucketBottomSheet
         isVisible={isBucketBottomSheetVisible}
         onClose={handleCloseBucketBottomSheet}
@@ -448,7 +466,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
         onClose={handleCloseCreateBucketBottomSheet}
         onCreateBucket={handleCreateBucket}
       />
-    </>
+    </GestureHandlerRootView>
   );
 };
 
@@ -457,46 +475,48 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
-  backgroundImage: {
+  imageCarousel: {
     flex: 1,
-    width: "100%",
+  },
+  backgroundImage: {
+    width: SCREEN_WIDTH,
+    height: "100%",
     backgroundColor: "#fff",
   },
   headerContainer: {
     width: "100%",
     backgroundColor: "transparent",
   },
-  panel: {
-    position: "absolute",
-    bottom: 0,
+  imageIndicators: {
+    position: 'absolute',
+    bottom: SCREEN_HEIGHT * 0.35, // Position above the bottom sheet
     left: 0,
     right: 0,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: horizontalScale(20),
+  },
+  indicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginHorizontal: 4,
+  },
+  bottomSheetShadow: {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.1,
     shadowRadius: 5,
     elevation: 5,
   },
-  panelHandle: {
-    width: "100%",
-    height: 30,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 10,
-  },
-  panelHandleBar: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#F2F2F7",
-  },
   scrollViewContent: {
     flexGrow: 1,
+    paddingBottom: 50,
   },
   panelContent: {
     paddingHorizontal: horizontalScale(20),
+    paddingTop: verticalScale(10),
     paddingBottom: verticalScale(20),
   },
   badgeContainer: {
@@ -505,14 +525,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: "100%",
     marginBottom: verticalScale(8),
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  badgeText: {
-    fontSize: scaleFontSize(10),
   },
   shareButton: {
     width: 36,
@@ -528,10 +540,12 @@ const styles = StyleSheet.create({
     fontSize: scaleFontSize(24),
   },
   ratingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: verticalScale(4),
   },
   ratingText: {
-    fontSize: scaleFontSize(14),
+    fontSize: scaleFontSize(18),
   },
   priceText: {
     fontSize: scaleFontSize(24),
@@ -563,50 +577,6 @@ const styles = StyleSheet.create({
     fontSize: scaleFontSize(14),
     lineHeight: 20,
   },
-  tagsSection: {
-    marginBottom: verticalScale(16),
-  },
-  tagsTitle: {
-    fontSize: scaleFontSize(14),
-    marginBottom: verticalScale(8),
-  },
-  tagsText: {
-    fontSize: scaleFontSize(14),
-    lineHeight: 20,
-  },
-  reviewsSection: {
-    marginBottom: verticalScale(16),
-  },
-  reviewsTitle: {
-    fontSize: scaleFontSize(14),
-    marginBottom: verticalScale(8),
-  },
-  reviewsText: {
-    fontSize: scaleFontSize(14),
-    lineHeight: 20,
-  },
-  actionButtonsContainer: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: verticalScale(16),
-  },
-  actionButton: {
-    flex: 1,
-    paddingVertical: verticalScale(12),
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  actionButtonText: {
-    fontSize: scaleFontSize(14),
-  },
-  experienceTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  experienceText: {
-    fontSize: scaleFontSize(10),
-  },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -618,17 +588,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
-  },
-  // Loading and Error States
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: horizontalScale(20),
-  },
-  loadingText: {
-    marginTop: verticalScale(16),
-    fontSize: scaleFontSize(16),
   },
   errorContainer: {
     flex: 1,

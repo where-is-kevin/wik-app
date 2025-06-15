@@ -1,8 +1,14 @@
 // components/LocationPermissionScreen.tsx
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Linking } from "react-native";
 import { useLocation } from "@/contexts/LocationContext";
+import { useLocationPermissionGuard } from "@/hooks/useLocationPermissionGuard";
 import { router } from "expo-router";
+import CustomText from "@/components/CustomText";
+import CustomView from "@/components/CustomView";
+import CustomTouchable from "@/components/CustomTouchableOpacity";
+import { useTheme } from "@/contexts/ThemeContext";
+import { horizontalScale, scaleFontSize, verticalScale } from "@/utilities/scaling";
 
 interface LocationPermissionScreenProps {
   onPermissionGranted?: () => void;
@@ -16,64 +22,78 @@ const LocationPermissionScreen: React.FC<LocationPermissionScreenProps> = ({
   showSkipOption = true,
 }) => {
   const { requestLocationPermission, isLoading } = useLocation();
+  const {colors} = useTheme();
+  const { savePermissionStatus } = useLocationPermissionGuard({
+    redirectToTabs: false,
+    skipLocationCheck: true, // Don't auto-check here
+  });
 
-  const navigateToTabs = () => {
-    router.replace("/(tabs)");
-  };
+const handleRequestPermission = async () => {
+  const granted = await requestLocationPermission();
 
-  const handleRequestPermission = async () => {
-    const granted = await requestLocationPermission();
-
-    if (granted) {
-      onPermissionGranted?.();
-      navigateToTabs();
-    } else {
-      Alert.alert(
-        "Location Access Required",
-        "Location access is needed to provide you with relevant content and features. Please enable location access in your device settings.",
-        [
-          {
-            text: "Cancel",
-            style: "cancel",
-            onPress: () => navigateToTabs(), // Navigate even if user cancels
+  if (granted) {
+    onPermissionGranted?.();
+    await savePermissionStatus('granted');
+    router.replace('/(tabs)');
+  } else {
+    // User denied the permission request
+    Alert.alert(
+      "Location Access Required",
+      "Location access is needed to provide you with relevant content and features. You can enable it later in Settings, or continue without location services.",
+      [
+        {
+          text: "Continue Without",
+          style: "cancel",
+          onPress: async () => {
+            await savePermissionStatus('denied'); // This marks they were asked and denied
+            router.replace('/(tabs)');
           },
-          {
-            text: "Open Settings",
-            onPress: () => {
-              // You can use expo-linking to open settings
-              // Linking.openSettings();
-              navigateToTabs(); // Navigate after attempting to open settings
-            },
+        },
+        {
+          text: "Open Settings",
+          onPress: async () => {
+            try {
+              await Linking.openSettings();
+              await savePermissionStatus('denied'); // This marks they were asked
+              router.replace('/(tabs)');
+            } catch (error) {
+              console.error('Error opening settings:', error);
+              await savePermissionStatus('denied'); // This marks they were asked
+              router.replace('/(tabs)');
+            }
           },
-        ]
-      );
-    }
-  };
+        },
+      ]
+    );
+  }
+};
 
-  const handleSkip = () => {
-    onSkip?.();
-    navigateToTabs();
-  };
+const handleSkip = async () => {
+  onSkip?.();
+  await savePermissionStatus('denied'); // This marks they were asked and chose to skip
+  router.replace('/(tabs)');
+};
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Enable Location Services</Text>
-        <Text style={styles.description}>
+    <CustomView style={styles.container}>
+      <CustomView style={styles.content}>
+        <CustomText style={styles.title}>Enable Location Services</CustomText>
+        <CustomText style={styles.description}>
           We need access to your location to provide you with personalized
           content and nearby recommendations. Your location data is kept secure
           and private.
-        </Text>
+        </CustomText>
 
-        <TouchableOpacity
+        <CustomTouchable
           style={styles.enableButton}
+          bgColor={colors.lime}
           onPress={handleRequestPermission}
           disabled={isLoading}
         >
-          <Text style={styles.enableButtonText}>
+          <CustomText style={[styles.enableButtonText, {color: colors.label_dark}]} fontFamily="Inter-SemiBold">
             {isLoading ? "Getting Location..." : "Enable Location"}
-          </Text>
-        </TouchableOpacity>
+          </CustomText>
+        </CustomTouchable>
 
         {showSkipOption && (
           <TouchableOpacity
@@ -84,8 +104,8 @@ const LocationPermissionScreen: React.FC<LocationPermissionScreenProps> = ({
             <Text style={styles.skipButtonText}>Skip for Now</Text>
           </TouchableOpacity>
         )}
-      </View>
-    </View>
+      </CustomView>
+    </CustomView>
   );
 };
 
@@ -105,30 +125,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   title: {
-    fontSize: 24,
+    fontSize: scaleFontSize(24),
     fontWeight: "bold",
     marginBottom: 16,
     textAlign: "center",
   },
   description: {
-    fontSize: 16,
+    fontSize: scaleFontSize(16),
     textAlign: "center",
     marginBottom: 32,
     lineHeight: 24,
     color: "#666",
   },
   enableButton: {
-    backgroundColor: "#007AFF",
-    paddingHorizontal: 32,
-    paddingVertical: 16,
+    paddingVertical: verticalScale(12),
     borderRadius: 8,
-    width: "100%",
-    marginBottom: 16,
+    width: '100%',
+    marginBottom: verticalScale(16),
+    marginHorizontal: horizontalScale(24),
   },
   enableButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: scaleFontSize(16),
     textAlign: "center",
   },
   skipButton: {
@@ -137,7 +154,7 @@ const styles = StyleSheet.create({
   },
   skipButtonText: {
     color: "#666",
-    fontSize: 16,
+    fontSize: scaleFontSize(16),
     textAlign: "center",
   },
 });

@@ -22,6 +22,7 @@ type Content = {
   tags: string;
   createdAt: string;
   updatedAt: string;
+  internalImageUrls?: string[];
 };
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;

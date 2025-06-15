@@ -2,13 +2,30 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { firstValueFrom } from 'rxjs';
 import { ajax } from 'rxjs/ajax';
 import Constants from 'expo-constants';
+import * as SecureStore from 'expo-secure-store';
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
 
-const login = async (data: {
+// Add types for your auth response based on actual API response
+interface User {
+  email: string;
+  firstName: string;
+  id: string;
+  lastName: string;
+}
+
+interface AuthResponse {
+  accessToken: string;
+  tokenType: string;
+  user: User;
+}
+
+interface LoginData {
   username: string;
   password: string;
-}) => {
+}
+
+const login = async (data: LoginData): Promise<AuthResponse> => {
   const params = new URLSearchParams();
   params.append('grant_type', 'password');
   params.append('username', data.username);
@@ -33,7 +50,7 @@ const login = async (data: {
 
     // Convert Observable to Promise for React Query
     const response = await firstValueFrom(observable$);
-    return response.response;
+    return response.response as AuthResponse;
   } catch (error: any) {
     if (error?.response) {
       // Throw the actual API response so it can be accessed in the component
@@ -47,8 +64,15 @@ export function useLogin() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: login,
-    onSuccess: (data) => {
+    onSuccess: async (data: AuthResponse) => {
+      // Store in React Query cache for current session
       queryClient.setQueryData(['auth'], data);
+      
+      // Store access token securely for persistence across app restarts
+      if (data.accessToken) {
+        await SecureStore.setItemAsync('authToken', data.accessToken);
+      }
+      
       console.log('Login successful:', data);
     },
   });

@@ -1,10 +1,9 @@
-// BucketBottomSheet.tsx
+// BucketBottomSheet.tsx - FIXED VERSION
 import React, { useMemo } from "react";
 import {
   View,
   StyleSheet,
   TouchableOpacity,
-  Image,
   Dimensions,
   StatusBar,
   Platform,
@@ -26,6 +25,7 @@ import { fetchBuckets, useBuckets } from "@/hooks/useBuckets";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ScrollView } from "react-native-gesture-handler";
+import OptimizedImage from "../OptimizedImage/OptimizedImage";
 
 // Define the BucketItem interface directly in this file
 export interface BucketItem {
@@ -125,11 +125,16 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
         activeOpacity={0.7}
         disabled={isItemInBucket}
       >
-        <Image
+        {/* ✅ REPLACED Image with OptimizedImage */}
+        <OptimizedImage
           source={
             typeof item.image === "string" ? { uri: item.image } : item.image
           }
           style={styles.bucketItemImage}
+          resizeMode="cover"
+          priority="normal"
+          showLoader={true}
+          fallbackSource={PLACEHOLDER_IMAGE}
         />
         <CustomView style={styles.bucketItemContent}>
           <CustomText
