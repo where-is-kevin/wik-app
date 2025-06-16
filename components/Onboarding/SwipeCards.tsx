@@ -48,6 +48,7 @@ interface SwipeCardsProps {
   onComplete: () => void;
   onCardTap?: (item: CardData) => void;
   onBucketPress?: (value: string) => void;
+  hideBucketsButton?: boolean;
 }
 
 export const SwipeCards: React.FC<SwipeCardsProps> = ({
@@ -58,6 +59,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   onComplete,
   onCardTap,
   onBucketPress,
+  hideBucketsButton = false,
 }) => {
   const { colors } = useTheme();
   const router = useRouter();
@@ -68,7 +70,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   // Animation values for feedback
   const feedbackOpacity = useRef(new Animated.Value(0)).current;
   const feedbackScale = useRef(new Animated.Value(0.8)).current;
-  
+
   // Track current swipe direction for showing appropriate feedback image
   const [currentSwipeDirection, setCurrentSwipeDirection] = useState<'left' | 'right' | 'up' | null>(null);
 
@@ -81,7 +83,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 
   // Local placeholder image
   const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
-  
+
   // Feedback images
   const APPROVE_IMAGE = require("@/assets/images/approve.png");
   const CANCEL_IMAGE = require("@/assets/images/cancel.png");
@@ -103,7 +105,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     // Calculate the strongest direction and its opacity
     let maxOpacity = 0;
     let direction: 'left' | 'right' | 'up' | null = null;
-    
+
     if (gesture.dx > 0 && gesture.dx > absDy) {
       // Right swipe
       maxOpacity = Math.min(gesture.dx / 150, 1);
@@ -342,7 +344,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
       case 'left':
         return CANCEL_IMAGE;
       case 'up':
-        return STASH_IMAGE;
+        return null; // Return null for up swipe to hide image
       default:
         return APPROVE_IMAGE; // Default fallback
     }
@@ -350,6 +352,12 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 
   const renderSwipeFeedback = () => {
     if (!currentSwipeDirection) return null;
+
+    // Don't render anything for up swipe
+    if (currentSwipeDirection === 'up') return null;
+
+    const feedbackImage = getFeedbackImage();
+    if (!feedbackImage) return null;
 
     return (
       <Animated.View
@@ -361,8 +369,8 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
           },
         ]}
       >
-        <Image 
-          source={getFeedbackImage()}
+        <Image
+          source={feedbackImage}
           style={styles.feedbackImage}
           resizeMode="contain"
         />
@@ -444,7 +452,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                   style={styles.shareContainer}
                 >
                   <CustomView bgColor={colors.overlay} style={styles.row}>
-                    <CustomTouchable
+                    {!hideBucketsButton && <CustomTouchable
                       style={styles.bucketContainer}
                       bgColor={colors.label_dark}
                       onPress={() => {
@@ -453,7 +461,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                       }}
                     >
                       <BucketSvg />
-                    </CustomTouchable>
+                    </CustomTouchable>}
                     <CustomTouchable
                       bgColor={colors.onboarding_gray}
                       style={styles.shareButton}

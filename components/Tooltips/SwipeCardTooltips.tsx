@@ -35,7 +35,7 @@ const TUTORIAL_STEPS = [
   {
     id: 2,
     animation: SwipeUpAnimation,
-    text: "Swipe up to skip",
+    text: "Swipe up to open hosts website",
   },
   {
     id: 3,
@@ -96,7 +96,7 @@ const SwipeCardTooltips = ({ onComplete }: SwipeCardTooltipsProps) => {
         bgColor={colors.overlay}
         onPress={handleSkipTutorial}
       >
-        <CustomText style={[styles.buttonText, { color: colors.background }]}>
+        <CustomText fontFamily="Inter-SemiBold" style={[styles.buttonText, { color: colors.background }]}>
           Skip
         </CustomText>
       </CustomTouchable>
