@@ -71,7 +71,6 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   const snapPoints = useMemo(() => {
     const minHeightPercentage = (PANEL_MIN_HEIGHT / SCREEN_HEIGHT) * 100;
     const maxHeightPercentage = (PANEL_MAX_HEIGHT / SCREEN_HEIGHT) * 100;
-    console.log('Snap points calculated:', [`${minHeightPercentage.toFixed(1)}%`, `${maxHeightPercentage.toFixed(1)}%`]);
     return [`${minHeightPercentage.toFixed(1)}%`, `${maxHeightPercentage.toFixed(1)}%`];
   }, [PANEL_MIN_HEIGHT, PANEL_MAX_HEIGHT]);
 

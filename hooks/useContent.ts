@@ -27,8 +27,14 @@ type Content = {
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
 
-// Fixed: Now returns Content[] instead of Content
-const fetchContent = async (jwt?: string): Promise<Content[]> => {
+// Updated interface for basic content fetching
+interface BasicContentParams {
+  latitude?: number;
+  longitude?: number;
+}
+
+// Fixed: Now returns Content[] instead of Content and accepts optional location params
+const fetchContent = async (params?: BasicContentParams, jwt?: string): Promise<Content[]> => {
   const headers: Record<string, string> = {
     accept: 'application/json',
   };
@@ -36,8 +42,20 @@ const fetchContent = async (jwt?: string): Promise<Content[]> => {
     headers['Authorization'] = `Bearer ${jwt}`;
   }
 
+  let url = `${API_URL}/content`;
+  
+  // Add query parameters if provided
+  if (params && (params.latitude !== undefined || params.longitude !== undefined)) {
+    const cleanParams: Record<string, string> = {};
+    if (params.latitude !== undefined) cleanParams.latitude = params.latitude.toString();
+    if (params.longitude !== undefined) cleanParams.longitude = params.longitude.toString();
+    
+    const queryString = new URLSearchParams(cleanParams).toString();
+    url += `?${queryString}`;
+  }
+
   const observable$ = ajax<Content[]>({
-    url: `${API_URL}/content`,
+    url,
     method: 'GET',
     headers,
     responseType: 'json',
@@ -68,23 +86,40 @@ const fetchContentById = async (contentId: string, jwt: string): Promise<Content
   }
 };
 
-// Fixed: Now returns Content[] instead of Content
-export function useContent() {
+// Fixed: Now returns Content[] instead of Content and accepts optional location params
+export function useContent(params?: BasicContentParams) {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(['auth']);
   const jwt = authData?.accessToken;
 
   return useQuery<Content[], Error>({
-    queryKey: ['content'],
-    queryFn: () => fetchContent(jwt),
-    enabled: !!API_URL,
+    queryKey: ['content', params],
+    queryFn: () => fetchContent(params, jwt),
+    enabled: !!API_URL && params !== undefined, // Only run when params are defined (even if empty)
   });
 }
 
+// Updated interface to include latitude and longitude
+interface ContentParams {
+  query?: string; // Keep as optional
+  limit?: number;
+  offset?: number;
+  latitude?: number;
+  longitude?: number;
+}
+
+// Add interface for paginated response
+interface PaginatedResponse {
+  items: Content[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 const fetchContentWithParams = async (
-  params: { query?: string; limit?: number; offset?: number },
+  params: ContentParams,
   jwt?: string
-): Promise<Content[]> => {
+): Promise<PaginatedResponse> => {
   const headers: Record<string, string> = {
     accept: 'application/json',
   };
@@ -92,10 +127,18 @@ const fetchContentWithParams = async (
     headers['Authorization'] = `Bearer ${jwt}`;
   }
 
-  // Construct query string from params
-  const queryString = new URLSearchParams(params as Record<string, string>).toString();
+  // Filter out undefined values and convert numbers to strings for URLSearchParams
+  const cleanParams: Record<string, string> = {};
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      cleanParams[key] = value.toString();
+    }
+  });
 
-  const observable$ = ajax<Content[]>({
+  // Construct query string from params
+  const queryString = new URLSearchParams(cleanParams).toString();
+
+  const observable$ = ajax<PaginatedResponse>({
     url: `${API_URL}/content/selection/ask-kevin?${queryString}`,
     method: 'GET',
     headers,
@@ -106,15 +149,18 @@ const fetchContentWithParams = async (
   return response.response;
 };
 
-export function useContentWithParams(params: { query?: string; limit?: number; offset?: number }) {
+export function useContentWithParams(params: ContentParams | null) {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(['auth']);
   const jwt = authData?.accessToken;
 
-  return useQuery<Content[], Error>({
+  return useQuery<PaginatedResponse, Error>({
     queryKey: ['content', params],
-    queryFn: () => fetchContentWithParams(params, jwt),
-    enabled: !!API_URL,
+    queryFn: () => {
+      if (!params) throw new Error("Params not ready");
+      return fetchContentWithParams(params, jwt);
+    },
+    enabled: !!API_URL && !!params, // Only run when params are available
   });
 }
 

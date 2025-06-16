@@ -87,13 +87,15 @@ const ProfileListsScreen = () => {
     600
   );
 
-  // Only call hooks for the active tab
+  // Call hooks unconditionally, but control their execution with enabled flag
   const { data: buckets, isLoading: bucketsLoading } = useBuckets(
-    activeTab === "buckets" ? debouncedSearchQuery : undefined
+    debouncedSearchQuery,
+    activeTab === "buckets"
   );
 
   const { data: likes, isLoading: likesLoading } = useLikes(
-    activeTab === "likes" ? debouncedSearchQuery : undefined
+    debouncedSearchQuery,
+    activeTab === "likes"
   );
 
   // Mutation hooks
@@ -116,7 +118,7 @@ const ProfileListsScreen = () => {
     setIsCreateBucketBottomSheetVisible,
   ] = useState(false);
 
-  // Transform real buckets data
+  // Transform real buckets data - memoize with stable reference
   const transformedBucketsData = useMemo(() => {
     if (!buckets || buckets.length === 0) return [];
 
@@ -124,9 +126,20 @@ const ProfileListsScreen = () => {
       // Extract images from bucket content
       const images =
         bucket.content
-          ?.filter((item: any) => item.googlePlacesImageUrl) // Only items with images
+          ?.filter((item: any) => {
+            // Check if item has either internal images or google places image
+            const hasInternalImage = item.internalImageUrls && item.internalImageUrls.length > 0;
+            const hasGoogleImage = item.googlePlacesImageUrl;
+            return hasInternalImage || hasGoogleImage;
+          })
           .slice(0, 3) // Take first 3 for the UI
-          .map((item: any) => item.googlePlacesImageUrl) || [];
+          .map((item: any) => {
+            // Use internal image first, then fallback to google places image
+            if (item.internalImageUrls && item.internalImageUrls.length > 0) {
+              return item.internalImageUrls[0];
+            }
+            return item.googlePlacesImageUrl;
+          }) || [];
 
       // Add placeholder images if we don't have enough
       while (images.length < 3) {
@@ -145,19 +158,31 @@ const ProfileListsScreen = () => {
   const hasBucketsContent = bucketsHaveContent(buckets || []);
   const hasLikesContent = likesHaveContent(likes || []);
 
-  // Transform real likes data
+  // Transform real likes data - memoize with stable reference
   const transformedLikesData = useMemo(() => {
     if (!likes || likes.length === 0) return [];
 
-    return likes.map((like: any, index: number) => ({
-      id: like.id,
-      title: like.title || "Liked Item",
-      foodImage: like.googlePlacesImageUrl || like.image || PLACEHOLDER_IMAGE,
-      landscapeImage: "",
-      isExperience: true,
-      hasIcon: true,
-      height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall", // Vary heights for masonry effect
-    }));
+    return likes.map((like: any, index: number) => {
+      // Use internal image first, then fallback to google places image, then placeholder
+      let foodImage = PLACEHOLDER_IMAGE;
+      if (like.internalImageUrls && like.internalImageUrls.length > 0) {
+        foodImage = like.internalImageUrls[0];
+      } else if (like.googlePlacesImageUrl) {
+        foodImage = like.googlePlacesImageUrl;
+      } else if (like.image) {
+        foodImage = like.image;
+      }
+
+      return {
+        id: like.id,
+        title: like.title || "Liked Item",
+        foodImage: foodImage,
+        landscapeImage: "",
+        category: like.category,
+        hasIcon: true,
+        height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall", // Vary heights for masonry effect
+      };
+    });
   }, [likes]);
 
   // Bucket selection bottom sheet handlers
@@ -248,7 +273,7 @@ const ProfileListsScreen = () => {
     />
   );
 
-  // Show loading if data is still loading or mutations are in progress
+  // Show loading only for the active tab
   const isLoading =
     (activeTab === "buckets" && bucketsLoading) ||
     (activeTab === "likes" && likesLoading);
@@ -323,37 +348,48 @@ const ProfileListsScreen = () => {
         onChangeText={handleSearchChange}
         containerStyle={styles.searchBarContainer}
       />
-      {isLoading && <AnimatedLoader />}
 
       {/* Content */}
-      {!isLoading && activeTab === "likes" && (
-        <>
-          {hasLikesContent && (
-            <MasonryGrid
-              data={transformedLikesData}
-              onBucketPress={handleShowBucketBottomSheet}
-              onItemPress={handleLikeItemPress}
-            />
-          )}
-          {!hasLikesContent && <EmptyData type="likes" />}
-        </>
-      )}
-      {!isLoading && activeTab === "buckets" && (
-        <>
-          {hasBucketsContent && (
-            <FlatList
-              data={transformedBucketsData}
-              renderItem={renderBucketItem}
-              keyExtractor={(item) => item.id}
-              numColumns={2}
-              columnWrapperStyle={styles.bucketRow}
-              contentContainerStyle={styles.bucketsContainer}
-              showsVerticalScrollIndicator={false}
-            />
-          )}
-          {!hasBucketsContent && <EmptyData type="buckets" />}
-        </>
-      )}
+      <CustomView style={{ flex: 1 }}>
+        {/* Show loader only during initial load (when no data exists yet) */}
+        {isLoading && !buckets && !likes && (
+          <CustomView style={styles.loaderContainer}>
+            <AnimatedLoader />
+          </CustomView>
+        )}
+
+        {/* Likes Content */}
+        {activeTab === "likes" && (
+          <CustomView style={{ flex: 1 }}>
+            {hasLikesContent && (
+              <MasonryGrid
+                data={transformedLikesData}
+                onBucketPress={handleShowBucketBottomSheet}
+                onItemPress={handleLikeItemPress}
+              />
+            )}
+            {!hasLikesContent && !likesLoading && <EmptyData type="likes" />}
+          </CustomView>
+        )}
+
+        {/* Buckets Content */}
+        {activeTab === "buckets" && (
+          <CustomView style={{ flex: 1 }}>
+            {hasBucketsContent && (
+              <FlatList
+                data={transformedBucketsData}
+                renderItem={renderBucketItem}
+                keyExtractor={(item) => item.id}
+                numColumns={2}
+                columnWrapperStyle={styles.bucketRow}
+                contentContainerStyle={styles.bucketsContainer}
+                showsVerticalScrollIndicator={false}
+              />
+            )}
+            {!hasBucketsContent && !bucketsLoading && <EmptyData type="buckets" />}
+          </CustomView>
+        )}
+      </CustomView>
       <BucketBottomSheet
         selectedLikeItemId={selectedLikeItemId}
         isVisible={isBucketBottomSheetVisible}
@@ -401,6 +437,11 @@ const styles = StyleSheet.create({
   },
   searchBarContainer: {
     marginBottom: verticalScale(16),
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   bucketsContainer: {
     paddingHorizontal: horizontalScale(16),

@@ -96,15 +96,22 @@ const BucketDetailsScreen = () => {
     content: any,
     index: number
   ): LikeItem => {
+    // Use internal image first, then fallback to google places image
+    let foodImage = "";
+    if (content.internalImageUrls && content.internalImageUrls.length > 0) {
+      foodImage = content.internalImageUrls[0];
+    } else if (content.googlePlacesImageUrl) {
+      foodImage = content.googlePlacesImageUrl;
+    }
+
     return {
       id: content.id,
       title: content.title,
-      foodImage: content.googlePlacesImageUrl || "",
+      foodImage: foodImage,
       landscapeImage: "",
-      isExperience:
-        content.category === "experience" || content.category === "attraction",
       hasIcon: true,
       height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall",
+      category: content.category,
     };
   };
 
@@ -205,7 +212,9 @@ const BucketDetailsScreen = () => {
           containerStyle={styles.searchBarContainer}
           editable={false}
         />
-        <AnimatedLoader />
+        <CustomView style={styles.loaderContainer}>
+          <AnimatedLoader />
+        </CustomView>
       </SafeAreaView>
     );
   }
@@ -245,7 +254,7 @@ const BucketDetailsScreen = () => {
       )}
 
       {/* Content */}
-      {hasBucketContent && hasFilteredResults && (
+      {!isBucketLoading && hasBucketContent && hasFilteredResults && (
         <MasonryGrid
           data={filteredBucketItems}
           onBucketPress={handleShowBucketBottomSheet}
@@ -256,10 +265,10 @@ const BucketDetailsScreen = () => {
       )}
 
       {/* Empty bucket state */}
-      {!hasBucketContent && <EmptyData type="buckets" />}
+      {!isBucketLoading && !hasBucketContent && <EmptyData type="buckets" />}
 
       {/* No search results state */}
-      {hasBucketContent && hasSearchQuery && !hasFilteredResults && (
+      {!isBucketLoading && hasBucketContent && hasSearchQuery && !hasFilteredResults && (
         <CustomView style={styles.noResultsContainer}>
           <CustomText
             style={[styles.noResultsTitle, { color: colors.gray_regular }]}
@@ -305,7 +314,9 @@ const styles = StyleSheet.create({
     marginTop: verticalScale(12),
   },
   loaderContainer: {
-    paddingVertical: verticalScale(20),
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingContainer: {
     flex: 1,

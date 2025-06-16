@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView, RefreshControl } from "react-native";
+import { ScrollView, RefreshControl, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import CustomView from "@/components/CustomView";
 import LikeCard from "@/components/LikeComponent/LikeCard";
 import { horizontalScale } from "@/utilities/scaling";
@@ -10,19 +10,21 @@ interface LikeItem {
   title: string;
   foodImage: string | any;
   landscapeImage: string;
-  isExperience?: boolean;
   hasIcon?: boolean;
   height?: "short" | "tall";
+  category: string;
 }
 
 interface MasonryGridProps {
   data: LikeItem[];
-  onBucketPress: (likeItemId: string) => void; // Updated to pass item ID
+  onBucketPress: (likeItemId: string) => void;
   onItemPress?: (item: LikeItem) => void;
   showVerticalScrollIndicator?: boolean;
   contentContainerStyle?: object;
   refreshing?: boolean;
   onRefresh?: () => void;
+  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  scrollEventThrottle?: number;
 }
 
 const MasonryGrid: React.FC<MasonryGridProps> = ({
@@ -33,6 +35,8 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
   contentContainerStyle,
   refreshing = false,
   onRefresh,
+  onScroll,
+  scrollEventThrottle = 16,
 }) => {
   // Local placeholder image
   const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
@@ -52,7 +56,7 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
       {columnData.map((item) => (
         <CustomView key={item.id} style={{ marginBottom: 0 }}>
           <LikeCard
-            onBucketPress={() => onBucketPress(item.id)} // Pass item ID
+            onBucketPress={() => onBucketPress(item.id)}
             item={item}
             onPress={() => onItemPress(item)}
           />
@@ -75,11 +79,13 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#666" // Color of the refresh indicator (iOS)
-            colors={["#666"]} // Colors of the refresh indicator (Android)
+            tintColor="#666"
+            colors={["#666"]}
           />
         ) : undefined
       }
+      onScroll={onScroll}
+      scrollEventThrottle={scrollEventThrottle}
     >
       <CustomView
         style={{

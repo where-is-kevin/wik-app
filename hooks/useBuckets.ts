@@ -173,38 +173,44 @@ const createBucket = async (
 };
 
 // Custom hook for fetching buckets with search
-export function useBuckets(searchQuery?: string) {
+export function useBuckets(searchQuery?: string, enabled: boolean = true) {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken;
 
+  // Use empty string as default to ensure consistent caching
+  const normalizedSearchQuery = searchQuery?.trim() || "";
+
   return useQuery<Bucket[], Error>({
-    queryKey: ["buckets", searchQuery], // Include searchQuery in key for proper caching
+    queryKey: ["buckets", normalizedSearchQuery], 
     queryFn: () => {
       if (!jwt) throw new Error("No JWT found");
-      return fetchBuckets(jwt, searchQuery);
+      return fetchBuckets(jwt, normalizedSearchQuery || undefined);
     },
-    enabled: !!jwt,
-    // Add debouncing to avoid too many API calls while typing
-    staleTime: 5000, // Consider data fresh for 5 seconds
+    enabled: !!jwt && enabled,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (previously cacheTime)
   });
 }
 
 // Custom hook for fetching likes with search
-export function useLikes(searchQuery?: string) {
+export function useLikes(searchQuery?: string, enabled: boolean = true) {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken;
 
+  // Use empty string as default to ensure consistent caching
+  const normalizedSearchQuery = searchQuery?.trim() || "";
+
   return useQuery<Content[], Error>({
-    queryKey: ["likes", searchQuery], // Include searchQuery in key for proper caching
+    queryKey: ["likes", normalizedSearchQuery],
     queryFn: () => {
       if (!jwt) throw new Error("No JWT found");
-      return fetchLikes(jwt, searchQuery);
+      return fetchLikes(jwt, normalizedSearchQuery || undefined);
     },
-    enabled: !!jwt,
-    // Add debouncing to avoid too many API calls while typing
-    staleTime: 5000, // Consider data fresh for 5 seconds
+    enabled: !!jwt && enabled,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (previously cacheTime)
   });
 }
 
@@ -213,13 +219,17 @@ export function useBucketById(bucketId: string, searchQuery?: string) {
   const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken;
 
+  const normalizedSearchQuery = searchQuery?.trim() || "";
+
   return useQuery<Bucket, Error>({
-    queryKey: ["bucket", bucketId, searchQuery || ""], // Include searchQuery in queryKey
+    queryKey: ["bucket", bucketId, normalizedSearchQuery],
     queryFn: () => {
       if (!jwt) throw new Error("No JWT found");
-      return fetchBucketById(bucketId, jwt, searchQuery); // Pass searchQuery to API
+      return fetchBucketById(bucketId, jwt, normalizedSearchQuery || undefined);
     },
     enabled: !!jwt && !!bucketId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 }
 
@@ -235,8 +245,9 @@ export function useAddBucket() {
       return addBucket(input, jwt);
     },
     onSuccess: () => {
-      // Only invalidate buckets since we're adding content to an existing bucket
+      // Invalidate all bucket-related queries
       queryClient.invalidateQueries({ queryKey: ["buckets"] });
+      queryClient.invalidateQueries({ queryKey: ["bucket"] });
     },
   });
 }
@@ -253,7 +264,7 @@ export function useCreateBucket() {
       return createBucket(input, jwt);
     },
     onSuccess: () => {
-      // Only invalidate buckets since we're creating a new bucket
+      // Invalidate all bucket-related queries
       queryClient.invalidateQueries({ queryKey: ["buckets"] });
     },
   });

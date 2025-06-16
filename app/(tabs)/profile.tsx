@@ -39,9 +39,20 @@ const ProfileScreen = () => {
       // Extract images from bucket content
       const images =
         bucket.content
-          ?.filter((item: any) => item.googlePlacesImageUrl) // Only items with images
+          ?.filter((item: any) => {
+            // Check if item has either internal images or google places image
+            const hasInternalImage = item.internalImageUrls && item.internalImageUrls.length > 0;
+            const hasGoogleImage = item.googlePlacesImageUrl;
+            return hasInternalImage || hasGoogleImage;
+          })
           .slice(0, 3) // Take first 3 for the UI
-          .map((item: any) => item.googlePlacesImageUrl) || [];
+          .map((item: any) => {
+            // Use internal image first, then fallback to google places image
+            if (item.internalImageUrls && item.internalImageUrls.length > 0) {
+              return item.internalImageUrls[0];
+            }
+            return item.googlePlacesImageUrl;
+          }) || [];
 
       // Add placeholder images if we don't have enough
       while (images.length < 3) {
@@ -65,15 +76,28 @@ const ProfileScreen = () => {
   const transformedLikesData = useMemo(() => {
     if (!likes || likes.length === 0) return [];
 
-    return likes.slice(0, 10).map((like: any) => ({
-      id: like.id,
-      title: like.title || "Liked Item",
-      image: like.googlePlacesImageUrl || like.image || PLACEHOLDER_IMAGE,
-      onPress: () => {
-        router.push(`/event-details/${like.id}`);
-      },
-      onMorePress: () => console.log("Like more options pressed for:", like.id),
-    }));
+    return likes.slice(0, 10).map((like: any) => {
+      // Use internal image first, then fallback to google places image, then placeholder
+      let image = PLACEHOLDER_IMAGE;
+      if (like.internalImageUrls && like.internalImageUrls.length > 0) {
+        image = like.internalImageUrls[0];
+      } else if (like.googlePlacesImageUrl) {
+        image = like.googlePlacesImageUrl;
+      } else if (like.image) {
+        image = like.image;
+      }
+
+      return {
+        id: like.id,
+        title: like.title || "Liked Item",
+        image: image,
+        onPress: () => {
+          router.push(`/event-details/${like.id}`);
+        },
+        onMorePress: () => console.log("Like more options pressed for:", like.id),
+        category: like.category,
+      };
+    });
   }, [likes, router]);
 
   // Navigate to buckets list

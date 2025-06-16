@@ -5,6 +5,7 @@ import {
   Animated,
   PanResponder,
   Dimensions,
+  Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -64,9 +65,12 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   const [imageLoaded, setImageLoaded] = useState<{ [key: string]: boolean }>({});
   const position = useRef(new Animated.ValueXY()).current;
 
-  // Single animation values for feedback
+  // Animation values for feedback
   const feedbackOpacity = useRef(new Animated.Value(0)).current;
   const feedbackScale = useRef(new Animated.Value(0.8)).current;
+  
+  // Track current swipe direction for showing appropriate feedback image
+  const [currentSwipeDirection, setCurrentSwipeDirection] = useState<'left' | 'right' | 'up' | null>(null);
 
   // Track touch start time and position to distinguish between tap and swipe
   const touchStartTime = useRef<number>(0);
@@ -77,6 +81,11 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 
   // Local placeholder image
   const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+  
+  // Feedback images
+  const APPROVE_IMAGE = require("@/assets/images/approve.png");
+  const CANCEL_IMAGE = require("@/assets/images/cancel.png");
+  const STASH_IMAGE = require("@/assets/images/stash.png");
 
   // Helper function to validate image URLs
   const getValidImageUrl = useCallback((imageUrl: string): string | null => {
@@ -93,18 +102,23 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 
     // Calculate the strongest direction and its opacity
     let maxOpacity = 0;
+    let direction: 'left' | 'right' | 'up' | null = null;
     
     if (gesture.dx > 0 && gesture.dx > absDy) {
       // Right swipe
       maxOpacity = Math.min(gesture.dx / 150, 1);
+      direction = 'right';
     } else if (gesture.dx < 0 && absDx > absDy) {
       // Left swipe
       maxOpacity = Math.min(absDx / 150, 1);
+      direction = 'left';
     } else if (gesture.dy < 0 && absDy > absDx) {
       // Up swipe
       maxOpacity = Math.min(absDy / 150, 1);
+      direction = 'up';
     }
 
+    setCurrentSwipeDirection(direction);
     feedbackOpacity.setValue(maxOpacity);
     feedbackScale.setValue(maxOpacity > 0 ? 1 : 0.8);
   }, [feedbackOpacity, feedbackScale]);
@@ -113,6 +127,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   const hideAllFeedback = useCallback(() => {
     feedbackOpacity.setValue(0);
     feedbackScale.setValue(0.8);
+    setCurrentSwipeDirection(null);
   }, [feedbackOpacity, feedbackScale]);
 
   // Early return if no data
@@ -319,7 +334,23 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     hideAllFeedback();
   }, [position, hideAllFeedback]);
 
+  // Function to get the appropriate feedback image based on swipe direction
+  const getFeedbackImage = () => {
+    switch (currentSwipeDirection) {
+      case 'right':
+        return APPROVE_IMAGE;
+      case 'left':
+        return CANCEL_IMAGE;
+      case 'up':
+        return STASH_IMAGE;
+      default:
+        return APPROVE_IMAGE; // Default fallback
+    }
+  };
+
   const renderSwipeFeedback = () => {
+    if (!currentSwipeDirection) return null;
+
     return (
       <Animated.View
         style={[
@@ -330,7 +361,11 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
           },
         ]}
       >
-        <CustomText style={styles.feedbackIcon}>❤️</CustomText>
+        <Image 
+          source={getFeedbackImage()}
+          style={styles.feedbackImage}
+          resizeMode="contain"
+        />
       </Animated.View>
     );
   };
@@ -660,21 +695,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  // Swipe feedback styles - FIXED positioning
+  // Swipe feedback styles
   swipeFeedbackCenter: {
     position: "absolute",
     top: "50%",
     left: "50%",
-    marginTop: -25, // Half of the height (50/2)
-    marginLeft: -25, // Half of the width (50/2)
+    marginTop: -30, // Half of the height (60/2)
+    marginLeft: -30, // Half of the width (60/2)
     justifyContent: "center",
     alignItems: "center",
-    width: 50,
-    height: 50,
+    width: 60,
+    height: 60,
     zIndex: 1000,
   },
-  feedbackIcon: {
-    fontSize: 40,
-    textAlign: "center",
+  feedbackImage: {
+    width: 100,
+    height: 100,
   },
 });

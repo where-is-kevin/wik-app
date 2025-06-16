@@ -16,12 +16,14 @@ import CustomTouchable from "../CustomTouchableOpacity";
 import { useTheme } from "@/contexts/ThemeContext";
 import ShareButton from "../Button/ShareButton";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
+import CategoryTag from "../Tag/CategoryTag";
 
 // TypeScript interfaces
 interface LikeItem {
   id?: string;
   title: string;
   image: string;
+  category?: string;
   onPress?: () => void;
   onMorePress?: () => void;
 }
@@ -29,6 +31,7 @@ interface LikeItem {
 interface LikeItemProps {
   title: string;
   image: string;
+  category?: string;
   onPress?: () => void;
   onMorePress?: () => void;
 }
@@ -41,6 +44,7 @@ interface LikesSectionProps {
 const LikeItemComponent: React.FC<LikeItemProps> = ({
   title,
   image,
+  category,
   onPress,
   onMorePress,
 }) => {
@@ -72,6 +76,15 @@ const LikeItemComponent: React.FC<LikeItemProps> = ({
           showLoader={true}
           fallbackSource={PLACEHOLDER_IMAGE}
         />
+        
+        {/* Category tag in top left */}
+        {category && (
+          <CategoryTag
+            style={styles.categoryTag}
+            category={category}
+            colors={colors}
+          />
+        )}
       </CustomTouchable>
 
       {/* Title row with more options button */}
@@ -105,6 +118,7 @@ const LikesSection: React.FC<LikesSectionProps> = ({
       key={item.id}
       title={item.title}
       image={item.image}
+      category={item.category}
       onPress={item.onPress}
       onMorePress={item.onMorePress}
     />
@@ -168,10 +182,19 @@ const styles = StyleSheet.create({
     height: 118, // Fixed height as requested
     borderRadius: 10,
     overflow: "hidden",
+    position: "relative", // Added for absolute positioning of category tag
   },
   image: {
     width: "100%",
     height: "100%",
+  },
+  categoryTag: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
   titleRow: {
     flexDirection: "row",

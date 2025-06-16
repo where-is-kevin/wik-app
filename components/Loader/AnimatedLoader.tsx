@@ -1,10 +1,13 @@
 import React from "react";
 import CustomView from "../CustomView";
 import LottieView from "lottie-react-native";
-import { StyleSheet } from "react-native";
+import { StyleSheet, ViewStyle } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
 
-const AnimatedLoader = () => {
+interface AnimatedLoaderProps {
+  customAnimationStyle?: ViewStyle | ViewStyle[];
+}
+const AnimatedLoader = ({customAnimationStyle}: AnimatedLoaderProps) => {
   const { colors } = useTheme();
   return (
     <CustomView bgColor={colors.overlay} style={styles.container}>
@@ -12,7 +15,7 @@ const AnimatedLoader = () => {
         source={require("@/assets/animations/kevin-loader.lottie")}
         autoPlay
         loop
-        style={styles.animation}
+        style={[styles.animation, customAnimationStyle]}
       />
     </CustomView>
   );

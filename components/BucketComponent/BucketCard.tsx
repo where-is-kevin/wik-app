@@ -19,7 +19,6 @@ interface ExperienceCard {
   id: string;
   title: string;
   safeImages: (string | any)[];
-  isExperience?: boolean;
   hasIcon?: boolean;
   height?: "short" | "tall";
 }

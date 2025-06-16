@@ -13,15 +13,16 @@ import CustomText from "@/components/CustomText";
 import ShareButton from "../Button/ShareButton";
 import BucketSvg from "../SvgComponents/BucketSvg";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
+import CategoryTag from "../Tag/CategoryTag";
 
 interface ExperienceCard {
   id: string;
   title: string;
   foodImage: string;
   landscapeImage: string;
-  isExperience?: boolean;
   hasIcon?: boolean;
   height?: "short" | "tall";
+  category?: string;
 }
 
 interface LikeCardProps {
@@ -85,19 +86,13 @@ const LikeCard: React.FC<LikeCardProps> = ({
           />
 
           {/* Experience tag in top left */}
-          {item.isExperience && (
-            <CustomView
-              bgColor={colors.profile_name_black}
-              style={styles.experienceTag}
-            >
-              <CustomText
-                fontFamily="Inter-SemiBold"
-                style={[styles.experienceText, { color: colors.lime }]}
-              >
-                EXPERIENCE
-              </CustomText>
-            </CustomView>
-          )}
+           {item.category && (
+                      <CategoryTag
+                          style={styles.experienceTag}
+                        category={item.category}
+                        colors={colors}
+                      />
+                    )}
 
           {/* Bucket SVG icon in bottom right */}
           {item.hasIcon && (

@@ -1,5 +1,5 @@
 import { useContent } from "@/hooks/useContent";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useAddLike } from "@/hooks/useLikes";
 import {
   StyleSheet,
@@ -24,6 +24,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { useAddDislike } from "@/hooks/useDislikes";
+import { useLocationForAPI } from "@/contexts/LocationContext";
 
 // Define the interface that matches your SwipeCards component
 interface CardData {
@@ -42,7 +43,31 @@ interface LocalBucketItem {
 }
 
 const SwipeableCards = () => {
-  const { data: content, isLoading, error, refetch } = useContent();
+  const { getLocationForAPI, hasLocationPermission } = useLocationForAPI();
+  const [locationParams, setLocationParams] = useState<{
+    latitude?: number;
+    longitude?: number;
+  }>({});
+
+  // Get location data and update params
+  useEffect(() => {
+    const updateLocationParams = async () => {
+      if (hasLocationPermission) {
+        const locationData = await getLocationForAPI();
+        if (locationData) {
+          setLocationParams({
+            latitude: locationData.lat,
+            longitude: locationData.lon,
+          });
+          console.log("Location updated for SwipeableCards:", locationData);
+        }
+      }
+    };
+
+    updateLocationParams();
+  }, [hasLocationPermission]);
+
+  const { data: content, isLoading, error, refetch } = useContent(locationParams);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -70,11 +95,8 @@ const SwipeableCards = () => {
         id: item.id,
         title: item.title,
         imageUrl:
-          item.internalImageUrls
- && item.internalImageUrls
-.length > 0
-            ? item.internalImageUrls
-[0]
+          item.internalImageUrls && item.internalImageUrls.length > 0
+            ? item.internalImageUrls[0]
             : item.googlePlacesImageUrl,
         price: item.price?.toString(),
         rating: item?.rating?.toString(),
