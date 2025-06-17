@@ -1,6 +1,6 @@
 // components/LocationPermissionScreen.tsx
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Linking } from "react-native";
+import { View, Text, StyleSheet, Alert, Linking } from "react-native";
 import { useLocation } from "@/contexts/LocationContext";
 import { useLocationPermissionGuard } from "@/hooks/useLocationPermissionGuard";
 import { router } from "expo-router";
@@ -8,7 +8,11 @@ import CustomText from "@/components/CustomText";
 import CustomView from "@/components/CustomView";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import { useTheme } from "@/contexts/ThemeContext";
-import { horizontalScale, scaleFontSize, verticalScale } from "@/utilities/scaling";
+import {
+  horizontalScale,
+  scaleFontSize,
+  verticalScale,
+} from "@/utilities/scaling";
 
 interface LocationPermissionScreenProps {
   onPermissionGranted?: () => void;
@@ -22,88 +26,50 @@ const LocationPermissionScreen: React.FC<LocationPermissionScreenProps> = ({
   showSkipOption = true,
 }) => {
   const { requestLocationPermission, isLoading } = useLocation();
-  const {colors} = useTheme();
+  const { colors } = useTheme();
   const { savePermissionStatus } = useLocationPermissionGuard({
     redirectToTabs: false,
     skipLocationCheck: true, // Don't auto-check here
   });
 
-const handleRequestPermission = async () => {
-  const granted = await requestLocationPermission();
+  const handleContinue = async () => {
+    // Always proceed to the system permission request
+    const granted = await requestLocationPermission();
 
-  if (granted) {
-    onPermissionGranted?.();
-    await savePermissionStatus('granted');
-    router.replace('/(tabs)');
-  } else {
-    // User denied the permission request
-    Alert.alert(
-      "Location Access Required",
-      "Location access is needed to provide you with relevant content and features. You can enable it later in Settings, or continue without location services.",
-      [
-        {
-          text: "Continue Without",
-          style: "cancel",
-          onPress: async () => {
-            await savePermissionStatus('denied'); // This marks they were asked and denied
-            router.replace('/(tabs)');
-          },
-        },
-        {
-          text: "Open Settings",
-          onPress: async () => {
-            try {
-              await Linking.openSettings();
-              await savePermissionStatus('denied'); // This marks they were asked
-              router.replace('/(tabs)');
-            } catch (error) {
-              console.error('Error opening settings:', error);
-              await savePermissionStatus('denied'); // This marks they were asked
-              router.replace('/(tabs)');
-            }
-          },
-        },
-      ]
-    );
-  }
-};
-
-const handleSkip = async () => {
-  onSkip?.();
-  await savePermissionStatus('denied'); // This marks they were asked and chose to skip
-  router.replace('/(tabs)');
-};
+    if (granted) {
+      onPermissionGranted?.();
+      await savePermissionStatus("granted");
+      router.replace("/(tabs)");
+    } else {
+      // User denied the permission request - handle gracefully
+      await savePermissionStatus("denied");
+      router.replace("/(tabs)");
+    }
+  };
 
   return (
     <CustomView style={styles.container}>
       <CustomView style={styles.content}>
-        <CustomText style={styles.title}>Enable Location Services</CustomText>
+        <CustomText style={styles.title}>Location Services</CustomText>
         <CustomText style={styles.description}>
-          We need access to your location to provide you with personalized
-          content and nearby recommendations. Your location data is kept secure
-          and private.
+          This app provides personalized content and nearby recommendations
+          based on your location. You'll be asked to grant location access in
+          the next step.
         </CustomText>
 
         <CustomTouchable
-          style={styles.enableButton}
+          style={styles.continueButton}
           bgColor={colors.lime}
-          onPress={handleRequestPermission}
+          onPress={handleContinue}
           disabled={isLoading}
         >
-          <CustomText style={[styles.enableButtonText, {color: colors.label_dark}]} fontFamily="Inter-SemiBold">
-            {isLoading ? "Getting Location..." : "Enable Location"}
+          <CustomText
+            style={[styles.continueButtonText, { color: colors.label_dark }]}
+            fontFamily="Inter-SemiBold"
+          >
+            {isLoading ? "Loading..." : "Continue"}
           </CustomText>
         </CustomTouchable>
-
-        {showSkipOption && (
-          <TouchableOpacity
-            style={styles.skipButton}
-            onPress={handleSkip}
-            disabled={isLoading}
-          >
-            <Text style={styles.skipButtonText}>Skip for Now</Text>
-          </TouchableOpacity>
-        )}
       </CustomView>
     </CustomView>
   );
@@ -137,23 +103,13 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: "#666",
   },
-  enableButton: {
+  continueButton: {
     paddingVertical: verticalScale(12),
     borderRadius: 8,
-    width: '100%',
-    marginBottom: verticalScale(16),
+    width: "100%",
     marginHorizontal: horizontalScale(24),
   },
-  enableButtonText: {
-    fontSize: scaleFontSize(16),
-    textAlign: "center",
-  },
-  skipButton: {
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-  },
-  skipButtonText: {
-    color: "#666",
+  continueButtonText: {
     fontSize: scaleFontSize(16),
     textAlign: "center",
   },
