@@ -52,6 +52,8 @@ export type CreateUserInput = {
   password: string;
   description: string;
   personalSummary: string;
+  onboardingLikes?: string[]; // Array of content IDs that user liked
+  onboardingDislikes?: string[]; // Array of content IDs that user disliked
 };
 
 const createUser = async (input: CreateUserInput): Promise<User> => {

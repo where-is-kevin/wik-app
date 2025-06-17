@@ -1,7 +1,7 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { firstValueFrom } from 'rxjs';
-import { ajax } from 'rxjs/ajax';
-import Constants from 'expo-constants';
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { firstValueFrom } from "rxjs";
+import { ajax } from "rxjs/ajax";
+import Constants from "expo-constants";
 
 type Content = {
   id: string;
@@ -34,45 +34,52 @@ interface BasicContentParams {
 }
 
 // Fixed: Now returns Content[] instead of Content and accepts optional location params
-const fetchContent = async (params?: BasicContentParams, jwt?: string): Promise<Content[]> => {
+const fetchContent = async (
+  params?: BasicContentParams,
+  jwt?: string
+): Promise<Content[]> => {
   const headers: Record<string, string> = {
-    accept: 'application/json',
+    accept: "application/json",
   };
   if (jwt) {
-    headers['Authorization'] = `Bearer ${jwt}`;
+    headers["Authorization"] = `Bearer ${jwt}`;
   }
 
   let url = `${API_URL}/content`;
-  
+
   // Add query parameters if provided
-  if (params && (params.latitude !== undefined || params.longitude !== undefined)) {
+  if (
+    params &&
+    (params.latitude !== undefined || params.longitude !== undefined)
+  ) {
     const cleanParams: Record<string, string> = {};
-    if (params.latitude !== undefined) cleanParams.latitude = params.latitude.toString();
-    if (params.longitude !== undefined) cleanParams.longitude = params.longitude.toString();
-    
+    if (params.latitude !== undefined)
+      cleanParams.latitude = params.latitude.toString();
+    if (params.longitude !== undefined)
+      cleanParams.longitude = params.longitude.toString();
+
     const queryString = new URLSearchParams(cleanParams).toString();
     url += `?${queryString}`;
   }
 
   const observable$ = ajax<Content[]>({
     url,
-    method: 'GET',
+    method: "GET",
     headers,
-    responseType: 'json',
+    responseType: "json",
   });
 
   const response = await firstValueFrom(observable$);
   return response.response;
 };
 
-// Fetch content by ID function
-const fetchContentById = async (contentId: string, jwt: string): Promise<Content> => {
+// Fetch content by ID function - NO AUTHENTICATION REQUIRED
+const fetchContentById = async (contentId: string): Promise<Content> => {
   try {
     const observable$ = ajax<Content>({
       url: `${API_URL}/content/${contentId}`,
       method: "GET",
       headers: {
-        Authorization: `Bearer ${jwt}`,
         accept: "application/json",
       },
       responseType: "json",
@@ -89,11 +96,11 @@ const fetchContentById = async (contentId: string, jwt: string): Promise<Content
 // Fixed: Now returns Content[] instead of Content and accepts optional location params
 export function useContent(params?: BasicContentParams) {
   const queryClient = useQueryClient();
-  const authData = queryClient.getQueryData<{ accessToken?: string }>(['auth']);
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken;
 
   return useQuery<Content[], Error>({
-    queryKey: ['content', params],
+    queryKey: ["content", params],
     queryFn: () => fetchContent(params, jwt),
     enabled: !!API_URL && params !== undefined, // Only run when params are defined (even if empty)
   });
@@ -121,10 +128,10 @@ const fetchContentWithParams = async (
   jwt?: string
 ): Promise<PaginatedResponse> => {
   const headers: Record<string, string> = {
-    accept: 'application/json',
+    accept: "application/json",
   };
   if (jwt) {
-    headers['Authorization'] = `Bearer ${jwt}`;
+    headers["Authorization"] = `Bearer ${jwt}`;
   }
 
   // Filter out undefined values and convert numbers to strings for URLSearchParams
@@ -140,9 +147,9 @@ const fetchContentWithParams = async (
 
   const observable$ = ajax<PaginatedResponse>({
     url: `${API_URL}/content/selection/ask-kevin?${queryString}`,
-    method: 'GET',
+    method: "GET",
     headers,
-    responseType: 'json',
+    responseType: "json",
   });
 
   const response = await firstValueFrom(observable$);
@@ -151,11 +158,11 @@ const fetchContentWithParams = async (
 
 export function useContentWithParams(params: ContentParams | null) {
   const queryClient = useQueryClient();
-  const authData = queryClient.getQueryData<{ accessToken?: string }>(['auth']);
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken;
 
   return useQuery<PaginatedResponse, Error>({
-    queryKey: ['content', params],
+    queryKey: ["content", params],
     queryFn: () => {
       if (!params) throw new Error("Params not ready");
       return fetchContentWithParams(params, jwt);
@@ -164,17 +171,11 @@ export function useContentWithParams(params: ContentParams | null) {
   });
 }
 
+// Updated to remove JWT authentication requirement
 export function useContentById(contentId: string) {
-  const queryClient = useQueryClient();
-  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
-  const jwt = authData?.accessToken;
-
   return useQuery<Content, Error>({
     queryKey: ["content", contentId],
-    queryFn: () => {
-      if (!jwt) throw new Error("No JWT found");
-      return fetchContentById(contentId, jwt);
-    },
-    enabled: !!jwt && !!contentId,
+    queryFn: () => fetchContentById(contentId),
+    enabled: !!API_URL && !!contentId,
   });
 }

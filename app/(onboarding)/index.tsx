@@ -72,10 +72,10 @@ const OnboardingScreen = () => {
     password: "",
   });
   const [swipeLikes, setSwipeLikes] = useState<string[]>([]);
-  const [swipeSkips, setSwipeSkips] = useState<string[]>([]);
   const [swipeDislikes, setSwipeDislikes] = useState<string[]>([]);
   const [showTutorial, setShowTutorial] = useState<boolean>(true);
 
+  console.log(swipeLikes, swipeDislikes);
   // Fetch real content data without location parameters
   const {
     data: content,
@@ -171,15 +171,43 @@ const OnboardingScreen = () => {
   };
 
   const handleSwipeRight = (item: CardData) => {
-    if (!item) return;
-    console.log("Liked:", item.title);
-    setSwipeLikes([...swipeLikes, item.id]);
+    if (!item || !item.id) {
+      return;
+    }
+
+    setSwipeLikes((prevLikes) => {
+      // Prevent duplicates
+      if (prevLikes.includes(item.id)) {
+        return prevLikes;
+      }
+
+      // Add new item to existing array
+      return [...prevLikes, item.id];
+    });
+
+    // Remove from dislikes if it was there
+    setSwipeDislikes((prevDislikes) =>
+      prevDislikes.filter((id) => id !== item.id)
+    );
   };
 
   const handleSwipeLeft = (item: CardData) => {
-    if (!item) return;
-    console.log("Disliked:", item.title);
-    setSwipeDislikes([...swipeDislikes, item.id]);
+    if (!item || !item.id) {
+      return;
+    }
+
+    setSwipeDislikes((prevDislikes) => {
+      // Prevent duplicates
+      if (prevDislikes.includes(item.id)) {
+        return prevDislikes;
+      }
+
+      // Add new item to existing array
+      return [...prevDislikes, item.id];
+    });
+
+    // Remove from likes if it was there
+    setSwipeLikes((prevLikes) => prevLikes.filter((id) => id !== item.id));
   };
 
   const handleSwipeUp = (item: CardData) => {
@@ -207,6 +235,20 @@ const OnboardingScreen = () => {
         setCurrentStepIndex(currentStepIndex + 1);
       }, 500);
     }
+  };
+
+  const handleCardTap = (item: CardData) => {
+    if (!item) return;
+    console.log("Card tapped:", item.title);
+
+    // Navigate to event details with hideBucketsButton param
+    router.push({
+      pathname: "/event-details/[eventId]",
+      params: {
+        eventId: item.id,
+        hideBucketsButton: "true",
+      },
+    });
   };
 
   const handleTutorialComplete = () => {
@@ -276,13 +318,6 @@ const OnboardingScreen = () => {
             .join(" | ");
         };
 
-        // Include swipe preferences in user creation
-        const swipePreferences = {
-          likes: swipeLikes,
-          dislikes: swipeDislikes,
-          skips: swipeSkips,
-        };
-
         // Map personalFormData to CreateUserInput
         const userInput: CreateUserInput = {
           firstName: personalFormData.firstName,
@@ -293,8 +328,8 @@ const OnboardingScreen = () => {
           password: personalFormData.password,
           description: getSelectedOptionsString(),
           personalSummary: personalFormData.personalSummary,
-          // Add swipe preferences if your API supports it
-          // swipePreferences: JSON.stringify(swipePreferences),
+          onboardingLikes: swipeLikes, // Array of liked content IDs
+          onboardingDislikes: swipeDislikes, // Array of disliked content IDs
         };
 
         createUser(userInput, {
@@ -497,6 +532,7 @@ const OnboardingScreen = () => {
         <CustomView style={styles.swipeContainer}>
           <SwipeCards
             data={transformedCardData}
+            onCardTap={handleCardTap}
             onSwipeLeft={handleSwipeLeft}
             onSwipeRight={handleSwipeRight}
             onSwipeUp={handleSwipeUp}
@@ -504,7 +540,7 @@ const OnboardingScreen = () => {
             hideBucketsButton={true}
           />
 
-          {showTutorial && (
+          {showTutorial && !isContentLoading && (
             <SwipeCardTooltips onComplete={handleTutorialComplete} />
           )}
         </CustomView>

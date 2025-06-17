@@ -51,6 +51,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
   // Get the event ID from params
   const eventId = params.eventId as string;
+  const hideBucketsButton = params.hideBucketsButton === "true";
 
   // Fetch content data using the eventId
   const { data: contentData, isLoading, error } = useContentById(eventId);
@@ -341,13 +342,15 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
                 {/* Action Buttons */}
                 <CustomView style={styles.row}>
-                  <CustomTouchable
-                    style={styles.bucketContainer}
-                    bgColor={colors.label_dark}
-                    onPress={handleShowBucketBottomSheet}
-                  >
-                    <BucketSvg />
-                  </CustomTouchable>
+                  {!hideBucketsButton && (
+                    <CustomTouchable
+                      style={styles.bucketContainer}
+                      bgColor={colors.label_dark}
+                      onPress={handleShowBucketBottomSheet}
+                    >
+                      <BucketSvg />
+                    </CustomTouchable>
+                  )}
                   <CustomTouchable
                     bgColor={colors.onboarding_gray}
                     style={styles.shareButton}
