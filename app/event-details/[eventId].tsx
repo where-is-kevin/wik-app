@@ -12,10 +12,8 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import BottomSheet, { 
-  BottomSheetScrollView,
-} from '@gorhom/bottom-sheet';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import CustomText from "@/components/CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
@@ -53,6 +51,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
   // Get the event ID from params
   const eventId = params.eventId as string;
+  const hideBucketsButton = params.hideBucketsButton === "true";
 
   // Fetch content data using the eventId
   const { data: contentData, isLoading, error } = useContentById(eventId);
@@ -66,12 +65,18 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   const PANEL_MIN_HEIGHT = SCREEN_HEIGHT * 0.3;
   const PANEL_MAX_HEIGHT = SCREEN_HEIGHT - insets.top - ESTIMATED_HEADER_HEIGHT;
 
+  // Calculate the image container height to stop at the first snap point
+  const IMAGE_CONTAINER_HEIGHT = SCREEN_HEIGHT - PANEL_MIN_HEIGHT + 15;
+
   // Bottom sheet setup with dynamic snap points
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => {
     const minHeightPercentage = (PANEL_MIN_HEIGHT / SCREEN_HEIGHT) * 100;
     const maxHeightPercentage = (PANEL_MAX_HEIGHT / SCREEN_HEIGHT) * 100;
-    return [`${minHeightPercentage.toFixed(1)}%`, `${maxHeightPercentage.toFixed(1)}%`];
+    return [
+      `${minHeightPercentage.toFixed(1)}%`,
+      `${maxHeightPercentage.toFixed(1)}%`,
+    ];
   }, [PANEL_MIN_HEIGHT, PANEL_MAX_HEIGHT]);
 
   // Bucket functionality state
@@ -94,7 +99,10 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
   // Get images array with fallback
   const getImages = () => {
-    if (contentData?.internalImageUrls && contentData.internalImageUrls.length > 0) {
+    if (
+      contentData?.internalImageUrls &&
+      contentData.internalImageUrls.length > 0
+    ) {
       return contentData.internalImageUrls;
     }
     if (contentData?.googlePlacesImageUrl) {
@@ -115,18 +123,15 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   // Render image item
   const renderImageItem = ({ item }: { item: string }) => (
     <FastImageBackground
-      source={typeof item === 'string' ? { uri: item } : item}
-      style={styles.backgroundImage}
+      source={typeof item === "string" ? { uri: item } : item}
+      style={[styles.backgroundImage, { height: IMAGE_CONTAINER_HEIGHT }]}
       resizeMode="cover"
       priority="high"
       showLoader={true}
       fallbackSource={TestImage}
     >
       <SafeAreaView
-        style={[
-          styles.headerContainer,
-          { backgroundColor: colors.overlay },
-        ]}
+        style={[styles.headerContainer, { backgroundColor: colors.overlay }]}
       >
         <BackHeader transparent={true} />
       </SafeAreaView>
@@ -269,38 +274,43 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <CustomView style={styles.container}>
         <StatusBar translucent backgroundColor="transparent" />
-        
-        {/* Image Carousel */}
-        <FlatList
-          ref={imageCarouselRef}
-          data={images}
-          renderItem={renderImageItem}
-          keyExtractor={(item, index) => `image-${index}`}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={onImageScroll}
-          style={styles.imageCarousel}
-        />
 
-        {/* Image Indicators */}
-        {images.length > 1 && (
-          <View style={styles.imageIndicators}>
-            {images.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.indicator,
-                  {
-                    backgroundColor: index === currentImageIndex 
-                      ? colors.text_white 
-                      : 'rgba(255, 255, 255, 0.5)'
-                  }
-                ]}
-              />
-            ))}
-          </View>
-        )}
+        {/* Image Carousel - Now with fixed height */}
+        <View
+          style={[styles.imageContainer, { height: IMAGE_CONTAINER_HEIGHT }]}
+        >
+          <FlatList
+            ref={imageCarouselRef}
+            data={images}
+            renderItem={renderImageItem}
+            keyExtractor={(item, index) => `image-${index}`}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={onImageScroll}
+            style={styles.imageCarousel}
+          />
+
+          {/* Image Indicators - Now positioned relative to image container */}
+          {images.length > 1 && (
+            <View style={styles.imageIndicators}>
+              {images.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.indicator,
+                    {
+                      backgroundColor:
+                        index === currentImageIndex
+                          ? colors.text_white
+                          : "rgba(255, 255, 255, 0.5)",
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+        </View>
 
         {/* Bottom Sheet */}
         <BottomSheet
@@ -309,14 +319,18 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
           snapPoints={snapPoints}
           onChange={handleSheetChanges}
           backgroundStyle={{ backgroundColor: colors.background }}
-          handleIndicatorStyle={{ backgroundColor: '#F2F2F7', width: 40, height: 4 }}
+          handleIndicatorStyle={{
+            backgroundColor: "#F2F2F7",
+            width: 40,
+            height: 4,
+          }}
           enablePanDownToClose={false}
           enableOverDrag={false}
           enableDynamicSizing={false}
           animateOnMount={true}
           style={styles.bottomSheetShadow}
         >
-          <BottomSheetScrollView 
+          <BottomSheetScrollView
             contentContainerStyle={styles.scrollViewContent}
             showsVerticalScrollIndicator={false}
           >
@@ -328,13 +342,15 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
                 {/* Action Buttons */}
                 <CustomView style={styles.row}>
-                  <CustomTouchable
-                    style={styles.bucketContainer}
-                    bgColor={colors.label_dark}
-                    onPress={handleShowBucketBottomSheet}
-                  >
-                    <BucketSvg />
-                  </CustomTouchable>
+                  {!hideBucketsButton && (
+                    <CustomTouchable
+                      style={styles.bucketContainer}
+                      bgColor={colors.label_dark}
+                      onPress={handleShowBucketBottomSheet}
+                    >
+                      <BucketSvg />
+                    </CustomTouchable>
+                  )}
                   <CustomTouchable
                     bgColor={colors.onboarding_gray}
                     style={styles.shareButton}
@@ -358,7 +374,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                 >
                   {contentData.title}
                 </CustomText>
-                
+
                 {/* Price or Rating Display */}
                 {contentData.price ? (
                   // Show Price with /person
@@ -474,12 +490,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
+  imageContainer: {
+    width: "100%",
+    // Height is set dynamically via style prop
+  },
   imageCarousel: {
     flex: 1,
   },
   backgroundImage: {
     width: SCREEN_WIDTH,
-    height: "100%",
+    // Height is set dynamically via style prop
     backgroundColor: "#fff",
   },
   headerContainer: {
@@ -487,13 +507,13 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   imageIndicators: {
-    position: 'absolute',
-    bottom: SCREEN_HEIGHT * 0.35, // Position above the bottom sheet
+    position: "absolute",
+    bottom: 35, // Fixed distance from bottom of image container
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: horizontalScale(20),
   },
   indicator: {

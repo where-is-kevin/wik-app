@@ -38,6 +38,20 @@ import { StatusBar } from "expo-status-bar";
 import { useCreateUser } from "@/hooks/useUser";
 import type { CreateUserInput } from "@/hooks/useUser";
 import { useLogin } from "@/hooks/useLogin";
+import { useContent } from "@/hooks/useContent";
+import AnimatedLoader from "@/components/Loader/AnimatedLoader";
+import { Linking } from "react-native";
+
+// Define the interface for card data
+interface CardData {
+  id: string;
+  title: string;
+  imageUrl: string;
+  price?: string;
+  category?: string;
+  websiteUrl?: string;
+  rating?: string;
+}
 
 const OnboardingScreen = () => {
   const router = useRouter();
@@ -58,12 +72,36 @@ const OnboardingScreen = () => {
     password: "",
   });
   const [swipeLikes, setSwipeLikes] = useState<string[]>([]);
-  const [swipeSkips, setSwipeSkips] = useState<string[]>([]);
   const [swipeDislikes, setSwipeDislikes] = useState<string[]>([]);
   const [showTutorial, setShowTutorial] = useState<boolean>(true);
 
+  console.log(swipeLikes, swipeDislikes);
+  // Fetch real content data without location parameters
+  const {
+    data: content,
+    isLoading: isContentLoading,
+    error: contentError,
+    refetch,
+  } = useContent({});
+
   const stepData = filteredSteps[currentStepIndex];
   const currentSelection = stepData ? selections[stepData.key] : undefined;
+
+  // Transform content data to match SwipeCards interface (limit to 5 items)
+  const transformedCardData: CardData[] = content
+    ? content.slice(0, 5).map((item) => ({
+        id: item.id,
+        title: item.title,
+        imageUrl:
+          item.internalImageUrls && item.internalImageUrls.length > 0
+            ? item.internalImageUrls[0]
+            : item.googlePlacesImageUrl,
+        price: item.price?.toString(),
+        rating: item?.rating?.toString(),
+        category: item.category,
+        websiteUrl: item.websiteUrl || "",
+      }))
+    : [];
 
   // Helper to get selected indices as array
   const getSelectedIndices = (): number[] => {
@@ -132,16 +170,58 @@ const OnboardingScreen = () => {
     }
   };
 
-  const handleSwipeRight = (item: any) => {
-    setSwipeLikes([...swipeLikes, item.id]);
+  const handleSwipeRight = (item: CardData) => {
+    if (!item || !item.id) {
+      return;
+    }
+
+    setSwipeLikes((prevLikes) => {
+      // Prevent duplicates
+      if (prevLikes.includes(item.id)) {
+        return prevLikes;
+      }
+
+      // Add new item to existing array
+      return [...prevLikes, item.id];
+    });
+
+    // Remove from dislikes if it was there
+    setSwipeDislikes((prevDislikes) =>
+      prevDislikes.filter((id) => id !== item.id)
+    );
   };
 
-  const handleSwipeLeft = (item: any) => {
-    setSwipeDislikes([...swipeDislikes, item.id]);
+  const handleSwipeLeft = (item: CardData) => {
+    if (!item || !item.id) {
+      return;
+    }
+
+    setSwipeDislikes((prevDislikes) => {
+      // Prevent duplicates
+      if (prevDislikes.includes(item.id)) {
+        return prevDislikes;
+      }
+
+      // Add new item to existing array
+      return [...prevDislikes, item.id];
+    });
+
+    // Remove from likes if it was there
+    setSwipeLikes((prevLikes) => prevLikes.filter((id) => id !== item.id));
   };
 
-  const handleSwipeUp = (item: any) => {
-    setSwipeSkips([...swipeSkips, item.id]);
+  const handleSwipeUp = (item: CardData) => {
+    if (!item) return;
+    console.log("More info for:", item.title);
+
+    // Check if the item has a website URL and open it
+    if (item?.websiteUrl) {
+      Linking.openURL(item.websiteUrl).catch((err) => {
+        console.error("Failed to open URL:", err);
+      });
+    } else {
+      console.log("No website URL available for this item");
+    }
   };
 
   const handleSwipeComplete = () => {
@@ -155,6 +235,20 @@ const OnboardingScreen = () => {
         setCurrentStepIndex(currentStepIndex + 1);
       }, 500);
     }
+  };
+
+  const handleCardTap = (item: CardData) => {
+    if (!item) return;
+    console.log("Card tapped:", item.title);
+
+    // Navigate to event details with hideBucketsButton param
+    router.push({
+      pathname: "/event-details/[eventId]",
+      params: {
+        eventId: item.id,
+        hideBucketsButton: "true",
+      },
+    });
   };
 
   const handleTutorialComplete = () => {
@@ -234,6 +328,8 @@ const OnboardingScreen = () => {
           password: personalFormData.password,
           description: getSelectedOptionsString(),
           personalSummary: personalFormData.personalSummary,
+          onboardingLikes: swipeLikes, // Array of liked content IDs
+          onboardingDislikes: swipeDislikes, // Array of disliked content IDs
         };
 
         createUser(userInput, {
@@ -255,8 +351,6 @@ const OnboardingScreen = () => {
             router.push("/(auth)");
           },
         });
-
-        // router.push("/(tabs)");
       } catch (error) {
         console.error("Failed to save onboarding data", error);
       }
@@ -376,20 +470,77 @@ const OnboardingScreen = () => {
   };
 
   const renderCardSwipe = () => {
-    if (!stepData || !stepData.cards) return null;
+    if (!stepData) return null;
+
+    // Show loading state while content is being fetched
+    if (isContentLoading) {
+      return (
+        <CustomView style={styles.content}>
+          <CustomView style={styles.swipeContainer}>
+            <AnimatedLoader />
+          </CustomView>
+        </CustomView>
+      );
+    }
+
+    // Show error state if content failed to load
+    if (contentError) {
+      return (
+        <CustomView style={styles.content}>
+          <CustomView style={styles.swipeContainer}>
+            <CustomText
+              style={[styles.errorText, { color: colors.gray_regular }]}
+            >
+              Failed to load content. Please try again.
+            </CustomText>
+            <CustomTouchable
+              style={styles.retryButton}
+              onPress={() => refetch()}
+              bgColor={colors.lime}
+            >
+              <CustomText style={styles.retryButtonText}>Retry</CustomText>
+            </CustomTouchable>
+          </CustomView>
+        </CustomView>
+      );
+    }
+
+    // Show empty state if no content available
+    if (!transformedCardData.length) {
+      return (
+        <CustomView style={styles.content}>
+          <CustomView style={styles.swipeContainer}>
+            <CustomText
+              style={[styles.emptyText, { color: colors.gray_regular }]}
+            >
+              No content available at the moment.
+            </CustomText>
+            <CustomTouchable
+              style={styles.retryButton}
+              onPress={() => refetch()}
+              bgColor={colors.lime}
+            >
+              <CustomText style={styles.retryButtonText}>Refresh</CustomText>
+            </CustomTouchable>
+          </CustomView>
+        </CustomView>
+      );
+    }
 
     return (
       <CustomView style={styles.content}>
         <CustomView style={styles.swipeContainer}>
           <SwipeCards
-            data={stepData.cards}
+            data={transformedCardData}
+            onCardTap={handleCardTap}
             onSwipeLeft={handleSwipeLeft}
             onSwipeRight={handleSwipeRight}
             onSwipeUp={handleSwipeUp}
             onComplete={handleSwipeComplete}
+            hideBucketsButton={true}
           />
 
-          {showTutorial && (
+          {showTutorial && !isContentLoading && (
             <SwipeCardTooltips onComplete={handleTutorialComplete} />
           )}
         </CustomView>
@@ -615,5 +766,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingBottom: verticalScale(30),
+  },
+  errorText: {
+    fontSize: scaleFontSize(16),
+    textAlign: "center",
+    marginBottom: verticalScale(16),
+  },
+  emptyText: {
+    fontSize: scaleFontSize(16),
+    textAlign: "center",
+    marginBottom: verticalScale(16),
+  },
+  retryButton: {
+    paddingVertical: verticalScale(12),
+    paddingHorizontal: horizontalScale(24),
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: scaleFontSize(14),
+    color: "#fff",
+    textAlign: "center",
   },
 });
