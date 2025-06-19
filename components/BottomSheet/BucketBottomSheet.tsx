@@ -81,8 +81,8 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
       title: bucket.bucketName,
       date: "22-27 June",
       image:
-        typeof bucket.content?.[0]?.googlePlacesImageUrl === "string"
-          ? bucket.content[0].googlePlacesImageUrl
+        typeof bucket.content?.[0]?.internalImageUrls[0] === "string"
+          ? bucket.content?.[0]?.internalImageUrls[0]
           : PLACEHOLDER_IMAGE,
       contentIds: bucket.contentIds || [],
     }));

@@ -67,7 +67,12 @@ const SwipeableCards = () => {
     updateLocationParams();
   }, [hasLocationPermission]);
 
-  const { data: content, isLoading, error, refetch } = useContent(locationParams);
+  const {
+    data: content,
+    isLoading,
+    error,
+    refetch,
+  } = useContent(locationParams);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -102,6 +107,7 @@ const SwipeableCards = () => {
         rating: item?.rating?.toString(),
         category: item.category,
         websiteUrl: item.websiteUrl || "",
+        address: item.address || "",
       }))
     : [];
 

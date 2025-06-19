@@ -51,6 +51,7 @@ interface CardData {
   category?: string;
   websiteUrl?: string;
   rating?: string;
+  address?: string;
 }
 
 const OnboardingScreen = () => {
@@ -100,6 +101,7 @@ const OnboardingScreen = () => {
         rating: item?.rating?.toString(),
         category: item.category,
         websiteUrl: item.websiteUrl || "",
+        address: item.address || "",
       }))
     : [];
 

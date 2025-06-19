@@ -38,6 +38,7 @@ interface CardData {
   price?: string;
   rating?: string;
   category?: string;
+  address?: string;
 }
 
 interface SwipeCardsProps {
@@ -560,7 +561,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                       fontFamily="Inter-SemiBold"
                       style={[styles.addressText, { color: colors.background }]}
                     >
-                      Address
+                      {item.address || "No address"}
                     </CustomText>
                   </View>
                 </LinearGradient>
