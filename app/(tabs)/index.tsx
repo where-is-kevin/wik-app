@@ -187,7 +187,6 @@ const SwipeableCards = () => {
     if (itemId) {
       setSelectedItemId(itemId);
     }
-    console.log(itemId, "bre");
     setIsBucketBottomSheetVisible(true);
   };
 

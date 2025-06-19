@@ -76,8 +76,6 @@ const OnboardingScreen = () => {
   const [swipeDislikes, setSwipeDislikes] = useState<string[]>([]);
   const [showTutorial, setShowTutorial] = useState<boolean>(true);
 
-  console.log(swipeLikes, swipeDislikes);
-  // Fetch real content data without location parameters
   const {
     data: content,
     isLoading: isContentLoading,

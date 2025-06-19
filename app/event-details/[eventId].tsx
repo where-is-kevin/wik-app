@@ -37,6 +37,9 @@ import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBo
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import CategoryTag from "@/components/Tag/CategoryTag";
 import { FastImageBackground } from "@/components/OptimizedImage/OptimizedImage";
+import { useAddLike } from "@/hooks/useLikes";
+import { useAddDislike } from "@/hooks/useDislikes";
+import { useQueryClient } from "@tanstack/react-query";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -55,6 +58,9 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
   // Fetch content data using the eventId
   const { data: contentData, isLoading, error } = useContentById(eventId);
+  const addLikeMutation = useAddLike();
+  const addDislikeMutation = useAddDislike();
+  const queryClient = useQueryClient();
 
   // Image carousel state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -96,6 +102,112 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   const handleSheetChanges = useCallback((index: number) => {
     // Optional: Add any logic when sheet changes
   }, []);
+
+  // Handle like press
+  const handleLikePress = useCallback(() => {
+    if (!contentData || contentData.userLiked || contentData.userDisliked)
+      return;
+
+    const likeData = {
+      contentIds: [eventId],
+    };
+
+    addLikeMutation.mutate(likeData, {
+      onSuccess: () => {
+        // Update the authenticated query (has userLiked/userDisliked fields)
+        queryClient.setQueryData(
+          ["content", "byId", eventId, true],
+          (oldData: any) => {
+            if (oldData) {
+              return {
+                ...oldData,
+                userLiked: true,
+              };
+            }
+            return oldData;
+          }
+        );
+
+        // Update the non-authenticated query (basic content data)
+        queryClient.setQueryData(
+          ["content", "byId", eventId, false],
+          (oldData: any) => {
+            if (oldData) {
+              return {
+                ...oldData,
+                userLiked: true,
+              };
+            }
+            return oldData;
+          }
+        );
+
+        // Invalidate the list queries to force fresh data
+        queryClient.invalidateQueries({ queryKey: ["content", "basic"] });
+      },
+      onError: (error) => {
+        console.error("Failed to add like:", error);
+      },
+    });
+  }, [contentData, eventId, addLikeMutation, queryClient]);
+
+  // Handle dislike press
+  const handleDislikePress = useCallback(() => {
+    if (!contentData || contentData.userDisliked) return;
+
+    const dislikeData = {
+      contentIds: [eventId],
+    };
+
+    addDislikeMutation.mutate(dislikeData, {
+      onSuccess: () => {
+        // Update the authenticated query (has userLiked/userDisliked fields)
+        queryClient.setQueryData(
+          ["content", "byId", eventId, true],
+          (oldData: any) => {
+            if (oldData) {
+              return {
+                ...oldData,
+                userDisliked: true,
+              };
+            }
+            return oldData;
+          }
+        );
+
+        // Update the non-authenticated query (basic content data)
+        queryClient.setQueryData(
+          ["content", "byId", eventId, false],
+          (oldData: any) => {
+            if (oldData) {
+              return {
+                ...oldData,
+                userDisliked: true,
+              };
+            }
+            return oldData;
+          }
+        );
+
+        // Invalidate the list queries to force fresh data
+        queryClient.invalidateQueries({ queryKey: ["content", "basic"] });
+      },
+      onError: (error) => {
+        console.error("Failed to add dislike:", error);
+      },
+    });
+  }, [contentData, eventId, addDislikeMutation, queryClient]);
+
+  // Handle three dots button press
+  const handleMoreOptionsPress = () => {
+    if (contentData?.websiteUrl) {
+      Linking.openURL(contentData.websiteUrl).catch((err) => {
+        console.error("Failed to open URL:", err);
+      });
+    } else {
+      console.log("No website URL available for this item");
+    }
+  };
 
   // Get images array with fallback
   const getImages = () => {
@@ -465,6 +577,84 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
             </CustomView>
           </BottomSheetScrollView>
         </BottomSheet>
+
+        {/* Floating Action Buttons Container */}
+        <View
+          style={[
+            styles.floatingButtonsContainer,
+            { bottom: insets.bottom + 24 },
+          ]}
+        >
+          {/* Three Dots Button */}
+          <CustomTouchable
+            style={[
+              styles.floatingButton,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.gray_regular,
+              },
+            ]}
+            onPress={handleMoreOptionsPress}
+          >
+            <CustomText
+              style={[styles.moreIcon, { color: colors.gray_regular }]}
+            >
+              ⋯
+            </CustomText>
+          </CustomTouchable>
+
+          {/* Dislike Button - Show when not disliked and not liked */}
+          {!contentData?.userDisliked && (
+            <CustomTouchable
+              style={[
+                styles.floatingButton,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.gray_regular,
+                },
+              ]}
+              onPress={handleDislikePress}
+              disabled={addDislikeMutation.isPending}
+            >
+              <CustomText
+                style={[
+                  styles.actionIcon,
+                  {
+                    color: colors.gray_regular,
+                  },
+                ]}
+              >
+                {addDislikeMutation.isPending ? "⏳" : "💔"}
+              </CustomText>
+            </CustomTouchable>
+          )}
+
+          {/* Like Button - Show when not liked and not disliked */}
+          {!contentData?.userLiked && (
+            <CustomTouchable
+              style={[
+                styles.floatingButton,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.gray_regular,
+                },
+              ]}
+              onPress={handleLikePress}
+              disabled={addLikeMutation.isPending}
+            >
+              <CustomText
+                style={[
+                  styles.actionIcon,
+                  {
+                    color: colors.gray_regular,
+                  },
+                ]}
+              >
+                {addLikeMutation.isPending ? "⏳" : "🤍"}
+              </CustomText>
+            </CustomTouchable>
+          )}
+        </View>
       </CustomView>
 
       {/* Your existing bottom sheets */}
@@ -626,6 +816,38 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     fontSize: scaleFontSize(14),
+  },
+  // Floating Buttons Container and Styles
+  floatingButtonsContainer: {
+    position: "absolute",
+    right: horizontalScale(20),
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12, // Space between buttons
+    zIndex: 1000, // Ensure it stays above everything
+  },
+  floatingButton: {
+    width: 45,
+    height: 45,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  actionIcon: {
+    fontSize: 20,
+  },
+  moreIcon: {
+    fontSize: 20,
+    fontWeight: "bold",
   },
 });
 

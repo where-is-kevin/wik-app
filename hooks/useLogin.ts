@@ -1,8 +1,8 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { firstValueFrom } from 'rxjs';
-import { ajax } from 'rxjs/ajax';
-import Constants from 'expo-constants';
-import * as SecureStore from 'expo-secure-store';
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { firstValueFrom } from "rxjs";
+import { ajax } from "rxjs/ajax";
+import Constants from "expo-constants";
+import * as SecureStore from "expo-secure-store";
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
 
@@ -27,25 +27,23 @@ interface LoginData {
 
 const login = async (data: LoginData): Promise<AuthResponse> => {
   const params = new URLSearchParams();
-  params.append('grant_type', 'password');
-  params.append('username', data.username);
-  params.append('password', data.password);
-  params.append('scope', '');
-  params.append('client_id', 'string');
-  params.append('client_secret', 'string');
-
-  console.log('Login params:', params.toString());
+  params.append("grant_type", "password");
+  params.append("username", data.username);
+  params.append("password", data.password);
+  params.append("scope", "");
+  params.append("client_id", "string");
+  params.append("client_secret", "string");
 
   try {
     const observable$ = ajax({
       url: `${API_URL}/oauth2/login`,
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        accept: 'application/json',
+        "Content-Type": "application/x-www-form-urlencoded",
+        accept: "application/json",
       },
       body: params.toString(),
-      responseType: 'json',
+      responseType: "json",
     });
 
     // Convert Observable to Promise for React Query
@@ -66,14 +64,12 @@ export function useLogin() {
     mutationFn: login,
     onSuccess: async (data: AuthResponse) => {
       // Store in React Query cache for current session
-      queryClient.setQueryData(['auth'], data);
-      
+      queryClient.setQueryData(["auth"], data);
+
       // Store access token securely for persistence across app restarts
       if (data.accessToken) {
-        await SecureStore.setItemAsync('authToken', data.accessToken);
+        await SecureStore.setItemAsync("authToken", data.accessToken);
       }
-      
-      console.log('Login successful:', data);
     },
   });
 }

@@ -22,8 +22,10 @@ type Content = {
   tags: string;
   createdAt: string;
   updatedAt: string;
-  internalImageUrls?: string[];
-  address?: string;
+  internalImageUrls: string[];
+  address: string;
+  userLiked?: boolean;
+  userDisliked?: boolean;
 };
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
@@ -37,11 +39,13 @@ interface BasicContentParams {
 // Fixed: Now returns Content[] instead of Content and accepts optional location params
 const fetchContent = async (
   params?: BasicContentParams,
-  jwt?: string
+  jwt?: string | null
 ): Promise<Content[]> => {
   const headers: Record<string, string> = {
     accept: "application/json",
   };
+
+  // Only add Authorization header if JWT exists
   if (jwt) {
     headers["Authorization"] = `Bearer ${jwt}`;
   }
@@ -74,15 +78,25 @@ const fetchContent = async (
   return response.response;
 };
 
-// Fetch content by ID function - NO AUTHENTICATION REQUIRED
-const fetchContentById = async (contentId: string): Promise<Content> => {
+// Fetch content by ID function - JWT optional
+const fetchContentById = async (
+  contentId: string,
+  jwt?: string | null
+): Promise<Content> => {
   try {
+    const headers: Record<string, string> = {
+      accept: "application/json",
+    };
+
+    // Only add Authorization header if JWT exists
+    if (jwt) {
+      headers["Authorization"] = `Bearer ${jwt}`;
+    }
+
     const observable$ = ajax<Content>({
       url: `${API_URL}/content/${contentId}`,
       method: "GET",
-      headers: {
-        accept: "application/json",
-      },
+      headers,
       responseType: "json",
     });
 
@@ -93,19 +107,6 @@ const fetchContentById = async (contentId: string): Promise<Content> => {
     throw error;
   }
 };
-
-// Fixed: Now returns Content[] instead of Content and accepts optional location params
-export function useContent(params?: BasicContentParams) {
-  const queryClient = useQueryClient();
-  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
-  const jwt = authData?.accessToken;
-
-  return useQuery<Content[], Error>({
-    queryKey: ["content", params],
-    queryFn: () => fetchContent(params, jwt),
-    enabled: !!API_URL && params !== undefined, // Only run when params are defined (even if empty)
-  });
-}
 
 // Updated interface to include latitude and longitude
 interface ContentParams {
@@ -126,11 +127,13 @@ interface PaginatedResponse {
 
 const fetchContentWithParams = async (
   params: ContentParams,
-  jwt?: string
+  jwt?: string | null
 ): Promise<PaginatedResponse> => {
   const headers: Record<string, string> = {
     accept: "application/json",
   };
+
+  // Only add Authorization header if JWT exists
   if (jwt) {
     headers["Authorization"] = `Bearer ${jwt}`;
   }
@@ -157,26 +160,44 @@ const fetchContentWithParams = async (
   return response.response;
 };
 
+// For basic content (SwipeableCards) - JWT optional
+export function useContent(params?: BasicContentParams) {
+  const queryClient = useQueryClient();
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
+  const jwt = authData?.accessToken || null;
+
+  return useQuery<Content[], Error>({
+    queryKey: ["content", "basic", params, !!jwt], // Include JWT status in query key
+    queryFn: () => fetchContent(params, jwt),
+    enabled: !!API_URL, // Removed params check - let it work without params
+  });
+}
+
+// For search/ask-kevin content (PaginatedContentList) - JWT optional
 export function useContentWithParams(params: ContentParams | null) {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
-  const jwt = authData?.accessToken;
+  const jwt = authData?.accessToken || null;
 
   return useQuery<PaginatedResponse, Error>({
-    queryKey: ["content", params],
+    queryKey: ["content", "search", params, !!jwt], // Include JWT status in query key
     queryFn: () => {
       if (!params) throw new Error("Params not ready");
       return fetchContentWithParams(params, jwt);
     },
-    enabled: !!API_URL && !!params, // Only run when params are available
+    enabled: !!API_URL && !!params,
   });
 }
 
-// Updated to remove JWT authentication requirement
+// Individual content by ID (EventDetailsScreen) - JWT optional
 export function useContentById(contentId: string) {
+  const queryClient = useQueryClient();
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
+  const jwt = authData?.accessToken || null;
+
   return useQuery<Content, Error>({
-    queryKey: ["content", contentId],
-    queryFn: () => fetchContentById(contentId),
+    queryKey: ["content", "byId", contentId, !!jwt], // Include JWT status in query key
+    queryFn: () => fetchContentById(contentId, jwt),
     enabled: !!API_URL && !!contentId,
   });
 }
