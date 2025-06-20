@@ -21,32 +21,37 @@ export const useAuthGuard = () => {
       const cachedAuth = queryClient.getQueryData(["auth"]);
 
       if (cachedAuth) {
-        // User is authenticated in current session
         setIsAuthenticated(true);
         await checkAndNavigate();
         return;
       }
 
       // Check SecureStore for persisted token (across app restarts)
-      const token = await SecureStore.getItemAsync("authToken");
+      let token: string | null = null;
+      try {
+        token = await SecureStore.getItemAsync("authToken");
+      } catch (error: any) {
+        // Handle decryption or keychain errors
+        if (
+          error?.message &&
+          error.message.includes("Could not decrypt the value for key")
+        ) {
+          await SecureStore.deleteItemAsync("authToken");
+        }
+        token = null;
+      }
 
       if (token) {
-        // Token exists, restore auth state
         setIsAuthenticated(true);
-
-        // Restore the auth data to React Query cache
         queryClient.setQueryData(["auth"], { accessToken: token });
-
         await checkAndNavigate();
       } else {
-        // No authentication found - navigate to login
         setIsAuthenticated(false);
         router.replace("/(auth)");
       }
     } catch (error) {
       console.error("Error checking auth:", error);
       setIsAuthenticated(false);
-      // On error, also navigate to login
       router.replace("/(auth)");
     } finally {
       setIsLoading(false);
@@ -58,7 +63,7 @@ export const useAuthGuard = () => {
     try {
       await SecureStore.deleteItemAsync("authToken");
       queryClient.setQueryData(["auth"], null);
-      queryClient.clear(); // Clear all cached data
+      queryClient.clear();
       setIsAuthenticated(false);
       router.replace("/(auth)");
     } catch (error) {
