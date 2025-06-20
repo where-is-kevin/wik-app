@@ -260,7 +260,6 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
   const handleCloseBucketBottomSheet = () => {
     setIsBucketBottomSheetVisible(false);
-    setSelectedItemId(null);
   };
 
   const handleItemSelect = async (item: BucketItem) => {
@@ -289,9 +288,11 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
   const handleCloseCreateBucketBottomSheet = () => {
     setIsCreateBucketBottomSheetVisible(false);
+    setSelectedItemId(null);
   };
 
   const handleCreateBucket = async (bucketName: string) => {
+    console.log(selectedItemId);
     if (selectedItemId) {
       try {
         await createBucketMutation.mutateAsync({
