@@ -1,4 +1,4 @@
-// BucketBottomSheet.tsx - FIXED VERSION
+// BucketBottomSheet.tsx - FIXED VERSION with null safety
 import React, { useMemo } from "react";
 import {
   View,
@@ -72,90 +72,164 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
   // Placeholder image for buckets without images
   const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
-  // Transform buckets data to BucketItem format
-  const bucketItems = useMemo(() => {
-    if (!buckets || buckets.length === 0) return [];
+  // Helper function to safely get image URL
+  const getBucketImage = (bucket: any): string => {
+    try {
+      // Check if bucket exists
+      if (!bucket) return PLACEHOLDER_IMAGE;
 
-    return buckets.map((bucket: any) => ({
-      id: bucket.id,
-      title: bucket.bucketName,
-      date: "22-27 June",
-      image:
-        typeof bucket.content?.[0]?.internalImageUrls[0] === "string"
-          ? bucket.content?.[0]?.internalImageUrls[0]
-          : PLACEHOLDER_IMAGE,
-      contentIds: bucket.contentIds || [],
-    }));
+      // Check if content exists and is an array
+      if (
+        !bucket.content ||
+        !Array.isArray(bucket.content) ||
+        bucket.content.length === 0
+      ) {
+        return PLACEHOLDER_IMAGE;
+      }
+
+      // Get the first content item
+      const firstContent = bucket.content[0];
+      if (!firstContent) return PLACEHOLDER_IMAGE;
+
+      // Check if internalImageUrls exists and is an array
+      if (
+        !firstContent.internalImageUrls ||
+        !Array.isArray(firstContent.internalImageUrls) ||
+        firstContent.internalImageUrls.length === 0
+      ) {
+        return PLACEHOLDER_IMAGE;
+      }
+
+      // Get the first image URL
+      const imageUrl = firstContent.internalImageUrls[0];
+
+      // Ensure it's a string and not empty
+      if (typeof imageUrl === "string" && imageUrl.trim() !== "") {
+        return imageUrl;
+      }
+
+      return PLACEHOLDER_IMAGE;
+    } catch (error) {
+      console.warn("Error getting bucket image:", error);
+      return PLACEHOLDER_IMAGE;
+    }
+  };
+
+  // Transform buckets data to BucketItem format with null safety
+  const bucketItems = useMemo(() => {
+    // Early return if buckets is null, undefined, or not an array
+    if (!buckets || !Array.isArray(buckets) || buckets.length === 0) {
+      return [];
+    }
+
+    try {
+      return buckets
+        .filter((bucket) => bucket && typeof bucket === "object") // Filter out null/undefined items
+        .map((bucket: any) => {
+          // Ensure required properties exist with fallbacks
+          const id = bucket?.id || `bucket-${Math.random()}`;
+          const title = bucket?.bucketName || "Untitled Bucket";
+          const contentIds = Array.isArray(bucket?.contentIds)
+            ? bucket.contentIds
+            : [];
+
+          return {
+            id,
+            title,
+            date: "22-27 June", // Static date as in original
+            image: getBucketImage(bucket),
+            contentIds,
+          };
+        });
+    } catch (error) {
+      console.error("Error transforming bucket data:", error);
+      return [];
+    }
   }, [buckets]);
 
   // Calculate dynamic height for bottom sheet
   const snapPointHeight = useMemo(() => {
-    const screenHeight = Dimensions.get("window").height;
-    const statusBarHeight =
-      Platform.OS === "android" ? StatusBar.currentHeight || 0 : 0;
-    const safeAreaTop = insets.top;
-    const backHeaderHeight = verticalScale(10) + 30;
+    try {
+      const screenHeight = Dimensions.get("window").height;
+      const statusBarHeight =
+        Platform.OS === "android" ? StatusBar.currentHeight || 0 : 0;
+      const safeAreaTop = insets?.top || 0;
+      const backHeaderHeight = verticalScale(10) + 30;
 
-    const totalHeaderHeight =
-      Platform.OS === "ios"
-        ? safeAreaTop + backHeaderHeight
-        : safeAreaTop + statusBarHeight + backHeaderHeight;
+      const totalHeaderHeight =
+        Platform.OS === "ios"
+          ? safeAreaTop + backHeaderHeight
+          : safeAreaTop + statusBarHeight + backHeaderHeight;
 
-    // Calculate available height and convert to percentage
-    const availableHeight = screenHeight - totalHeaderHeight;
-    const percentage = (availableHeight / screenHeight) * 100;
+      // Calculate available height and convert to percentage
+      const availableHeight = screenHeight - totalHeaderHeight;
+      const percentage = (availableHeight / screenHeight) * 100;
 
-    const finalPercentage = `${Math.floor(percentage)}%`;
+      const finalPercentage = `${Math.floor(percentage)}%`;
 
-    return finalPercentage;
-  }, [insets.top]);
+      return finalPercentage;
+    } catch (error) {
+      console.warn("Error calculating snap point height:", error);
+      return "70%"; // Fallback height
+    }
+  }, [insets?.top]);
 
   const renderBucketItem = (item: BucketItem) => {
-    const isItemInBucket = selectedLikeItemId
-      ? item.contentIds.includes(selectedLikeItemId)
-      : false;
+    if (!item) return null;
 
-    return (
-      <CustomTouchable
-        key={item.id}
-        style={styles.bucketItem}
-        onPress={() => {
-          onItemSelect(item);
-        }}
-        activeOpacity={0.7}
-        disabled={isItemInBucket}
-      >
-        {/* ✅ REPLACED Image with OptimizedImage */}
-        <OptimizedImage
-          source={
-            typeof item.image === "string" ? { uri: item.image } : item.image
-          }
-          style={styles.bucketItemImage}
-          resizeMode="cover"
-          priority="normal"
-          showLoader={true}
-          fallbackSource={PLACEHOLDER_IMAGE}
-        />
-        <CustomView style={styles.bucketItemContent}>
-          <CustomText
-            fontFamily="Inter-SemiBold"
-            style={[styles.bucketItemTitle, { color: colors.label_dark }]}
-          >
-            {item.title}
-          </CustomText>
-          {isItemInBucket && (
+    try {
+      const isItemInBucket =
+        selectedLikeItemId && Array.isArray(item.contentIds)
+          ? item.contentIds.includes(selectedLikeItemId)
+          : false;
+
+      return (
+        <CustomTouchable
+          key={item.id}
+          style={styles.bucketItem}
+          onPress={() => {
+            onItemSelect(item);
+          }}
+          activeOpacity={0.7}
+          disabled={isItemInBucket}
+        >
+          <OptimizedImage
+            source={
+              typeof item.image === "string" ? { uri: item.image } : item.image
+            }
+            style={styles.bucketItemImage}
+            resizeMode="cover"
+            priority="normal"
+            showLoader={true}
+            fallbackSource={PLACEHOLDER_IMAGE}
+          />
+          <CustomView style={styles.bucketItemContent}>
             <CustomText
+              fontFamily="Inter-SemiBold"
               style={[
-                styles.alreadyInBucketText,
-                { color: colors.bucket_green },
+                styles.bucketItemTitle,
+                { color: colors?.label_dark || "#000" },
               ]}
             >
-              Already in bucket
+              {item.title}
             </CustomText>
-          )}
-        </CustomView>
-      </CustomTouchable>
-    );
+            {isItemInBucket && (
+              <CustomText
+                style={[
+                  styles.alreadyInBucketText,
+                  { color: colors?.bucket_green || "#00C851" },
+                ]}
+              >
+                Already in bucket
+              </CustomText>
+            )}
+          </CustomView>
+        </CustomTouchable>
+      );
+    } catch (error) {
+      console.warn("Error rendering bucket item:", error);
+      return null;
+    }
   };
 
   const renderContent = () => {
@@ -167,11 +241,14 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
       );
     }
 
-    if (bucketItems.length === 0) {
+    if (!bucketItems || bucketItems.length === 0) {
       return (
         <CustomView style={styles.emptyContainer}>
           <CustomText
-            style={[styles.emptyText, { color: colors.gray_regular }]}
+            style={[
+              styles.emptyText,
+              { color: colors?.gray_regular || "#666" },
+            ]}
           >
             No buckets found. Create your first bucket!
           </CustomText>
@@ -185,10 +262,16 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {bucketItems.map(renderBucketItem)}
+        {bucketItems.map(renderBucketItem).filter(Boolean)}
       </ScrollView>
     );
   };
+
+  // Early return if required props are missing
+  if (!colors) {
+    console.warn("Colors context is not available");
+    return null;
+  }
 
   return (
     <CustomBottomSheet
@@ -201,7 +284,7 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
         <CustomView style={styles.header}>
           <CustomText
             fontFamily="Inter-SemiBold"
-            style={[styles.title, { color: colors.label_dark }]}
+            style={[styles.title, { color: colors.label_dark || "#000" }]}
           >
             Add to bucket
           </CustomText>
@@ -213,7 +296,7 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
         <CustomView
           style={[
             styles.bottomSection,
-            { borderTopColor: colors.onboarding_gray },
+            { borderTopColor: colors.onboarding_gray || "#E0E0E0" },
           ]}
         >
           <TouchableOpacity
@@ -224,14 +307,17 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
             activeOpacity={0.7}
           >
             <CustomView
-              bgColor={colors.light_blue}
+              bgColor={colors.light_blue || "#E3F2FD"}
               style={styles.createNewIconContainer}
             >
               <CreateBucketPlus />
             </CustomView>
             <CustomText
               fontFamily="Inter-SemiBold"
-              style={[styles.createNewText, { color: colors.label_dark }]}
+              style={[
+                styles.createNewText,
+                { color: colors.label_dark || "#000" },
+              ]}
             >
               Create new bucket
             </CustomText>

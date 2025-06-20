@@ -1,5 +1,10 @@
 import React from "react";
-import { ScrollView, RefreshControl, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
+import {
+  ScrollView,
+  RefreshControl,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+} from "react-native";
 import CustomView from "@/components/CustomView";
 import LikeCard from "@/components/LikeComponent/LikeCard";
 import { horizontalScale } from "@/utilities/scaling";
@@ -24,6 +29,9 @@ interface MasonryGridProps {
   refreshing?: boolean;
   onRefresh?: () => void;
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  onMomentumScrollEnd?: (
+    event: NativeSyntheticEvent<NativeScrollEvent>
+  ) => void;
   scrollEventThrottle?: number;
 }
 
@@ -36,6 +44,7 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
   refreshing = false,
   onRefresh,
   onScroll,
+  onMomentumScrollEnd,
   scrollEventThrottle = 16,
 }) => {
   // Local placeholder image
@@ -85,6 +94,7 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
         ) : undefined
       }
       onScroll={onScroll}
+      onMomentumScrollEnd={onMomentumScrollEnd}
       scrollEventThrottle={scrollEventThrottle}
     >
       <CustomView

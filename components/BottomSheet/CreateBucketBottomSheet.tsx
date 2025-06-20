@@ -53,7 +53,7 @@ export const CreateBucketBottomSheet: React.FC<
     <CustomBottomSheet
       isVisible={isVisible}
       onClose={handleClose}
-      snapPoints={["60%"]}
+      snapPoints={["70%"]}
       enablePanDownToClose={!isCreating} // Disable pan to close while creating
     >
       <CustomView style={styles.container}>

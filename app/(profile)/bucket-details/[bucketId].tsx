@@ -268,21 +268,24 @@ const BucketDetailsScreen = () => {
       {!isBucketLoading && !hasBucketContent && <EmptyData type="buckets" />}
 
       {/* No search results state */}
-      {!isBucketLoading && hasBucketContent && hasSearchQuery && !hasFilteredResults && (
-        <CustomView style={styles.noResultsContainer}>
-          <CustomText
-            style={[styles.noResultsTitle, { color: colors.gray_regular }]}
-            fontFamily="Inter-SemiBold"
-          >
-            No results found
-          </CustomText>
-          <CustomText
-            style={[styles.noResultsSubtitle, { color: colors.gray_regular }]}
-          >
-            Try adjusting your search terms
-          </CustomText>
-        </CustomView>
-      )}
+      {!isBucketLoading &&
+        hasBucketContent &&
+        hasSearchQuery &&
+        !hasFilteredResults && (
+          <CustomView style={styles.noResultsContainer}>
+            <CustomText
+              style={[styles.noResultsTitle, { color: colors.gray_regular }]}
+              fontFamily="Inter-SemiBold"
+            >
+              No results found
+            </CustomText>
+            <CustomText
+              style={[styles.noResultsSubtitle, { color: colors.gray_regular }]}
+            >
+              Try adjusting your search terms
+            </CustomText>
+          </CustomView>
+        )}
 
       {/* Bucket Selection Bottom Sheet */}
       <BucketBottomSheet

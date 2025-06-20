@@ -92,7 +92,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   // Feedback images
   const APPROVE_IMAGE = require("@/assets/images/approve.png");
   const CANCEL_IMAGE = require("@/assets/images/cancel.png");
-  const STASH_IMAGE = require("@/assets/images/stash.png");
+  const ARROW_UP = require("@/assets/images/arrow-up.png");
 
   // Helper function to validate image URLs
   const getValidImageUrl = useCallback((imageUrl: string): string | null => {
@@ -375,7 +375,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
       case "left":
         return CANCEL_IMAGE;
       case "up":
-        return null;
+        return ARROW_UP;
       default:
         return APPROVE_IMAGE;
     }
@@ -383,9 +383,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 
   const renderSwipeFeedback = () => {
     if (!currentSwipeDirection) return null;
-
-    // Don't render anything for up swipe
-    if (currentSwipeDirection === "up") return null;
 
     const feedbackImage = getFeedbackImage();
     if (!feedbackImage) return null;
@@ -566,9 +563,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                   </View>
                 </LinearGradient>
               </OptimizedImageBackground>
-
-              {/* Swipe feedback overlays */}
-              {renderSwipeFeedback()}
             </Animated.View>
           );
         }
@@ -584,7 +578,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                   opacity: nextCardOpacity,
                   transform: [{ scale: nextCardScale }],
                   top: 10,
-                  zIndex: -1,
+                  zIndex: -1, // Behind current card
                 },
               ]}
             >
@@ -624,7 +618,13 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
       .reverse();
   };
 
-  return <View style={styles.container}>{renderCards()}</View>;
+  return (
+    <View style={styles.container}>
+      {/* Render feedback behind all cards */}
+      {renderSwipeFeedback()}
+      {renderCards()}
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
@@ -746,18 +746,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  // Swipe feedback styles
+  // Swipe feedback styles - now positioned behind cards
   swipeFeedbackCenter: {
     position: "absolute",
-    top: "50%",
-    left: "50%",
-    marginTop: -30, // Half of the height (60/2)
-    marginLeft: -30, // Half of the width (60/2)
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: "center",
     alignItems: "center",
-    width: 60,
-    height: 60,
-    zIndex: 1000,
+    zIndex: 1100, // Above all cards
+    pointerEvents: "none", // Don't intercept touches
   },
   feedbackImage: {
     width: 100,

@@ -40,7 +40,10 @@ type Bucket = {
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
 
 // Fetch buckets function with search
-export const fetchBuckets = async (jwt: string, searchQuery?: string): Promise<Bucket[]> => {
+export const fetchBuckets = async (
+  jwt: string,
+  searchQuery?: string
+): Promise<Bucket[]> => {
   try {
     // Build URL with search parameter if provided
     let url = `${API_URL}/buckets`;
@@ -68,7 +71,10 @@ export const fetchBuckets = async (jwt: string, searchQuery?: string): Promise<B
 };
 
 // Fetch likes function with search (assuming similar API structure)
-const fetchLikes = async (jwt: string, searchQuery?: string): Promise<Content[]> => {
+const fetchLikes = async (
+  jwt: string,
+  searchQuery?: string
+): Promise<Content[]> => {
   try {
     // Build URL with search parameter if provided
     let url = `${API_URL}/likes`;
@@ -95,11 +101,15 @@ const fetchLikes = async (jwt: string, searchQuery?: string): Promise<Content[]>
   }
 };
 
-const fetchBucketById = async (bucketId: string, jwt: string, searchQuery?: string): Promise<Bucket> => {
+const fetchBucketById = async (
+  bucketId: string,
+  jwt: string,
+  searchQuery?: string
+): Promise<Bucket> => {
   try {
     // Construct the base URL
     let url = `${API_URL}/buckets/${bucketId}`;
-    
+
     // Add search query as URL parameter if provided
     if (searchQuery && searchQuery.trim()) {
       const params = new URLSearchParams({ query: searchQuery.trim() });
@@ -182,7 +192,7 @@ export function useBuckets(searchQuery?: string, enabled: boolean = true) {
   const normalizedSearchQuery = searchQuery?.trim() || "";
 
   return useQuery<Bucket[], Error>({
-    queryKey: ["buckets", normalizedSearchQuery], 
+    queryKey: ["buckets", normalizedSearchQuery],
     queryFn: () => {
       if (!jwt) throw new Error("No JWT found");
       return fetchBuckets(jwt, normalizedSearchQuery || undefined);

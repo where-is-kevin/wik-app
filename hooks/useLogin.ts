@@ -57,19 +57,22 @@ const login = async (data: LoginData): Promise<AuthResponse> => {
     throw error;
   }
 };
-
 export function useLogin() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: login,
     onSuccess: async (data: AuthResponse) => {
-      // Store in React Query cache for current session
+      // Configure the query defaults FIRST
+      queryClient.setQueryDefaults(["auth"], {
+        gcTime: Infinity,
+        staleTime: Infinity,
+      });
+
+      // Then set the data
       queryClient.setQueryData(["auth"], data);
 
-      // Store access token securely for persistence across app restarts
-      if (data.accessToken) {
-        await SecureStore.setItemAsync("authToken", data.accessToken);
-      }
+      // Store in secure storage
+      await SecureStore.setItemAsync("authToken", data.accessToken);
     },
   });
 }
