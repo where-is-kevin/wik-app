@@ -26,6 +26,7 @@ type Content = {
   address: string;
   userLiked?: boolean;
   userDisliked?: boolean;
+  isSponsored: boolean;
 };
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;

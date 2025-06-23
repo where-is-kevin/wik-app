@@ -36,12 +36,6 @@ interface CardData {
   websiteUrl?: string;
 }
 
-interface LocalBucketItem {
-  id: string;
-  title: string;
-  safeImages: string[];
-}
-
 const SwipeableCards = () => {
   const { getLocationForAPI, hasLocationPermission } = useLocationForAPI();
   const [locationParams, setLocationParams] = useState<{
@@ -108,6 +102,7 @@ const SwipeableCards = () => {
         category: item.category,
         websiteUrl: item.websiteUrl || "",
         address: item.address || "",
+        isSponsored: item.isSponsored,
       }))
     : [];
 

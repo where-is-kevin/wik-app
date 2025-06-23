@@ -39,6 +39,7 @@ interface CardData {
   rating?: string;
   category?: string;
   address?: string;
+  isSponsored?: boolean;
 }
 
 interface SwipeCardsProps {
@@ -406,6 +407,126 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     );
   };
 
+  // Helper function to render content overlay based on sponsored status
+  const renderContentOverlay = (item: CardData) => {
+    if (item.isSponsored) {
+      // Sponsored design - solid background instead of gradient
+      return (
+        <View style={styles.sponsoredOverlay}>
+          <View style={styles.cardContent}>
+            {/* Category and Sponsored tags */}
+            <View style={styles.tagsContainer}>
+              {item.category && (
+                <CategoryTag
+                  style={styles.tagContainer}
+                  category={item.category}
+                  colors={colors}
+                />
+              )}
+              <CustomView bgColor={colors.lime} style={styles.experienceTag}>
+                <CustomText
+                  fontFamily="Inter-SemiBold"
+                  style={styles.experienceText}
+                >
+                  SPONSORED
+                </CustomText>
+              </CustomView>
+            </View>
+
+            <CustomText
+              fontFamily="Inter-SemiBold"
+              style={[styles.cardTitle, { color: colors.background }]}
+            >
+              {item.title}
+            </CustomText>
+
+            <CustomText
+              fontFamily="Inter-SemiBold"
+              style={[styles.priceText, { color: colors.lime }]}
+            >
+              {item?.price ? (
+                <>
+                  {item.price}
+                  <CustomText
+                    fontFamily="Inter-SemiBold"
+                    style={[styles.perPersonText, { color: colors.lime }]}
+                  >
+                    {" "}
+                    /person
+                  </CustomText>
+                </>
+              ) : item?.rating ? (
+                `${item.rating}★`
+              ) : (
+                "No rating"
+              )}
+            </CustomText>
+
+            <CustomText
+              fontFamily="Inter-SemiBold"
+              style={[styles.addressText, { color: colors.background }]}
+            >
+              {item.address || "No address"}
+            </CustomText>
+          </View>
+        </View>
+      );
+    } else {
+      // Regular design - gradient overlay
+      return (
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.3)", "rgba(0,0,0,0.8)"]}
+          style={styles.gradientOverlay}
+        >
+          <View style={styles.cardContent}>
+            {item.category && (
+              <CategoryTag
+                style={styles.tagContainer}
+                category={item.category}
+                colors={colors}
+              />
+            )}
+            <CustomText
+              fontFamily="Inter-SemiBold"
+              style={[styles.cardTitle, { color: colors.background }]}
+            >
+              {item.title}
+            </CustomText>
+
+            <CustomText
+              fontFamily="Inter-SemiBold"
+              style={[styles.priceText, { color: colors.lime }]}
+            >
+              {item?.price ? (
+                <>
+                  {item.price}
+                  <CustomText
+                    fontFamily="Inter-SemiBold"
+                    style={[styles.perPersonText, { color: colors.lime }]}
+                  >
+                    {" "}
+                    /person
+                  </CustomText>
+                </>
+              ) : item?.rating ? (
+                `${item.rating}★`
+              ) : (
+                "No rating"
+              )}
+            </CustomText>
+
+            <CustomText
+              fontFamily="Inter-SemiBold"
+              style={[styles.addressText, { color: colors.background }]}
+            >
+              {item.address || "No address"}
+            </CustomText>
+          </View>
+        </LinearGradient>
+      );
+    }
+  };
+
   const renderCards = () => {
     if (cardIndex >= data.length) {
       return (
@@ -477,7 +598,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                 showLoader={false}
                 fallbackSource={PLACEHOLDER_IMAGE}
               >
-                {/* VENUE badge */}
+                {/* Share/Bucket buttons */}
                 <CustomView
                   bgColor={colors.overlay}
                   style={styles.shareContainer}
@@ -509,59 +630,8 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                   </CustomView>
                 </CustomView>
 
-                {/* Content overlay with gradient */}
-                <LinearGradient
-                  colors={["transparent", "rgba(0,0,0,0.3)", "rgba(0,0,0,0.8)"]}
-                  style={styles.gradientOverlay}
-                >
-                  <View style={styles.cardContent}>
-                    {item.category && (
-                      <CategoryTag
-                        style={styles.tagContainer}
-                        category={item.category}
-                        colors={colors}
-                      />
-                    )}
-                    <CustomText
-                      fontFamily="Inter-SemiBold"
-                      style={[styles.cardTitle, { color: colors.background }]}
-                    >
-                      {item.title}
-                    </CustomText>
-
-                    <CustomText
-                      fontFamily="Inter-SemiBold"
-                      style={[styles.priceText, { color: colors.lime }]}
-                    >
-                      {item?.price ? (
-                        <>
-                          {item.price}
-                          <CustomText
-                            fontFamily="Inter-SemiBold"
-                            style={[
-                              styles.perPersonText,
-                              { color: colors.lime },
-                            ]}
-                          >
-                            {" "}
-                            /person
-                          </CustomText>
-                        </>
-                      ) : item?.rating ? (
-                        `${item.rating}★`
-                      ) : (
-                        "No rating"
-                      )}
-                    </CustomText>
-
-                    <CustomText
-                      fontFamily="Inter-SemiBold"
-                      style={[styles.addressText, { color: colors.background }]}
-                    >
-                      {item.address || "No address"}
-                    </CustomText>
-                  </View>
-                </LinearGradient>
+                {/* Content overlay - different for sponsored vs regular */}
+                {renderContentOverlay(item)}
               </OptimizedImageBackground>
             </Animated.View>
           );
@@ -688,6 +758,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "flex-start",
   },
+  // New styles for sponsored tags
+  tagsContainer: {
+    flexDirection: "row",
+    gap: horizontalScale(8),
+    alignItems: "center",
+  },
+  sponsoredText: {
+    fontSize: scaleFontSize(10),
+    color: "#0B2E34",
+    textTransform: "uppercase",
+    fontWeight: "700",
+  },
   cardContent: {
     padding: horizontalScale(12),
     paddingBottom: verticalScale(16),
@@ -761,5 +843,24 @@ const styles = StyleSheet.create({
   feedbackImage: {
     width: 100,
     height: 100,
+  },
+  experienceTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: verticalScale(9),
+  },
+  experienceText: {
+    fontSize: scaleFontSize(10),
+  },
+  sponsoredOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#0B2E34",
+    justifyContent: "flex-end",
   },
 });
