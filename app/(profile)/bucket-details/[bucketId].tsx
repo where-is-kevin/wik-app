@@ -155,9 +155,9 @@ const BucketDetailsScreen = () => {
         setIsBucketBottomSheetVisible(false);
         setSelectedLikeItemId(null);
 
-        console.log(`Successfully added item to bucket "${item.title}"`);
+        // console.log(`Successfully added item to bucket "${item.title}"`);
       } catch (error) {
-        console.error("Failed to add item to bucket:", error);
+        // console.error("Failed to add item to bucket:", error);
       }
     }
   };

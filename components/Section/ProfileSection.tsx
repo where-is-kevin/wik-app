@@ -31,9 +31,10 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors } = useTheme();
-  
+
   // Default fallback image for profile
-  const DEFAULT_PROFILE_IMAGE = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&h=200&auto=format";
+  const DEFAULT_PROFILE_IMAGE =
+    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&h=200&auto=format";
 
   const onEditPress = () => {
     router.push("/(profile)");
@@ -41,16 +42,15 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
 
   // Helper function to get valid image URL
   const getValidImageUrl = (imageUrl?: string): string | null => {
-    if (typeof imageUrl === 'string' && imageUrl.trim() !== '') {
+    if (typeof imageUrl === "string" && imageUrl.trim() !== "") {
       return imageUrl;
     }
     return null;
   };
 
   // Get safe profile image source
-  const validProfileImageUrl = getValidImageUrl(user?.profileImageUrl) || DEFAULT_PROFILE_IMAGE;
-
-  console.log(user);
+  const validProfileImageUrl =
+    getValidImageUrl(user?.profileImageUrl) || DEFAULT_PROFILE_IMAGE;
 
   return (
     <CustomView

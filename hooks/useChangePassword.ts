@@ -1,7 +1,7 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { firstValueFrom } from 'rxjs';
-import { ajax } from 'rxjs/ajax';
-import Constants from 'expo-constants';
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { firstValueFrom } from "rxjs";
+import { ajax } from "rxjs/ajax";
+import Constants from "expo-constants";
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
 
@@ -11,14 +11,17 @@ type ChangePasswordInput = {
   newPassword: string;
 };
 
-const changePassword = async (input: ChangePasswordInput, jwt: string): Promise<void> => {
+const changePassword = async (
+  input: ChangePasswordInput,
+  jwt: string
+): Promise<void> => {
   try {
     const observable$ = ajax<void>({
       url: `${API_URL}/oauth2/update-password`,
-      method: 'POST',
+      method: "POST",
       headers: {
-        accept: 'application/json',
-        'Content-Type': 'application/json',
+        accept: "application/json",
+        "Content-Type": "application/json",
         Authorization: `Bearer ${jwt}`,
       },
       body: JSON.stringify({
@@ -26,7 +29,7 @@ const changePassword = async (input: ChangePasswordInput, jwt: string): Promise<
         oldPassword: input.oldPassword,
         newPassword: input.newPassword,
       }),
-      responseType: 'json',
+      responseType: "json",
     });
 
     await firstValueFrom(observable$);
@@ -42,21 +45,21 @@ const changePassword = async (input: ChangePasswordInput, jwt: string): Promise<
 
 export function useChangePassword() {
   const queryClient = useQueryClient();
-  const authData = queryClient.getQueryData<{ accessToken?: string }>(['auth']);
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken;
 
   return useMutation({
     mutationFn: (input: ChangePasswordInput) => {
-      if (!jwt) throw new Error('No JWT found');
+      if (!jwt) throw new Error("No JWT found");
       return changePassword(input, jwt);
     },
     onSuccess: () => {
-      console.log('Password change successful');
+      // console.log('Password change successful');
       // Optionally invalidate auth queries if needed
       // queryClient.invalidateQueries({ queryKey: ['auth'] });
     },
     onError: (error) => {
-      console.error('Password change failed:', error);
+      console.error("Password change failed:", error);
     },
   });
 }

@@ -59,7 +59,7 @@ const SwipeableCards = () => {
             latitude: locationData.lat,
             longitude: locationData.lon,
           });
-          console.log("Location updated for SwipeableCards:", locationData);
+          // console.log("Location updated for SwipeableCards:", locationData);
         }
       }
     };
@@ -170,16 +170,16 @@ const SwipeableCards = () => {
     // Check if the item has a website URL and open it
     if (item?.websiteUrl) {
       Linking.openURL(item.websiteUrl).catch((err) => {
-        console.error("Failed to open URL:", err);
+        // console.error("Failed to open URL:", err);
       });
     } else {
-      console.log("No website URL available for this item");
+      // console.log("No website URL available for this item");
     }
   };
 
   // Simplified: Just refetch new content when cards are exhausted
   const handleComplete = useCallback(() => {
-    console.log("All cards swiped, fetching new content...");
+    // console.log("All cards swiped, fetching new content...");
     refetch();
   }, []);
 
@@ -206,9 +206,9 @@ const SwipeableCards = () => {
         setIsBucketBottomSheetVisible(false);
         setSelectedItemId(null);
 
-        console.log(`Successfully added item to bucket "${item.title}"`);
+        // console.log(`Successfully added item to bucket "${item.title}"`);
       } catch (error) {
-        console.error("Failed to add item to bucket:", error);
+        // console.error("Failed to add item to bucket:", error);
       }
     }
   };

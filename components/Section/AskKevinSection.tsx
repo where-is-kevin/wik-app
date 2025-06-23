@@ -30,7 +30,7 @@ const AskKevinSection = ({ onSend, onInputChange }: AskKevinSectionProps) => {
 
   const handleSend = () => {
     if (input.trim() === "") return;
-    console.log("AskKevin: Send pressed", input);
+    // console.log("AskKevin: Send pressed", input);
 
     Keyboard.dismiss();
     onSend?.(input.trim()); // Let parent handle state update

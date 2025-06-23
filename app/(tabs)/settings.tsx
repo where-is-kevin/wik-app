@@ -23,7 +23,7 @@ import {
 import CustomText from "@/components/CustomText";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import { useDeleteUser } from "@/hooks/useDeleteUser";
-import { useAuthGuard } from "@/hooks/useAuthGuard"; // Add this import
+import { useAuth } from "@/hooks/useAuth"; // Changed from useAuthGuard
 
 const settingsData = [
   { id: "1", title: "Feedback" },
@@ -39,14 +39,14 @@ const Settings = () => {
   const { colors } = useTheme();
   const queryClient = useQueryClient();
   const deleteUserMutation = useDeleteUser();
-  const { logout } = useAuthGuard(); // Use the proper logout function
+  const { logout } = useAuth(); // Use the new auth hook
 
   const handleFeedback = () => {
     router.push("/(settings)");
   };
 
   const handlePrivacyAndSecurity = () => {
-    console.log("Navigating to Privacy & Security");
+    // console.log("Navigating to Privacy & Security");
     router.push("/privacy-policy");
   };
 
@@ -55,8 +55,8 @@ const Settings = () => {
   };
 
   const handleLogout = async () => {
-    console.log("Logging out...");
-    await logout(); // Use the auth guard's logout function
+    // console.log("Logging out...");
+    await logout(); // Use the auth hook's logout function
   };
 
   const handleDeleteUser = () => {
@@ -109,7 +109,7 @@ const Settings = () => {
         handleDeleteUser();
         break;
       default:
-        console.log("Unknown setting selected");
+      // console.log("Unknown setting selected");
     }
   };
 

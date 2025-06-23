@@ -37,7 +37,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useCreateUser } from "@/hooks/useUser";
 import type { CreateUserInput } from "@/hooks/useUser";
-import { useLogin } from "@/hooks/useLogin";
+import { useAuth } from "@/hooks/useAuth"; // Changed from useLogin
 import { useContent } from "@/hooks/useContent";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { Linking } from "react-native";
@@ -57,7 +57,7 @@ interface CardData {
 const OnboardingScreen = () => {
   const router = useRouter();
   const { mutate: createUser, isPending } = useCreateUser();
-  const { mutate: login } = useLogin();
+  const { mutate: login } = useAuth(); // Changed from useLogin
   const { colors } = useTheme();
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [selections, setSelections] = useState<OnboardingSelections>({});
@@ -212,15 +212,12 @@ const OnboardingScreen = () => {
 
   const handleSwipeUp = (item: CardData) => {
     if (!item) return;
-    console.log("More info for:", item.title);
-
-    // Check if the item has a website URL and open it
     if (item?.websiteUrl) {
       Linking.openURL(item.websiteUrl).catch((err) => {
         console.error("Failed to open URL:", err);
       });
     } else {
-      console.log("No website URL available for this item");
+      // console.log("No website URL available for this item");
     }
   };
 
@@ -239,7 +236,7 @@ const OnboardingScreen = () => {
 
   const handleCardTap = (item: CardData) => {
     if (!item) return;
-    console.log("Card tapped:", item.title);
+    // console.log("Card tapped:", item.title);
 
     // Navigate to event details with hideBucketsButton param
     router.push({
@@ -336,11 +333,21 @@ const OnboardingScreen = () => {
           onSuccess: async () => {
             try {
               // After successful user creation, log in the user
-              await login({
-                username: userInput.email,
-                password: userInput.password,
-              });
-              router.push("/(tabs)");
+              login(
+                {
+                  username: userInput.email,
+                  password: userInput.password,
+                },
+                {
+                  onSuccess: () => {
+                    router.push("/(tabs)");
+                  },
+                  onError: (loginErr: any) => {
+                    console.error("Login failed after signup", loginErr);
+                    router.push("/(auth)");
+                  },
+                }
+              );
             } catch (loginErr) {
               console.error("Login failed after signup", loginErr);
               router.push("/(auth)");

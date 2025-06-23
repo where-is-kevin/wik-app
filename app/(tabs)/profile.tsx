@@ -41,7 +41,8 @@ const ProfileScreen = () => {
         bucket.content
           ?.filter((item: any) => {
             // Check if item has either internal images or google places image
-            const hasInternalImage = item.internalImageUrls && item.internalImageUrls.length > 0;
+            const hasInternalImage =
+              item.internalImageUrls && item.internalImageUrls.length > 0;
             const hasGoogleImage = item.googlePlacesImageUrl;
             return hasInternalImage || hasGoogleImage;
           })
@@ -66,8 +67,7 @@ const ProfileScreen = () => {
         onPress: () => {
           router.push(`/bucket-details/${bucket.id}`);
         },
-        onMorePress: () =>
-          console.log("More options pressed for bucket:", bucket.id),
+        onMorePress: () => {},
       };
     });
   }, [buckets, router]);
@@ -94,7 +94,7 @@ const ProfileScreen = () => {
         onPress: () => {
           router.push(`/event-details/${like.id}`);
         },
-        onMorePress: () => console.log("Like more options pressed for:", like.id),
+        onMorePress: () => {},
         category: like.category,
       };
     });

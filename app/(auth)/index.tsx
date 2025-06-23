@@ -15,8 +15,8 @@ import { Dimensions, Platform, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
-import { useAuthGuard } from "@/hooks/useAuthGuard";
-import { useLogin } from "@/hooks/useLogin";
+import { useAuth } from "@/hooks/useAuth";
+import { useLocationPermissionGuard } from "@/hooks/useLocationPermissionGuard";
 
 interface SignInScreenProps {
   // Add any props here if needed
@@ -27,9 +27,11 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
   const [email, setEmail] = useState<string>("user@example.com");
   const [password, setPassword] = useState<string>("string");
   const { colors } = useTheme();
-  const { checkAuthAndNavigate } = useAuthGuard();
   const router = useRouter();
-  const { mutate: login, isPending } = useLogin();
+  const { mutate: login, isPending } = useAuth();
+  const { checkAndNavigate } = useLocationPermissionGuard({
+    redirectToTabs: true,
+  });
   const isFormValid = email.trim() !== "" && password.trim() !== "";
 
   const handleSignIn = (): void => {
@@ -41,7 +43,7 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
       },
       {
         onSuccess: async () => {
-          await checkAuthAndNavigate(); // Navigate after login
+          await checkAndNavigate(); // Navigate after login
         },
         onError: (err: any) => {
           alert(err?.detail || err?.response?.data?.detail || "Login failed");
@@ -86,6 +88,7 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 placeholder="Enter your email"
+                editable={!isPending}
               />
 
               <CustomTextInput
@@ -94,13 +97,17 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
                 onChangeText={setPassword}
                 secureTextEntry={true}
                 placeholder="Enter your password"
+                editable={!isPending}
               />
             </CustomView>
 
             <CustomTouchable
               disabled={isPending || !isFormValid}
               bgColor={colors.lime}
-              style={[styles.signInButton, !isFormValid && { opacity: 0.7 }]}
+              style={[
+                styles.signInButton,
+                (!isFormValid || isPending) && { opacity: 0.7 },
+              ]}
               onPress={handleSignIn}
             >
               <CustomText
@@ -117,9 +124,14 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
               >
                 Not a member?{" "}
               </CustomText>
-              <CustomTouchable onPress={handleSignUp}>
+              <CustomTouchable onPress={handleSignUp} disabled={isPending}>
                 <CustomText
-                  style={[styles.signUpText, { color: colors.link_blue }]}
+                  style={[
+                    styles.signUpText,
+                    {
+                      color: isPending ? colors.gray_regular : colors.link_blue,
+                    },
+                  ]}
                   fontFamily="Inter-SemiBold"
                 >
                   Sign up
