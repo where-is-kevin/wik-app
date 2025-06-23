@@ -44,14 +44,14 @@ const ShareButton: React.FC<ShareButtonProps> = ({
       if (result.action === Share.sharedAction) {
         if (result.activityType) {
           // Shared with activity type of result.activityType
-          console.log("Shared with activity type:", result.activityType);
+          // console.log("Shared with activity type:", result.activityType);
         } else {
           // Shared
-          console.log("Shared successfully");
+          // console.log("Shared successfully");
         }
       } else if (result.action === Share.dismissedAction) {
         // Dismissed
-        console.log("Share dismissed");
+        // console.log("Share dismissed");
       }
     } catch (error) {
       Alert.alert("Error sharing", error.message);

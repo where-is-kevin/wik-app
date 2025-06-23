@@ -128,7 +128,8 @@ const ProfileListsScreen = () => {
         bucket.content
           ?.filter((item: any) => {
             // Check if item has either internal images or google places image
-            const hasInternalImage = item.internalImageUrls && item.internalImageUrls.length > 0;
+            const hasInternalImage =
+              item.internalImageUrls && item.internalImageUrls.length > 0;
             const hasGoogleImage = item.googlePlacesImageUrl;
             return hasInternalImage || hasGoogleImage;
           })
@@ -210,9 +211,9 @@ const ProfileListsScreen = () => {
         setIsBucketBottomSheetVisible(false);
         setSelectedLikeItemId(null);
 
-        console.log(`Successfully added item to bucket "${item.title}"`);
+        // console.log(`Successfully added item to bucket "${item.title}"`);
       } catch (error) {
-        console.error("Failed to add item to bucket:", error);
+        // console.error("Failed to add item to bucket:", error);
       }
     }
   };
@@ -386,7 +387,9 @@ const ProfileListsScreen = () => {
                 showsVerticalScrollIndicator={false}
               />
             )}
-            {!hasBucketsContent && !bucketsLoading && <EmptyData type="buckets" />}
+            {!hasBucketsContent && !bucketsLoading && (
+              <EmptyData type="buckets" />
+            )}
           </CustomView>
         )}
       </CustomView>

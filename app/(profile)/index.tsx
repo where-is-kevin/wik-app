@@ -69,11 +69,11 @@ const UpdateProfile = () => {
     // add the id to the form data
     updateUser(form, {
       onSuccess: () => {
-        console.log("User updated successfully");
+        // console.log("User updated successfully");
         router.back();
       },
       onError: (err: any) => {
-        console.error("Error updating user:", err);
+        // console.error("Error updating user:", err);
       },
     });
   };

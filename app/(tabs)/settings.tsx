@@ -46,7 +46,7 @@ const Settings = () => {
   };
 
   const handlePrivacyAndSecurity = () => {
-    console.log("Navigating to Privacy & Security");
+    // console.log("Navigating to Privacy & Security");
     router.push("/privacy-policy");
   };
 
@@ -55,7 +55,7 @@ const Settings = () => {
   };
 
   const handleLogout = async () => {
-    console.log("Logging out...");
+    // console.log("Logging out...");
     await logout(); // Use the auth hook's logout function
   };
 
@@ -109,7 +109,7 @@ const Settings = () => {
         handleDeleteUser();
         break;
       default:
-        console.log("Unknown setting selected");
+      // console.log("Unknown setting selected");
     }
   };
 

@@ -52,7 +52,7 @@ const ChangePasswordScreen = () => {
           ]);
         },
         onError: (err: any) => {
-          console.log(err);
+          // console.log(err);
           Alert.alert(
             "Error",
             err?.detail || "Failed to change password. Please try again."

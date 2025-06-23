@@ -275,9 +275,9 @@ const PaginatedContentList = () => {
         setIsBucketBottomSheetVisible(false);
         setSelectedLikeItemId(null);
 
-        console.log(`Successfully added item to bucket "${item.title}"`);
+        // console.log(`Successfully added item to bucket "${item.title}"`);
       } catch (error) {
-        console.error("Failed to add item to bucket:", error);
+        // console.error("Failed to add item to bucket:", error);
       }
     }
   };
@@ -305,7 +305,7 @@ const PaginatedContentList = () => {
         // Clear selected item
         setSelectedLikeItemId(null);
 
-        console.log(`Successfully created bucket "${bucketName}"`);
+        // console.log(`Successfully created bucket "${bucketName}"`);
       } catch (error) {
         console.error("Failed to create bucket:", error);
       }

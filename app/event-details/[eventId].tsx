@@ -6,6 +6,7 @@ import {
   View,
   Linking,
   FlatList,
+  TouchableOpacity,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
@@ -40,6 +41,9 @@ import { FastImageBackground } from "@/components/OptimizedImage/OptimizedImage"
 import { useAddLike } from "@/hooks/useLikes";
 import { useAddDislike } from "@/hooks/useDislikes";
 import { useQueryClient } from "@tanstack/react-query";
+import StarSvg from "@/components/SvgComponents/StarSvg";
+import LikeSvg from "@/components/SvgComponents/LikeSvg";
+import LikeFilledSvg from "@/components/SvgComponents/LikeFilledSvg";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -61,6 +65,8 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   const addLikeMutation = useAddLike();
   const addDislikeMutation = useAddDislike();
   const queryClient = useQueryClient();
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
+  const jwt = authData?.accessToken || null;
 
   // Image carousel state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -68,7 +74,8 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
   // Calculate dynamic heights based on your header
   const ESTIMATED_HEADER_HEIGHT = verticalScale(10) + 12 + 24;
-  const PANEL_MIN_HEIGHT = SCREEN_HEIGHT * 0.3;
+  // Increased the minimum height from 0.3 to 0.45 (45% instead of 30%)
+  const PANEL_MIN_HEIGHT = SCREEN_HEIGHT * 0.45;
   const PANEL_MAX_HEIGHT = SCREEN_HEIGHT - insets.top - ESTIMATED_HEADER_HEIGHT;
 
   // Calculate the image container height to stop at the first snap point
@@ -190,7 +197,9 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
         );
 
         // Invalidate the list queries to force fresh data
-        queryClient.invalidateQueries({ queryKey: ["content", "basic"] });
+        queryClient
+          .invalidateQueries({ queryKey: ["content", "basic"] })
+          .then(() => router.back());
       },
       onError: (error) => {
         console.error("Failed to add dislike:", error);
@@ -205,7 +214,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
         console.error("Failed to open URL:", err);
       });
     } else {
-      console.log("No website URL available for this item");
+      // console.log("No website URL available for this item");
     }
   };
 
@@ -274,9 +283,9 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
         setIsBucketBottomSheetVisible(false);
         setSelectedItemId(null);
 
-        console.log(`Successfully added item to bucket "${item.title}"`);
+        // console.log(`Successfully added item to bucket "${item.title}"`);
       } catch (error) {
-        console.error("Failed to add item to bucket:", error);
+        // console.error("Failed to add item to bucket:", error);
       }
     }
   };
@@ -292,7 +301,6 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   };
 
   const handleCreateBucket = async (bucketName: string) => {
-    console.log(selectedItemId);
     if (selectedItemId) {
       try {
         await createBucketMutation.mutateAsync({
@@ -301,9 +309,9 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
         });
         setIsCreateBucketBottomSheetVisible(false);
         setSelectedItemId(null);
-        console.log(`Successfully created bucket "${bucketName}"`);
+        // console.log(`Successfully created bucket "${bucketName}"`);
       } catch (error) {
-        console.error("Failed to create bucket:", error);
+        // console.error("Failed to create bucket:", error);
       }
     }
   };
@@ -317,10 +325,10 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   const openOnMap = () => {
     if (contentData?.googleMapsUrl) {
       Linking.openURL(contentData.googleMapsUrl).catch((err) => {
-        console.error("Failed to open URL:", err);
+        // console.error("Failed to open URL:", err);
       });
     } else {
-      console.log("No Google Maps URL available for this item");
+      // console.log("No Google Maps URL available for this item");
     }
   };
 
@@ -481,12 +489,14 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
               {/* Title Section */}
               <CustomView style={styles.titleSection}>
-                <CustomText
-                  fontFamily="Inter-SemiBold"
-                  style={[styles.title, { color: colors.label_dark }]}
-                >
-                  {contentData.title}
-                </CustomText>
+                <CustomTouchable onPress={handleMoreOptionsPress}>
+                  <CustomText
+                    fontFamily="Inter-SemiBold"
+                    style={[styles.title, { color: colors.label_dark }]}
+                  >
+                    {contentData.title}
+                  </CustomText>
+                </CustomTouchable>
 
                 {/* Price or Rating Display */}
                 {contentData.price ? (
@@ -575,87 +585,73 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                   </CustomText>
                 </CustomTouchable>
               )}
+
+              {/* Add bottom padding to account for fixed buttons */}
+              <View style={{ height: verticalScale(80) }} />
             </CustomView>
           </BottomSheetScrollView>
         </BottomSheet>
 
-        {/* Floating Action Buttons Container */}
-        <View
-          style={[
-            styles.floatingButtonsContainer,
-            { bottom: insets.bottom + 24 },
-          ]}
-        >
-          {/* Three Dots Button */}
-          <CustomTouchable
+        {/* Fixed Bottom Action Bar - Always Visible */}
+        {jwt && (
+          <View
             style={[
-              styles.floatingButton,
+              styles.fixedBottomBar,
               {
+                bottom: insets.bottom,
                 backgroundColor: colors.background,
-                borderColor: colors.gray_regular,
               },
             ]}
-            onPress={handleMoreOptionsPress}
           >
-            <CustomText
-              style={[styles.moreIcon, { color: colors.gray_regular }]}
-            >
-              ⋯
-            </CustomText>
-          </CustomTouchable>
-
-          {/* Dislike Button - Show when not disliked and not liked */}
-          {!contentData?.userDisliked && (
-            <CustomTouchable
-              style={[
-                styles.floatingButton,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.gray_regular,
-                },
-              ]}
-              onPress={handleDislikePress}
-              disabled={addDislikeMutation.isPending}
-            >
-              <CustomText
-                style={[
-                  styles.actionIcon,
-                  {
-                    color: colors.gray_regular,
-                  },
-                ]}
+            {/* Main Action Buttons Container */}
+            <View style={styles.mainActionsContainer}>
+              {/* Not for me Button */}
+              <CustomTouchable
+                style={[styles.actionButton, styles.dislikeButton]}
+                bgColor={colors.label_dark}
+                onPress={handleDislikePress}
+                disabled={
+                  addDislikeMutation.isPending || contentData?.userDisliked
+                }
               >
-                {addDislikeMutation.isPending ? "⏳" : "💔"}
-              </CustomText>
-            </CustomTouchable>
-          )}
+                <CustomText
+                  fontFamily="Inter-SemiBold"
+                  style={[
+                    styles.actionButtonText,
+                    { color: colors.text_white },
+                  ]}
+                >
+                  {addDislikeMutation.isPending ? "..." : "Not for me"}
+                </CustomText>
+              </CustomTouchable>
 
-          {/* Like Button - Show when not liked and not disliked */}
-          {!contentData?.userLiked && (
-            <CustomTouchable
-              style={[
-                styles.floatingButton,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.gray_regular,
-                },
-              ]}
-              onPress={handleLikePress}
-              disabled={addLikeMutation.isPending}
-            >
-              <CustomText
-                style={[
-                  styles.actionIcon,
-                  {
-                    color: colors.gray_regular,
-                  },
-                ]}
+              {/* Like Button */}
+              <CustomTouchable
+                style={[styles.actionButton, styles.likeButton]}
+                bgColor={colors.lime}
+                onPress={handleLikePress}
+                disabled={addLikeMutation.isPending || contentData?.userLiked}
               >
-                {addLikeMutation.isPending ? "⏳" : "🤍"}
-              </CustomText>
-            </CustomTouchable>
-          )}
-        </View>
+                {!contentData?.userLiked ? <LikeSvg /> : <LikeFilledSvg />}
+                <CustomText
+                  fontFamily="Inter-SemiBold"
+                  style={[
+                    styles.actionButtonText,
+                    {
+                      color: colors.label_dark,
+                    },
+                  ]}
+                >
+                  {addLikeMutation.isPending
+                    ? "..."
+                    : contentData?.userLiked
+                    ? "Liked"
+                    : "Like"}
+                </CustomText>
+              </CustomTouchable>
+            </View>
+          </View>
+        )}
       </CustomView>
 
       {/* Your existing bottom sheets */}
@@ -818,36 +814,43 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontSize: scaleFontSize(14),
   },
-  // Floating Buttons Container and Styles
-  floatingButtonsContainer: {
+  // Fixed Bottom Bar Styles
+  fixedBottomBar: {
     position: "absolute",
-    right: horizontalScale(20),
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12, // Space between buttons
-    zIndex: 1000, // Ensure it stays above everything
+    left: 0,
+    right: 0,
+    paddingHorizontal: 24,
+    paddingVertical: verticalScale(12),
+    zIndex: 0,
   },
-  floatingButton: {
-    width: 45,
-    height: 45,
-    borderRadius: 28,
+  mainActionsContainer: {
+    flexDirection: "row",
+    flex: 1,
+    gap: 8,
+  },
+  actionButton: {
+    flex: 1,
+    paddingVertical: verticalScale(12),
+    borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
+    marginHorizontal: 4,
   },
-  actionIcon: {
-    fontSize: 20,
+  dislikeButton: {
+    // Additional styles for dislike button if needed
+  },
+  likeButton: {
+    // Additional styles for like button if needed
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  actionButtonText: {
+    fontSize: scaleFontSize(15),
   },
   moreIcon: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
   },
 });
