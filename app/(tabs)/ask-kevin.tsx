@@ -2,9 +2,8 @@ import CustomView from "@/components/CustomView";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import AskKevinSection from "@/components/Section/AskKevinSection";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useContentWithParams } from "@/hooks/useContent";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Dimensions,
   StyleSheet,
@@ -25,6 +24,8 @@ import {
 } from "@/components/BottomSheet/BucketBottomSheet";
 import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
+import { useInfiniteContent } from "@/hooks/useContent";
+import { StatusBar } from "expo-status-bar";
 
 const PaginatedContentList = () => {
   const { query } = useLocalSearchParams();
@@ -40,28 +41,13 @@ const PaginatedContentList = () => {
     return query || "cake";
   };
 
-  const [params, setParams] = useState<{
-    query: string;
-    limit: number;
-    offset: number;
-    latitude?: number;
-    longitude?: number;
-  }>({
-    query: normalizeQuery(query),
-    limit: 10,
-    offset: 0,
-  });
-
-  const [allItems, setAllItems] = useState<any[]>([]);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  // State management
+  const [searchQuery, setSearchQuery] = useState(normalizeQuery(query));
+  const [location, setLocation] = useState<{ lat: number; lon: number } | null>(
+    null
+  );
   const [locationInitialized, setLocationInitialized] = useState(false);
-  const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
-
-  // Add ref to track if we're already loading to prevent duplicate requests
-  const isLoadingRef = useRef(false);
 
   // Bucket functionality state
   const [selectedLikeItemId, setSelectedLikeItemId] = useState<string | null>(
@@ -78,165 +64,51 @@ const PaginatedContentList = () => {
   const addBucketMutation = useAddBucket();
   const createBucketMutation = useCreateBucket();
 
-  // Only call the API after location has been initialized
-  const { data, isLoading, isError, refetch } = useContentWithParams(
-    locationInitialized ? params : null
-  );
-
-  // Handle data updates when new data comes in
+  // Initialize location
   useEffect(() => {
-    if (data && data.items) {
-      setHasAttemptedFetch(true);
-
-      if (params.offset === 0) {
-        // New search - replace all items
-        setAllItems(data.items);
-      } else {
-        // Pagination - append new items
-        setAllItems((prev) => [...prev, ...data.items]);
-      }
-
-      // Check if we have more data - fixed logic
-      const currentTotalLoaded = params.offset + data.items.length;
-      setHasMore(currentTotalLoaded < data.total);
-      setIsLoadingMore(false);
-      isLoadingRef.current = false; // Reset loading flag
-    } else if (data && !data.items) {
-      // API returned data but no items array
-      setHasAttemptedFetch(true);
-      setAllItems([]);
-      setHasMore(false);
-      setIsLoadingMore(false);
-      isLoadingRef.current = false; // Reset loading flag
-    }
-  }, [data]);
-
-  // Track when we've made our first fetch attempt
-  useEffect(() => {
-    if (locationInitialized && !hasAttemptedFetch) {
-      // We've initialized location and are about to make our first API call
-      setHasAttemptedFetch(false);
-    }
-  }, [locationInitialized]);
-
-  useEffect(() => {
-    const updateLocationParams = async () => {
+    const initLocation = async () => {
       if (hasLocationPermission) {
-        const locationData = await getLocationForAPI();
-        if (locationData) {
-          setParams((prevParams) => {
-            if (
-              prevParams.latitude !== locationData.lat ||
-              prevParams.longitude !== locationData.lon
-            ) {
-              return {
-                ...prevParams,
-                latitude: locationData.lat,
-                longitude: locationData.lon,
-              };
-            }
-            return prevParams;
-          });
+        try {
+          const locationData = await getLocationForAPI();
+          if (locationData) {
+            setLocation(locationData);
+          }
+        } catch (error) {
+          console.log("Failed to get location, proceeding without it");
+          // Don't block initialization if location fails
         }
       }
+      // Always set initialized to true, whether we have location or not
       setLocationInitialized(true);
     };
+    initLocation();
+  }, [hasLocationPermission, getLocationForAPI]);
 
-    updateLocationParams();
-  }, [hasLocationPermission]);
+  // Use infinite query - works with or without location
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useInfiniteContent({
+    query: searchQuery,
+    latitude: location?.lat, // Will be undefined if no location permission
+    longitude: location?.lon, // Will be undefined if no location permission
+    limit: 20,
+    enabled: locationInitialized, // Wait for location check to complete (not for location itself)
+  });
 
-  const loadMore = async () => {
-    // Prevent multiple simultaneous load requests
-    if (isLoadingRef.current || isLoadingMore || !hasMore || isLoading) {
-      return;
-    }
-    isLoadingRef.current = true;
-    setIsLoadingMore(true);
+  // Flatten all pages into single array
+  const allItems = data?.pages.flatMap((page) => page.items) ?? [];
 
-    let locationData = null;
-    if (hasLocationPermission) {
-      locationData = await getLocationForAPI();
-    }
-
-    setParams((prevParams) => ({
-      ...prevParams,
-      offset: prevParams.offset + prevParams.limit,
-      ...(locationData && {
-        latitude: locationData.lat,
-        longitude: locationData.lon,
-      }),
-    }));
-  };
-
-  const handleInputChange = (text: string) => {
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-
-    debounceTimeoutRef.current = setTimeout(() => {
-      if (text.trim() === "") {
-        setAllItems([]);
-        setHasMore(true);
-        setHasAttemptedFetch(false);
-        isLoadingRef.current = false;
-
-        setParams((prevParams) => ({
-          limit: 10,
-          offset: 0,
-          query: "cake",
-          ...(prevParams.latitude &&
-            prevParams.longitude && {
-              latitude: prevParams.latitude,
-              longitude: prevParams.longitude,
-            }),
-        }));
-      }
-    }, 500);
-  };
-
-  const handleSend = async (message: string) => {
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-
-    // Reset pagination state for new search
-    setAllItems([]);
-    setHasMore(true);
-    setIsLoadingMore(false);
-    setHasAttemptedFetch(false);
-    isLoadingRef.current = false;
-
-    let locationData = null;
-    if (hasLocationPermission) {
-      locationData = await getLocationForAPI();
-    }
-
-    const newParams = {
-      query: message,
-      limit: 10,
-      offset: 0,
-      ...(locationData && {
-        latitude: locationData.lat,
-        longitude: locationData.lon,
-      }),
-    };
-
-    setParams(newParams);
-  };
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-    };
-  }, []);
-
+  // Transform data for MasonryGrid
   const PLACEHOLDER_IMAGE =
     "https://images.unsplash.com/photo-1536236502598-7dd171f8e852?q=80&w=1974";
 
-  // Transform data from all loaded items
   const transformedData: LikeItem[] = allItems.map((item, index) => ({
     id: item.id,
     title: item.title,
@@ -250,168 +122,241 @@ const PaginatedContentList = () => {
     height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall",
   }));
 
+  // Handle input change with debounce
+  const handleInputChange = useCallback((text: string) => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      if (text.trim() === "") {
+        setSearchQuery("cake"); // Reset to default
+      }
+    }, 500);
+  }, []);
+
+  // Handle search submission
+  const handleSend = useCallback((message: string) => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    setSearchQuery(message);
+  }, []);
+
+  // Handle scroll for infinite loading
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { layoutMeasurement, contentOffset, contentSize } =
+        event.nativeEvent;
+
+      // Use different thresholds for Android vs iOS
+      const paddingToBottom = Platform.OS === "android" ? 100 : 20;
+      const threshold = contentSize.height - paddingToBottom;
+      const currentPosition = layoutMeasurement.height + contentOffset.y;
+
+      // Check if user has scrolled to near the bottom
+      if (currentPosition >= threshold && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    },
+    [hasNextPage, isFetchingNextPage, fetchNextPage]
+  );
+
+  // Alternative scroll handler for Android
+  const handleMomentumScrollEnd = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (Platform.OS === "android") {
+        const { layoutMeasurement, contentOffset, contentSize } =
+          event.nativeEvent;
+        const paddingToBottom = 50;
+
+        if (
+          layoutMeasurement.height + contentOffset.y >=
+            contentSize.height - paddingToBottom &&
+          hasNextPage &&
+          !isFetchingNextPage
+        ) {
+          fetchNextPage();
+        }
+      }
+    },
+    [hasNextPage, isFetchingNextPage, fetchNextPage]
+  );
+
   // Bucket functionality handlers
-  const handleBucketPress = (likeItemId?: string) => {
-    // Store the item that user wants to add to bucket
+  const handleBucketPress = useCallback((likeItemId?: string) => {
     if (likeItemId) {
       setSelectedLikeItemId(likeItemId);
     }
     setIsBucketBottomSheetVisible(true);
-  };
+  }, []);
 
-  const handleCloseBucketBottomSheet = () => {
+  const handleCloseBucketBottomSheet = useCallback(() => {
     setIsBucketBottomSheetVisible(false);
-  };
+  }, []);
 
-  const handleItemSelect = async (item: BucketItem) => {
-    if (selectedLikeItemId) {
-      try {
-        await addBucketMutation.mutateAsync({
-          id: item?.id,
-          bucketName: item?.title,
-          contentIds: [selectedLikeItemId],
-        });
+  const handleItemSelect = useCallback(
+    async (item: BucketItem) => {
+      if (selectedLikeItemId) {
+        try {
+          await addBucketMutation.mutateAsync({
+            id: item?.id,
+            bucketName: item?.title,
+            contentIds: [selectedLikeItemId],
+          });
 
-        setIsBucketBottomSheetVisible(false);
-        setSelectedLikeItemId(null);
-
-        // console.log(`Successfully added item to bucket "${item.title}"`);
-      } catch (error) {
-        // console.error("Failed to add item to bucket:", error);
+          setIsBucketBottomSheetVisible(false);
+          setSelectedLikeItemId(null);
+        } catch (error) {
+          console.error("Failed to add item to bucket:", error);
+        }
       }
-    }
-  };
+    },
+    [selectedLikeItemId, addBucketMutation]
+  );
 
   // Create bucket bottom sheet handlers
-  const handleShowCreateBucketBottomSheet = () => {
-    setIsBucketBottomSheetVisible(false); // Close bucket selection sheet
-    setIsCreateBucketBottomSheetVisible(true); // Open create bucket sheet
-  };
+  const handleShowCreateBucketBottomSheet = useCallback(() => {
+    setIsBucketBottomSheetVisible(false);
+    setIsCreateBucketBottomSheetVisible(true);
+  }, []);
 
-  const handleCloseCreateBucketBottomSheet = () => {
+  const handleCloseCreateBucketBottomSheet = useCallback(() => {
     setIsCreateBucketBottomSheetVisible(false);
-  };
+  }, []);
 
-  const handleCreateBucket = async (bucketName: string) => {
-    if (selectedLikeItemId) {
-      try {
-        // Create new bucket using the API
-        await createBucketMutation.mutateAsync({
-          bucketName: bucketName,
-          contentIds: [selectedLikeItemId],
-        });
-        setIsCreateBucketBottomSheetVisible(false);
-
-        // Clear selected item
-        setSelectedLikeItemId(null);
-
-        // console.log(`Successfully created bucket "${bucketName}"`);
-      } catch (error) {
-        console.error("Failed to create bucket:", error);
+  const handleCreateBucket = useCallback(
+    async (bucketName: string) => {
+      if (selectedLikeItemId) {
+        try {
+          await createBucketMutation.mutateAsync({
+            bucketName: bucketName,
+            contentIds: [selectedLikeItemId],
+          });
+          setIsCreateBucketBottomSheetVisible(false);
+          setSelectedLikeItemId(null);
+        } catch (error) {
+          console.error("Failed to create bucket:", error);
+        }
       }
-    }
-  };
+    },
+    [selectedLikeItemId, createBucketMutation]
+  );
 
   // Handle item press - navigate to event details
-  const handleItemPress = (item: LikeItem) => {
-    router.push(`/event-details/${item.id}`);
-  };
+  const handleItemPress = useCallback(
+    (item: LikeItem) => {
+      router.push(`/event-details/${item.id}`);
+    },
+    [router]
+  );
 
-  // Enhanced scroll handler with better Android support
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-
-    // Use different thresholds for Android vs iOS
-    const paddingToBottom = Platform.OS === "android" ? 100 : 20;
-    const threshold = contentSize.height - paddingToBottom;
-    const currentPosition = layoutMeasurement.height + contentOffset.y;
-
-    // Check if user has scrolled to near the bottom
-    if (currentPosition >= threshold) {
-      loadMore();
-    }
-  };
-
-  // Alternative: Use onMomentumScrollEnd for Android
-  const handleMomentumScrollEnd = (
-    event: NativeSyntheticEvent<NativeScrollEvent>
-  ) => {
-    if (Platform.OS === "android") {
-      const { layoutMeasurement, contentOffset, contentSize } =
-        event.nativeEvent;
-      const paddingToBottom = 50;
-
-      if (
-        layoutMeasurement.height + contentOffset.y >=
-        contentSize.height - paddingToBottom
-      ) {
-        loadMore();
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
       }
-    }
-  };
+    };
+  }, []);
 
-  // Determine if we should show the "no results" message
-  const shouldShowNoResults =
-    !isLoading && hasAttemptedFetch && transformedData.length === 0;
-
-  return (
-    <CustomView bgColor={colors.background} style={styles.container}>
-      <AskKevinSection onSend={handleSend} onInputChange={handleInputChange} />
-
-      {isLoading && allItems.length === 0 ? (
+  // Loading state - show while initializing location check or first load
+  // Note: We wait for locationInitialized (not location itself) to ensure
+  // we've completed the permission check, then proceed with or without location
+  if (!locationInitialized || (isLoading && allItems.length === 0)) {
+    return (
+      <CustomView bgColor={colors.background} style={styles.container}>
+        <AskKevinSection
+          onSend={handleSend}
+          onInputChange={handleInputChange}
+        />
         <CustomView style={styles.loadingContainer}>
           <AnimatedLoader />
         </CustomView>
-      ) : transformedData.length > 0 ? (
-        <View style={styles.contentContainer}>
-          <MasonryGrid
-            data={transformedData}
-            onBucketPress={handleBucketPress}
-            onItemPress={handleItemPress}
-            showVerticalScrollIndicator={false}
-            onScroll={handleScroll}
-            // Add onMomentumScrollEnd for Android
-            {...(Platform.OS === "android" && {
-              onMomentumScrollEnd: handleMomentumScrollEnd,
-            })}
-            scrollEventThrottle={Platform.OS === "android" ? 16 : 400}
-            contentContainerStyle={[
-              styles.masonryContentContainer,
-              { paddingBottom: isLoadingMore ? 120 : 60 }, // Increased padding for Android
-            ]}
-          />
-          {isLoadingMore && (
-            <View style={styles.loadMoreContainer}>
-              <AnimatedLoader customAnimationStyle={styles.loaderAnimation} />
-            </View>
-          )}
-        </View>
-      ) : shouldShowNoResults ? (
+      </CustomView>
+    );
+  }
+
+  // Error state
+  if (isError) {
+    return (
+      <CustomView bgColor={colors.background} style={styles.container}>
+        <AskKevinSection
+          onSend={handleSend}
+          onInputChange={handleInputChange}
+        />
         <CustomView style={styles.errorContainer}>
           <CustomText style={styles.errorText}>
-            No results found for "{params.query}"
+            Failed to load content
           </CustomText>
           <CustomText style={styles.errorSubtext}>
-            Try searching for something else
+            {error?.message || "Please try again"}
           </CustomText>
         </CustomView>
-      ) : null}
+      </CustomView>
+    );
+  }
 
-      {/* Bucket Bottom Sheets */}
-      <BucketBottomSheet
-        selectedLikeItemId={selectedLikeItemId}
-        isVisible={isBucketBottomSheetVisible}
-        onClose={handleCloseBucketBottomSheet}
-        onItemSelect={handleItemSelect}
-        onCreateNew={handleShowCreateBucketBottomSheet}
-      />
+  return (
+    <>
+      <StatusBar style="dark" />
+      <CustomView bgColor={colors.background} style={styles.container}>
+        <AskKevinSection
+          onSend={handleSend}
+          onInputChange={handleInputChange}
+        />
 
-      <CreateBucketBottomSheet
-        isVisible={isCreateBucketBottomSheetVisible}
-        onClose={handleCloseCreateBucketBottomSheet}
-        onCreateBucket={handleCreateBucket}
-      />
-    </CustomView>
+        {transformedData.length > 0 ? (
+          <View style={styles.contentContainer}>
+            <MasonryGrid
+              data={transformedData}
+              onBucketPress={handleBucketPress}
+              onItemPress={handleItemPress}
+              showVerticalScrollIndicator={false}
+              onScroll={handleScroll}
+              // Add onMomentumScrollEnd for Android
+              {...(Platform.OS === "android" && {
+                onMomentumScrollEnd: handleMomentumScrollEnd,
+              })}
+              scrollEventThrottle={Platform.OS === "android" ? 16 : 400}
+              contentContainerStyle={[
+                styles.masonryContentContainer,
+                { paddingBottom: isFetchingNextPage ? 120 : 60 },
+              ]}
+            />
+            {isFetchingNextPage && (
+              <View style={styles.loadMoreContainer}>
+                <AnimatedLoader customAnimationStyle={styles.loaderAnimation} />
+              </View>
+            )}
+          </View>
+        ) : (
+          <CustomView style={styles.errorContainer}>
+            <CustomText style={styles.errorText}>
+              No results found for "{searchQuery}"
+            </CustomText>
+            <CustomText style={styles.errorSubtext}>
+              Try searching for something else
+            </CustomText>
+          </CustomView>
+        )}
+
+        {/* Bucket Bottom Sheets */}
+        <BucketBottomSheet
+          selectedLikeItemId={selectedLikeItemId}
+          isVisible={isBucketBottomSheetVisible}
+          onClose={handleCloseBucketBottomSheet}
+          onItemSelect={handleItemSelect}
+          onCreateNew={handleShowCreateBucketBottomSheet}
+        />
+
+        <CreateBucketBottomSheet
+          isVisible={isCreateBucketBottomSheetVisible}
+          onClose={handleCloseCreateBucketBottomSheet}
+          onCreateBucket={handleCreateBucket}
+        />
+      </CustomView>
+    </>
   );
 };
 
@@ -435,7 +380,7 @@ const styles = StyleSheet.create({
   },
   loadMoreContainer: {
     position: "absolute",
-    bottom: 10, // Adjusted for better visibility
+    bottom: 10,
     left: 0,
     right: 0,
     alignItems: "center",

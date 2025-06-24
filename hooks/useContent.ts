@@ -1,4 +1,8 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useInfiniteQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { firstValueFrom } from "rxjs";
 import { ajax } from "rxjs/ajax";
 import Constants from "expo-constants";
@@ -160,6 +164,55 @@ const fetchContentWithParams = async (
   const response = await firstValueFrom(observable$);
   return response.response;
 };
+
+// New interface for infinite content params
+interface InfiniteContentParams {
+  query: string;
+  latitude?: number | undefined; // Explicitly allow undefined
+  longitude?: number | undefined; // Explicitly allow undefined
+  limit?: number;
+  enabled?: boolean;
+}
+
+// NEW: Infinite query hook for pagination
+export function useInfiniteContent({
+  query,
+  latitude,
+  longitude,
+  limit = 20,
+  enabled = true,
+}: InfiniteContentParams) {
+  const queryClient = useQueryClient();
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
+  const jwt = authData?.accessToken || null;
+
+  return useInfiniteQuery({
+    queryKey: ["content", "infinite", query, latitude, longitude, limit, !!jwt],
+    queryFn: async ({ pageParam = 0 }) => {
+      const params: ContentParams = {
+        query,
+        limit,
+        offset: pageParam,
+      };
+
+      // Only add location if both lat and lon are available
+      if (latitude !== undefined && longitude !== undefined) {
+        params.latitude = latitude;
+        params.longitude = longitude;
+      }
+
+      return fetchContentWithParams(params, jwt);
+    },
+    getNextPageParam: (lastPage) => {
+      const nextOffset = lastPage.offset + lastPage.limit;
+      return nextOffset < lastPage.total ? nextOffset : undefined;
+    },
+    initialPageParam: 0,
+    enabled: !!API_URL && !!query && enabled,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+  });
+}
 
 // For basic content (SwipeableCards) - JWT optional
 export function useContent(params?: BasicContentParams) {

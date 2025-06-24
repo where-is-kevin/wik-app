@@ -117,7 +117,11 @@ const ProfileScreen = () => {
   };
 
   if (isLoading || bucketsLoading || likesLoading) {
-    return <AnimatedLoader />;
+    return (
+      <CustomView style={{ flex: 1 }}>
+        <AnimatedLoader />
+      </CustomView>
+    );
   }
 
   return (
