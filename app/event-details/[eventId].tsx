@@ -23,7 +23,6 @@ import {
   verticalScale,
 } from "@/utilities/scaling";
 import BackHeader from "@/components/Header/BackHeader";
-import TestImage from "@/assets/images/test-bg.png";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import CustomView from "@/components/CustomView";
 import BucketSvg from "@/components/SvgComponents/BucketSvg";
@@ -79,7 +78,8 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   const PANEL_MAX_HEIGHT = SCREEN_HEIGHT - insets.top - ESTIMATED_HEADER_HEIGHT;
 
   // Calculate the image container height to stop at the first snap point
-  const IMAGE_CONTAINER_HEIGHT = SCREEN_HEIGHT - PANEL_MIN_HEIGHT + 15;
+  const IMAGE_CONTAINER_HEIGHT =
+    SCREEN_HEIGHT - PANEL_MIN_HEIGHT + verticalScale(16);
 
   // Bottom sheet setup with dynamic snap points
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -228,7 +228,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
     if (contentData?.googlePlacesImageUrl) {
       return [contentData.googlePlacesImageUrl];
     }
-    return [TestImage]; // Fallback to default image
+    return []; // Fallback to default image
   };
 
   const images = useMemo(() => getImages(), [contentData]);
@@ -248,7 +248,6 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
       resizeMode="cover"
       priority="high"
       showLoader={true}
-      fallbackSource={TestImage}
     >
       <SafeAreaView
         style={[styles.headerContainer, { backgroundColor: colors.overlay }]}
@@ -409,6 +408,17 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
             showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={onImageScroll}
             style={styles.imageCarousel}
+            // KEY ANDROID OPTIMIZATIONS:
+            initialNumToRender={Math.min(images.length, 3)} // Start with 3 images
+            maxToRenderPerBatch={Math.min(images.length, 5)} // Batch render up to 5
+            windowSize={images.length <= 5 ? images.length : 5} // Dynamic window size
+            removeClippedSubviews={false} // Keep images rendered for smooth scrolling
+            // Helps FlatList calculate positions efficiently
+            getItemLayout={(data, index) => ({
+              length: SCREEN_WIDTH,
+              offset: SCREEN_WIDTH * index,
+              index,
+            })}
           />
 
           {/* Image Indicators - Now positioned relative to image container */}
