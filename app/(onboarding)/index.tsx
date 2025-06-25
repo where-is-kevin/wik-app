@@ -53,6 +53,7 @@ interface CardData {
   rating?: string;
   address?: string;
   isSponsored?: boolean;
+  contentShareUrl: string;
 }
 
 const OnboardingScreen = () => {
@@ -102,6 +103,7 @@ const OnboardingScreen = () => {
         websiteUrl: item.websiteUrl || "",
         address: item.address || "",
         isSponsored: item.isSponsored,
+        contentShareUrl: item.contentShareUrl,
       }))
     : [];
 

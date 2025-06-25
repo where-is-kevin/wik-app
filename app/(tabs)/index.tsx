@@ -34,6 +34,7 @@ interface CardData {
   price?: string;
   category?: string;
   websiteUrl?: string;
+  contentShareUrl: string;
 }
 
 const SwipeableCards = () => {
@@ -103,6 +104,7 @@ const SwipeableCards = () => {
         websiteUrl: item.websiteUrl || "",
         address: item.address || "",
         isSponsored: item.isSponsored,
+        contentShareUrl: item.contentShareUrl,
       }))
     : [];
 

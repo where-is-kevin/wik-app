@@ -25,6 +25,7 @@ interface BucketItem {
   images: (string | number)[];
   onPress?: () => void;
   onMorePress?: () => void;
+  bucketShareUrl: string;
 }
 
 interface ImageBucketProps {
@@ -32,6 +33,7 @@ interface ImageBucketProps {
   images: (string | number)[];
   onPress?: () => void;
   onMorePress?: () => void;
+  bucketShareUrl: string;
 }
 
 interface BucketsSectionProps {
@@ -41,7 +43,7 @@ interface BucketsSectionProps {
 
 // Helper function to validate and filter image URLs
 const getValidImageUrl = (image: string | number): string | null => {
-  if (typeof image === 'string' && image.trim() !== '') {
+  if (typeof image === "string" && image.trim() !== "") {
     return image;
   }
   return null;
@@ -52,12 +54,12 @@ const getSafeImages = (images: (string | number)[]): (string | null)[] => {
   if (!Array.isArray(images)) {
     return [null, null, null];
   }
-  
+
   // Filter out invalid entries and get first 3 valid URLs
   const validImages = images
-    .map(img => getValidImageUrl(img))
-    .filter(img => img !== null);
-  
+    .map((img) => getValidImageUrl(img))
+    .filter((img) => img !== null);
+
   // Return exactly 3 entries, padding with null if needed
   return [
     validImages[0] || null,
@@ -71,6 +73,7 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
   images,
   onPress,
   onMorePress,
+  bucketShareUrl,
 }) => {
   const { colors } = useTheme();
 
@@ -100,7 +103,9 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
         <CustomView style={styles.rightColumn}>
           <CustomView style={styles.smallImageContainer}>
             <OptimizedImage
-              source={safeImages[1] ? { uri: safeImages[1] } : PLACEHOLDER_IMAGE}
+              source={
+                safeImages[1] ? { uri: safeImages[1] } : PLACEHOLDER_IMAGE
+              }
               style={styles.smallImage}
               resizeMode="cover"
               priority="normal"
@@ -113,7 +118,9 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
             style={[styles.smallImageContainer, styles.bottomImageContainer]}
           >
             <OptimizedImage
-              source={safeImages[2] ? { uri: safeImages[2] } : PLACEHOLDER_IMAGE}
+              source={
+                safeImages[2] ? { uri: safeImages[2] } : PLACEHOLDER_IMAGE
+              }
               style={styles.smallImage}
               resizeMode="cover"
               priority="normal"
@@ -136,7 +143,7 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
         <ShareButton
           title={title}
           message={`Check out this bucket: ${title}`}
-          url={safeImages[0] || ""} // Use the first valid image as the shared content
+          url={bucketShareUrl || ""} // Use the first valid image as the shared content
         />
       </CustomView>
     </CustomView>
@@ -149,11 +156,12 @@ const BucketsSection: React.FC<BucketsSectionProps> = ({
   onSeeMorePress,
 }) => {
   const { colors } = useTheme();
-  
+
   const renderBucketItem = ({ item }: { item: BucketItem }) => (
     <ImageBucket
       title={item.title}
       images={item.images}
+      bucketShareUrl={item.bucketShareUrl}
       onPress={item.onPress}
       onMorePress={item.onMorePress}
     />

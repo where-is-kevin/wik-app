@@ -18,6 +18,7 @@ interface LikeItem {
   hasIcon?: boolean;
   height?: "short" | "tall";
   category: string;
+  contentShareUrl: string;
 }
 
 interface MasonryGridProps {

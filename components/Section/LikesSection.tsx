@@ -1,10 +1,5 @@
 import React, { useCallback } from "react";
-import {
-  View,
-  TouchableOpacity,
-  StyleSheet,
-  FlatList,
-} from "react-native";
+import { View, TouchableOpacity, StyleSheet, FlatList } from "react-native";
 import {
   horizontalScale,
   scaleFontSize,
@@ -24,6 +19,7 @@ interface LikeItem {
   title: string;
   image: string;
   category?: string;
+  contentShareUrl: string;
   onPress?: () => void;
   onMorePress?: () => void;
 }
@@ -32,6 +28,7 @@ interface LikeItemProps {
   title: string;
   image: string;
   category?: string;
+  contentShareUrl: string;
   onPress?: () => void;
   onMorePress?: () => void;
 }
@@ -46,7 +43,7 @@ const LikeItemComponent: React.FC<LikeItemProps> = ({
   image,
   category,
   onPress,
-  onMorePress,
+  contentShareUrl,
 }) => {
   const { colors } = useTheme();
 
@@ -55,7 +52,7 @@ const LikeItemComponent: React.FC<LikeItemProps> = ({
 
   // Helper function to get valid image URL
   const getValidImageUrl = useCallback((imageUrl: string): string | null => {
-    if (typeof imageUrl === 'string' && imageUrl.trim() !== '') {
+    if (typeof imageUrl === "string" && imageUrl.trim() !== "") {
       return imageUrl;
     }
     return null;
@@ -76,7 +73,7 @@ const LikeItemComponent: React.FC<LikeItemProps> = ({
           showLoader={true}
           fallbackSource={PLACEHOLDER_IMAGE}
         />
-        
+
         {/* Category tag in top left */}
         {category && (
           <CategoryTag
@@ -98,8 +95,8 @@ const LikeItemComponent: React.FC<LikeItemProps> = ({
         </CustomText>
         <ShareButton
           title={title}
-          message={`Check out this bucket: ${title}`}
-          url={validImageUrl || ""} // Use the validated image URL
+          message={`Check out this ${category}: ${title}`}
+          url={contentShareUrl || ""} // Use the validated image URL
         />
       </CustomView>
     </CustomView>
@@ -112,20 +109,26 @@ const LikesSection: React.FC<LikesSectionProps> = ({
   onSeeMorePress,
 }) => {
   const { colors } = useTheme();
-  
-  const renderLikeItem = useCallback(({ item }: { item: LikeItem }) => (
-    <LikeItemComponent
-      key={item.id}
-      title={item.title}
-      image={item.image}
-      category={item.category}
-      onPress={item.onPress}
-      onMorePress={item.onMorePress}
-    />
-  ), []);
 
-  const keyExtractor = useCallback((item: LikeItem, index: number) => 
-    item.id || `like-${index}`, []);
+  const renderLikeItem = useCallback(
+    ({ item }: { item: LikeItem }) => (
+      <LikeItemComponent
+        key={item.id}
+        title={item.title}
+        image={item.image}
+        contentShareUrl={item.contentShareUrl}
+        category={item.category}
+        onPress={item.onPress}
+        onMorePress={item.onMorePress}
+      />
+    ),
+    []
+  );
+
+  const keyExtractor = useCallback(
+    (item: LikeItem, index: number) => item.id || `like-${index}`,
+    []
+  );
 
   return (
     <CustomView style={styles.sectionContainer}>

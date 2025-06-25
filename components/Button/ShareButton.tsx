@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { TouchableOpacity, Share, Platform, Alert } from "react-native";
 import MoreSvg from "../SvgComponents/MoreSvg";
 
@@ -19,6 +19,18 @@ const ShareButton: React.FC<ShareButtonProps> = ({
   height,
   onMorePress,
 }) => {
+  const [isSharing, setIsSharing] = useState(false);
+
+  const isValidUrl = (urlString: string): boolean => {
+    if (!urlString.trim()) return false;
+    try {
+      new URL(urlString);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const handleShare = async () => {
     try {
       if (onMorePress) {
@@ -27,19 +39,26 @@ const ShareButton: React.FC<ShareButtonProps> = ({
         return;
       }
 
-      const result = await Share.share(
-        {
-          title: title,
-          message: Platform.OS === "ios" ? message : message + " " + url,
-          url: Platform.OS === "ios" ? url : "",
-        },
-        {
-          // On iOS, this shows the native share sheet directly
-          // On Android, it gives more options
-          dialogTitle: "Share this content",
-          subject: title,
-        }
-      );
+      setIsSharing(true);
+
+      // Validate URL if provided
+      const validUrl = url && isValidUrl(url) ? url : "";
+
+      const shareContent = {
+        title: title,
+        message:
+          Platform.OS === "ios"
+            ? message
+            : `${message}${validUrl ? ` ${validUrl}` : ""}`,
+        ...(Platform.OS === "ios" && validUrl && { url: validUrl }),
+      };
+
+      const result = await Share.share(shareContent, {
+        // On iOS, this shows the native share sheet directly
+        // On Android, it gives more options
+        dialogTitle: "Share this content",
+        subject: title,
+      });
 
       if (result.action === Share.sharedAction) {
         if (result.activityType) {
@@ -54,14 +73,29 @@ const ShareButton: React.FC<ShareButtonProps> = ({
         // console.log("Share dismissed");
       }
     } catch (error) {
-      Alert.alert("Error sharing", error.message);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "An unknown error occurred while sharing";
+      Alert.alert("Error sharing", errorMessage);
+    } finally {
+      setIsSharing(false);
     }
   };
 
   return (
-    <TouchableOpacity onPress={handleShare}>
+    <TouchableOpacity
+      onPress={handleShare}
+      disabled={isSharing}
+      accessible={true}
+      accessibilityLabel="Share content"
+      accessibilityRole="button"
+      accessibilityHint="Opens sharing options for this content"
+      style={{ opacity: isSharing ? 0.6 : 1 }}
+    >
       <MoreSvg width={width} height={height} />
     </TouchableOpacity>
   );
 };
+
 export default ShareButton;

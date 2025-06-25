@@ -112,8 +112,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
   // Handle like press
   const handleLikePress = useCallback(() => {
-    if (!contentData || contentData.userLiked || contentData.userDisliked)
-      return;
+    if (!contentData || contentData.userDisliked) return;
 
     const likeData = {
       contentIds: [eventId],
@@ -128,7 +127,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
             if (oldData) {
               return {
                 ...oldData,
-                userLiked: true,
+                userLiked: !oldData.userLiked,
               };
             }
             return oldData;
@@ -481,7 +480,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                       height={14}
                       title={contentData.title}
                       message={`Check out this ${contentData.category}: ${contentData.title}`}
-                      url={contentData.websiteUrl || contentData.googleMapsUrl}
+                      url={contentData.contentShareUrl}
                     />
                   </CustomTouchable>
                 </CustomView>
@@ -598,8 +597,9 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
             style={[
               styles.fixedBottomBar,
               {
-                bottom: insets.bottom,
+                bottom: 0,
                 backgroundColor: colors.background,
+                paddingBottom: insets.bottom + verticalScale(12), // Add safe area to padding instead
               },
             ]}
           >
@@ -630,9 +630,10 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                 style={[styles.actionButton, styles.likeButton]}
                 bgColor={colors.lime}
                 onPress={handleLikePress}
-                disabled={addLikeMutation.isPending || contentData?.userLiked}
+                disabled={addLikeMutation.isPending}
               >
-                {!contentData?.userLiked ? <LikeSvg /> : <LikeFilledSvg />}
+                {!addLikeMutation.isPending &&
+                  (!contentData?.userLiked ? <LikeSvg /> : <LikeFilledSvg />)}
                 <CustomText
                   fontFamily="Inter-SemiBold"
                   style={[

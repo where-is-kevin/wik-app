@@ -112,6 +112,7 @@ const BucketDetailsScreen = () => {
       hasIcon: true,
       height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall",
       category: content.category,
+      contentShareUrl: content.contentShareUrl,
     };
   };
 

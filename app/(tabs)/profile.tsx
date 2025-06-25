@@ -64,6 +64,7 @@ const ProfileScreen = () => {
         id: bucket.id,
         title: bucket.bucketName,
         images: images,
+        bucketShareUrl: bucket.bucketShareUrl,
         onPress: () => {
           router.push(`/bucket-details/${bucket.id}`);
         },
@@ -96,6 +97,7 @@ const ProfileScreen = () => {
         },
         onMorePress: () => {},
         category: like.category,
+        contentShareUrl: like.contentShareUrl,
       };
     });
   }, [likes, router]);

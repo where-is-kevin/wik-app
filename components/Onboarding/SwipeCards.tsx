@@ -40,6 +40,7 @@ interface CardData {
   category?: string;
   address?: string;
   isSponsored?: boolean;
+  contentShareUrl: string;
 }
 
 interface SwipeCardsProps {
@@ -461,13 +462,14 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                 "No rating"
               )}
             </CustomText>
-
-            <CustomText
-              fontFamily="Inter-SemiBold"
-              style={[styles.addressText, { color: colors.background }]}
-            >
-              {item.address || "No address"}
-            </CustomText>
+            {item.address && (
+              <CustomText
+                fontFamily="Inter-SemiBold"
+                style={[styles.addressText, { color: colors.background }]}
+              >
+                {item.address}
+              </CustomText>
+            )}
           </View>
         </View>
       );
@@ -514,13 +516,14 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                 "No rating"
               )}
             </CustomText>
-
-            <CustomText
-              fontFamily="Inter-SemiBold"
-              style={[styles.addressText, { color: colors.background }]}
-            >
-              {item.address || "No address"}
-            </CustomText>
+            {item.address && (
+              <CustomText
+                fontFamily="Inter-SemiBold"
+                style={[styles.addressText, { color: colors.background }]}
+              >
+                {item.address}
+              </CustomText>
+            )}
           </View>
         </LinearGradient>
       );
@@ -624,7 +627,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                         height={14}
                         title={""}
                         message={`Check out this bucket: `}
-                        url={validImageUrl || ""}
+                        url={item.contentShareUrl || ""}
                       />
                     </CustomTouchable>
                   </CustomView>

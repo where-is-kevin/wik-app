@@ -119,6 +119,7 @@ const PaginatedContentList = () => {
         : PLACEHOLDER_IMAGE,
     landscapeImage: "",
     hasIcon: true,
+    contentShareUrl: item.contentShareUrl,
     height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall",
   }));
 

@@ -34,6 +34,7 @@ interface LocalBucketItem {
   id: string;
   title: string;
   safeImages: string[];
+  bucketShareUrl: string;
 }
 
 // Enhanced custom hook for debounced search with reset capability
@@ -151,6 +152,7 @@ const ProfileListsScreen = () => {
         id: bucket.id,
         title: bucket.bucketName,
         safeImages: images,
+        bucketShareUrl: bucket.bucketShareUrl,
       };
     });
   }, [buckets]);
@@ -181,6 +183,7 @@ const ProfileListsScreen = () => {
         landscapeImage: "",
         category: like.category,
         hasIcon: true,
+        contentShareUrl: like.contentShareUrl,
         height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall", // Vary heights for masonry effect
       };
     });

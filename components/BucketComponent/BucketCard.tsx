@@ -21,6 +21,7 @@ interface ExperienceCard {
   safeImages: (string | any)[];
   hasIcon?: boolean;
   height?: "short" | "tall";
+  bucketShareUrl: string;
 }
 
 interface BucketCardProps {
@@ -51,7 +52,11 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
         <CustomView style={styles.mainImageContainer}>
           {/* ✅ REPLACED Image with OptimizedImage */}
           <OptimizedImage
-            source={typeof safeImages[0] === 'string' ? { uri: safeImages[0] } : safeImages[0]}
+            source={
+              typeof safeImages[0] === "string"
+                ? { uri: safeImages[0] }
+                : safeImages[0]
+            }
             style={styles.mainImage}
             resizeMode="cover"
             priority="normal"
@@ -65,7 +70,11 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
           <CustomView style={styles.smallImageContainer}>
             {/* ✅ REPLACED Image with OptimizedImage */}
             <OptimizedImage
-              source={typeof safeImages[1] === 'string' ? { uri: safeImages[1] } : safeImages[1]}
+              source={
+                typeof safeImages[1] === "string"
+                  ? { uri: safeImages[1] }
+                  : safeImages[1]
+              }
               style={styles.smallImage}
               resizeMode="cover"
               priority="normal"
@@ -79,7 +88,11 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
           >
             {/* ✅ REPLACED Image with OptimizedImage */}
             <OptimizedImage
-              source={typeof safeImages[2] === 'string' ? { uri: safeImages[2] } : safeImages[2]}
+              source={
+                typeof safeImages[2] === "string"
+                  ? { uri: safeImages[2] }
+                  : safeImages[2]
+              }
               style={styles.smallImage}
               resizeMode="cover"
               priority="normal"
@@ -102,7 +115,7 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
         <ShareButton
           title={item.title}
           message={`Check out this bucket: ${item.title}`}
-          url={typeof safeImages[0] === "string" ? safeImages[0] : ""} // Use the first image as the shared content
+          url={item.bucketShareUrl || ""}
         />
       </CustomView>
     </CustomView>

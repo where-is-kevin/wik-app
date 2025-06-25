@@ -23,6 +23,7 @@ interface ExperienceCard {
   hasIcon?: boolean;
   height?: "short" | "tall";
   category?: string;
+  contentShareUrl: string;
 }
 
 interface LikeCardProps {
@@ -45,7 +46,7 @@ const LikeCard: React.FC<LikeCardProps> = ({
 
   // Helper function to get valid image URL
   const getValidImageUrl = (imageUrl: string): string | null => {
-    if (typeof imageUrl === 'string' && imageUrl.trim() !== '') {
+    if (typeof imageUrl === "string" && imageUrl.trim() !== "") {
       return imageUrl;
     }
     return null;
@@ -86,13 +87,13 @@ const LikeCard: React.FC<LikeCardProps> = ({
           />
 
           {/* Experience tag in top left */}
-           {item.category && (
-                      <CategoryTag
-                          style={styles.experienceTag}
-                        category={item.category}
-                        colors={colors}
-                      />
-                    )}
+          {item.category && (
+            <CategoryTag
+              style={styles.experienceTag}
+              category={item.category}
+              colors={colors}
+            />
+          )}
 
           {/* Bucket SVG icon in bottom right */}
           {item.hasIcon && (
@@ -117,8 +118,8 @@ const LikeCard: React.FC<LikeCardProps> = ({
           </CustomText>
           <ShareButton
             title={item.title}
-            message={`Check out this bucket: ${item.title}`}
-            url={validImageUrl || ""}
+            message={`Check out this ${item.category}: ${item.title}`}
+            url={item.contentShareUrl || ""}
           />
         </CustomView>
       </CustomView>
