@@ -1,4 +1,4 @@
-// BucketBottomSheet.tsx - FIXED VERSION with improved bucket fetching
+// BucketBottomSheet.tsx - WITH PAGINATION SUPPORT
 import React, { useMemo } from "react";
 import {
   View,
@@ -7,8 +7,8 @@ import {
   Dimensions,
   StatusBar,
   Platform,
+  FlatList,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/ThemeContext";
 import CustomText from "@/components/CustomText";
@@ -24,7 +24,6 @@ import CreateBucketPlus from "../SvgComponents/CreateBucketPlus";
 import { useBuckets } from "@/hooks/useBuckets";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { useQueryClient } from "@tanstack/react-query";
-import { ScrollView } from "react-native-gesture-handler";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
 
 // Define the BucketItem interface directly in this file
@@ -55,13 +54,20 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
-  // Use the existing useBuckets hook instead of manual useQuery
+  // Use the existing useBuckets hook with pagination
   const {
     data: buckets,
     isLoading: bucketsLoading,
     error: bucketsError,
     refetch: refetchBuckets,
-  } = useBuckets();
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useBuckets(
+    undefined, // no search query
+    isVisible, // only enabled when bottom sheet is visible
+    20 // standard page size
+  );
 
   // Placeholder image for buckets without images
   const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
@@ -202,7 +208,15 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
     }
   }, [insets?.top]);
 
-  const renderBucketItem = (item: BucketItem) => {
+  // Handle load more buckets
+  const handleLoadMore = () => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  };
+
+  // Render bucket item for FlatList
+  const renderBucketItem = ({ item }: { item: BucketItem }) => {
     if (!item) return null;
 
     try {
@@ -213,7 +227,6 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
 
       return (
         <CustomTouchable
-          key={item.id}
           style={styles.bucketItem}
           onPress={() => {
             onItemSelect(item);
@@ -260,17 +273,36 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
     }
   };
 
+  // Render footer for loading more
+  const renderFooter = () => {
+    if (!isFetchingNextPage) return null;
+
+    return (
+      <CustomView style={styles.loadingFooter}>
+        <AnimatedLoader customAnimationStyle={{ width: 80, height: 80 }} />
+      </CustomView>
+    );
+  };
+
   const renderContent = () => {
-    if (bucketsLoading) {
+    if (bucketsLoading && !bucketItems.length) {
       return (
         <CustomView style={styles.loadingContainer}>
           <AnimatedLoader />
+          <CustomText
+            style={[
+              styles.loadingText,
+              { color: colors?.gray_regular || "#666" },
+            ]}
+          >
+            Loading buckets...
+          </CustomText>
         </CustomView>
       );
     }
 
     // Handle error state
-    if (bucketsError) {
+    if (bucketsError && !bucketItems.length) {
       return (
         <CustomView style={styles.errorContainer}>
           <CustomText
@@ -310,13 +342,17 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
     }
 
     return (
-      <ScrollView
-        style={styles.scrollContainer}
-        contentContainerStyle={styles.scrollContent}
+      <FlatList
+        data={bucketItems}
+        renderItem={renderBucketItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.flatListContent}
         showsVerticalScrollIndicator={false}
-      >
-        {bucketItems.map(renderBucketItem).filter(Boolean)}
-      </ScrollView>
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={renderFooter}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+      />
     );
   };
 
@@ -391,17 +427,10 @@ const styles = StyleSheet.create({
     marginTop: verticalScale(4),
     marginBottom: 18,
   },
-  backButton: {
-    padding: 4,
-  },
   title: {
     fontSize: scaleFontSize(15),
   },
-  scrollContainer: {
-    flex: 1,
-  },
-  scrollContent: {
-    gap: 18,
+  flatListContent: {
     paddingHorizontal: 24,
     paddingBottom: verticalScale(20),
   },
@@ -422,12 +451,12 @@ const styles = StyleSheet.create({
     fontSize: scaleFontSize(14),
     lineHeight: 20,
   },
-  bucketItemDate: {
-    fontSize: scaleFontSize(14),
-  },
   alreadyInBucketText: {
     fontSize: scaleFontSize(12),
     marginTop: 2,
+  },
+  separator: {
+    height: 18,
   },
   bottomSection: {
     borderTopWidth: 1,
@@ -455,6 +484,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingVertical: verticalScale(40),
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: scaleFontSize(14),
+  },
+  loadingFooter: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: verticalScale(20),
+  },
+  loadingFooterText: {
+    marginLeft: 8,
+    fontSize: scaleFontSize(12),
   },
   emptyContainer: {
     flex: 1,
