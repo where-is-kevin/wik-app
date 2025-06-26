@@ -66,7 +66,7 @@ const ProfileScreen = () => {
         images: images,
         bucketShareUrl: bucket.bucketShareUrl,
         onPress: () => {
-          router.push(`/bucket-details/${bucket.id}`);
+          router.push(`/bucket-details/${bucket.bucketId}`);
         },
         onMorePress: () => {},
       };

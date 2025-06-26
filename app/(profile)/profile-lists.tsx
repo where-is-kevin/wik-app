@@ -149,7 +149,7 @@ const ProfileListsScreen = () => {
       }
 
       return {
-        id: bucket.id,
+        id: bucket.bucketId,
         title: bucket.bucketName,
         safeImages: images,
         bucketShareUrl: bucket.bucketShareUrl,
