@@ -1,15 +1,10 @@
-import React from "react";
-import {
-  ScrollView,
-  RefreshControl,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
-} from "react-native";
+import React, { useCallback, useMemo } from "react";
+import { FlatList, RefreshControl, ListRenderItem, View } from "react-native";
 import CustomView from "@/components/CustomView";
 import LikeCard from "@/components/LikeComponent/LikeCard";
-import { horizontalScale } from "@/utilities/scaling";
+import AnimatedLoader from "@/components/Loader/AnimatedLoader";
+import { horizontalScale, verticalScale } from "@/utilities/scaling";
 
-// Interface for like items
 interface LikeItem {
   id: string;
   title: string;
@@ -25,65 +20,112 @@ interface MasonryGridProps {
   data: LikeItem[];
   onBucketPress: (likeItemId: string) => void;
   onItemPress?: (item: LikeItem) => void;
-  showVerticalScrollIndicator?: boolean;
-  contentContainerStyle?: object;
+  // Infinite pagination props
+  onLoadMore?: () => void;
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
+  // Refresh props
   refreshing?: boolean;
   onRefresh?: () => void;
-  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
-  onMomentumScrollEnd?: (
-    event: NativeSyntheticEvent<NativeScrollEvent>
-  ) => void;
-  scrollEventThrottle?: number;
+  // Optional scroll props
+  showVerticalScrollIndicator?: boolean;
+  contentContainerStyle?: object;
 }
 
 const MasonryGrid: React.FC<MasonryGridProps> = ({
   data,
   onBucketPress,
-  onItemPress = (item) => console.log("Like card pressed:", item.id),
-  showVerticalScrollIndicator = false,
-  contentContainerStyle,
+  onItemPress,
+  onLoadMore,
+  hasNextPage = false,
+  isFetchingNextPage = false,
   refreshing = false,
   onRefresh,
-  onScroll,
-  onMomentumScrollEnd,
-  scrollEventThrottle = 16,
+  showVerticalScrollIndicator = false,
+  contentContainerStyle,
 }) => {
-  // Local placeholder image
   const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
   // Process data to ensure all items have valid images
-  const processedData = data.map((item) => ({
-    ...item,
-    foodImage: item.foodImage || PLACEHOLDER_IMAGE,
-  }));
-
-  // Split data into two columns for masonry effect
-  const leftColumn = processedData.filter((_, index) => index % 2 === 0);
-  const rightColumn = processedData.filter((_, index) => index % 2 === 1);
-
-  const renderColumn = (columnData: LikeItem[]) => (
-    <CustomView style={{ flex: 1 }}>
-      {columnData.map((item) => (
-        <CustomView key={item.id} style={{ marginBottom: 0 }}>
-          <LikeCard
-            onBucketPress={() => onBucketPress(item.id)}
-            item={item}
-            onPress={() => onItemPress(item)}
-          />
-        </CustomView>
-      ))}
-    </CustomView>
+  const processedData = useMemo(
+    () =>
+      data.map((item) => ({
+        ...item,
+        foodImage: item.foodImage || PLACEHOLDER_IMAGE,
+      })),
+    [data]
   );
 
+  // Split data into two columns for true masonry effect (like original)
+  const { leftColumn, rightColumn } = useMemo(() => {
+    const left = processedData.filter((_, index) => index % 2 === 0);
+    const right = processedData.filter((_, index) => index % 2 === 1);
+    return { leftColumn: left, rightColumn: right };
+  }, [processedData]);
+
+  // Create a single item that contains both columns for FlatList
+  const masonryData = useMemo(() => {
+    return [{ id: "masonry-columns", leftColumn, rightColumn }];
+  }, [leftColumn, rightColumn]);
+
+  // Render the masonry columns (same as original ScrollView approach)
+  const renderColumn = useCallback(
+    (columnData: LikeItem[]) => (
+      <View style={styles.columnContainer}>
+        {columnData.map((item) => (
+          <View key={item.id} style={{ marginBottom: 0 }}>
+            <LikeCard
+              onBucketPress={() => onBucketPress(item.id)}
+              item={item}
+              onPress={() => onItemPress?.(item)}
+            />
+          </View>
+        ))}
+      </View>
+    ),
+    [onBucketPress, onItemPress]
+  );
+
+  // Render the single FlatList item containing both columns
+  const renderMasonryColumns: ListRenderItem<any> = useCallback(
+    ({ item }) => (
+      <View style={styles.columnsContainer}>
+        {renderColumn(item.leftColumn)}
+        {renderColumn(item.rightColumn)}
+      </View>
+    ),
+    [renderColumn]
+  );
+
+  // Footer component for loading state
+  const renderFooter = useCallback(() => {
+    if (!isFetchingNextPage) return null;
+
+    return (
+      <View style={styles.footerLoader}>
+        <AnimatedLoader customAnimationStyle={styles.loader} />
+      </View>
+    );
+  }, [isFetchingNextPage]);
+
+  // Handle load more with proper threshold
+  const handleLoadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage && onLoadMore) {
+      onLoadMore();
+    }
+  }, [hasNextPage, isFetchingNextPage, onLoadMore]);
+
+  // Key extractor
+  const keyExtractor = useCallback((item: any) => item.id, []);
+
   return (
-    <ScrollView
+    <FlatList
+      data={masonryData}
+      renderItem={renderMasonryColumns}
+      keyExtractor={keyExtractor}
       showsVerticalScrollIndicator={showVerticalScrollIndicator}
-      contentContainerStyle={[
-        {
-          paddingHorizontal: horizontalScale(16),
-        },
-        contentContainerStyle,
-      ]}
+      contentContainerStyle={[styles.container, contentContainerStyle]}
+      // Refresh Control
       refreshControl={
         onRefresh ? (
           <RefreshControl
@@ -94,22 +136,40 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
           />
         ) : undefined
       }
-      onScroll={onScroll}
-      onMomentumScrollEnd={onMomentumScrollEnd}
-      scrollEventThrottle={scrollEventThrottle}
-    >
-      <CustomView
-        style={{
-          flexDirection: "row",
-          gap: 16,
-          alignItems: "flex-start",
-        }}
-      >
-        {renderColumn(leftColumn)}
-        {renderColumn(rightColumn)}
-      </CustomView>
-    </ScrollView>
+      // Infinite Pagination - Built-in FlatList props!
+      onEndReached={handleLoadMore}
+      onEndReachedThreshold={0.3} // Trigger when 30% from bottom
+      ListFooterComponent={renderFooter}
+      // Performance optimizations
+      removeClippedSubviews={false} // Keep false for masonry layout
+      maxToRenderPerBatch={1} // Only one item (the columns container)
+      windowSize={3}
+      initialNumToRender={1}
+    />
   );
+};
+
+const styles = {
+  container: {
+    paddingHorizontal: horizontalScale(16),
+  },
+  columnsContainer: {
+    flexDirection: "row" as const,
+    gap: 16,
+    alignItems: "flex-start" as const,
+  },
+  columnContainer: {
+    flex: 1,
+  },
+  footerLoader: {
+    paddingVertical: verticalScale(20),
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  },
+  loader: {
+    width: 80,
+    height: 80,
+  },
 };
 
 export default MasonryGrid;

@@ -25,6 +25,7 @@ import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { useAddDislike } from "@/hooks/useDislikes";
 import { useLocationForAPI } from "@/contexts/LocationContext";
+import CustomText from "@/components/CustomText";
 
 // Define the interface that matches your SwipeCards component
 interface CardData {
@@ -238,12 +239,18 @@ const SwipeableCards = () => {
 
   if (error) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Failed to load content.</Text>
+      <CustomView style={styles.errorContainer}>
+        <CustomText style={styles.errorTitle}>
+          {`We are coming to your\narea soon! 🚀`}
+        </CustomText>
+        <CustomText style={styles.errorText}>
+          We don't have any content at your location currently, but we are
+          working hard to bring amazing experiences to you soon!
+        </CustomText>
         <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
-          <Text style={styles.retryButtonText}>Try Again</Text>
+          <CustomText style={styles.retryButtonText}>Check Again</CustomText>
         </TouchableOpacity>
-      </View>
+      </CustomView>
     );
   }
 
@@ -259,12 +266,18 @@ const SwipeableCards = () => {
   // Show empty state when no data is available
   if (!transformedData.length) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No content available</Text>
+      <CustomView style={styles.errorContainer}>
+        <CustomText style={styles.errorTitle}>
+          {`We are coming to your\narea soon! 🚀`}
+        </CustomText>
+        <CustomText style={styles.errorText}>
+          We don't have any content at your location currently, but we are
+          working hard to bring amazing experiences to you soon!
+        </CustomText>
         <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
-          <Text style={styles.retryButtonText}>Refresh</Text>
+          <CustomText style={styles.retryButtonText}>Check Again</CustomText>
         </TouchableOpacity>
-      </View>
+      </CustomView>
     );
   }
 
@@ -335,27 +348,47 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: "#f5f5f5",
   },
-  errorText: {
-    color: "#ff5252",
-    fontSize: 18,
-    marginBottom: 20,
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 16,
     textAlign: "center",
+  },
+  errorText: {
+    color: "#666",
+    fontSize: 16,
+    marginBottom: 30,
+    textAlign: "center",
+    lineHeight: 24,
+    paddingHorizontal: 20,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#f5f5f5",
+    padding: 20,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 16,
+    textAlign: "center",
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: 16,
     color: "#666",
-    marginBottom: 20,
+    marginBottom: 30,
+    textAlign: "center",
+    lineHeight: 24,
+    paddingHorizontal: 20,
   },
   retryButton: {
     backgroundColor: "#6C63FF",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
     borderRadius: 12,
     elevation: 2,
     shadowColor: "#000",

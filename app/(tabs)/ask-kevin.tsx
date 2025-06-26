@@ -4,16 +4,7 @@ import AskKevinSection from "@/components/Section/AskKevinSection";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import {
-  Dimensions,
-  StyleSheet,
-  Text,
-  View,
-  ScrollView,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
-  Platform,
-} from "react-native";
+import { StyleSheet, View } from "react-native";
 import MasonryGrid, { LikeItem } from "@/components/MansoryGrid";
 import { horizontalScale, verticalScale } from "@/utilities/scaling";
 import CustomText from "@/components/CustomText";
@@ -75,10 +66,8 @@ const PaginatedContentList = () => {
           }
         } catch (error) {
           console.log("Failed to get location, proceeding without it");
-          // Don't block initialization if location fails
         }
       }
-      // Always set initialized to true, whether we have location or not
       setLocationInitialized(true);
     };
     initLocation();
@@ -96,10 +85,10 @@ const PaginatedContentList = () => {
     refetch,
   } = useInfiniteContent({
     query: searchQuery,
-    latitude: location?.lat, // Will be undefined if no location permission
-    longitude: location?.lon, // Will be undefined if no location permission
+    latitude: location?.lat,
+    longitude: location?.lon,
     limit: 20,
-    enabled: locationInitialized, // Wait for location check to complete (not for location itself)
+    enabled: locationInitialized,
   });
 
   // Flatten all pages into single array
@@ -113,10 +102,7 @@ const PaginatedContentList = () => {
     id: item.id,
     title: item.title,
     category: item.category,
-    foodImage:
-      item.internalImageUrls && item.internalImageUrls.length > 0
-        ? item.internalImageUrls[0]
-        : PLACEHOLDER_IMAGE,
+    foodImage: item.internalImageUrls?.[0] || PLACEHOLDER_IMAGE,
     landscapeImage: "",
     hasIcon: true,
     contentShareUrl: item.contentShareUrl,
@@ -131,7 +117,7 @@ const PaginatedContentList = () => {
 
     debounceTimeoutRef.current = setTimeout(() => {
       if (text.trim() === "") {
-        setSearchQuery("cake"); // Reset to default
+        setSearchQuery("cake");
       }
     }, 500);
   }, []);
@@ -144,45 +130,17 @@ const PaginatedContentList = () => {
     setSearchQuery(message);
   }, []);
 
-  // Handle scroll for infinite loading
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const { layoutMeasurement, contentOffset, contentSize } =
-        event.nativeEvent;
+  // Clean infinite pagination handler
+  const handleLoadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-      // Use different thresholds for Android vs iOS
-      const paddingToBottom = Platform.OS === "android" ? 100 : 20;
-      const threshold = contentSize.height - paddingToBottom;
-      const currentPosition = layoutMeasurement.height + contentOffset.y;
-
-      // Check if user has scrolled to near the bottom
-      if (currentPosition >= threshold && hasNextPage && !isFetchingNextPage) {
-        fetchNextPage();
-      }
-    },
-    [hasNextPage, isFetchingNextPage, fetchNextPage]
-  );
-
-  // Alternative scroll handler for Android
-  const handleMomentumScrollEnd = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      if (Platform.OS === "android") {
-        const { layoutMeasurement, contentOffset, contentSize } =
-          event.nativeEvent;
-        const paddingToBottom = 50;
-
-        if (
-          layoutMeasurement.height + contentOffset.y >=
-            contentSize.height - paddingToBottom &&
-          hasNextPage &&
-          !isFetchingNextPage
-        ) {
-          fetchNextPage();
-        }
-      }
-    },
-    [hasNextPage, isFetchingNextPage, fetchNextPage]
-  );
+  // Clean refresh handler
+  const handleRefresh = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   // Bucket functionality handlers
   const handleBucketPress = useCallback((likeItemId?: string) => {
@@ -216,7 +174,6 @@ const PaginatedContentList = () => {
     [selectedLikeItemId, addBucketMutation]
   );
 
-  // Create bucket bottom sheet handlers
   const handleShowCreateBucketBottomSheet = useCallback(() => {
     setIsBucketBottomSheetVisible(false);
     setIsCreateBucketBottomSheetVisible(true);
@@ -244,7 +201,6 @@ const PaginatedContentList = () => {
     [selectedLikeItemId, createBucketMutation]
   );
 
-  // Handle item press - navigate to event details
   const handleItemPress = useCallback(
     (item: LikeItem) => {
       router.push(`/event-details/${item.id}`);
@@ -261,10 +217,12 @@ const PaginatedContentList = () => {
     };
   }, []);
 
-  // Loading state - show while initializing location check or first load
-  // Note: We wait for locationInitialized (not location itself) to ensure
-  // we've completed the permission check, then proceed with or without location
-  if (!locationInitialized || (isLoading && allItems.length === 0)) {
+  // Loading state
+  const isInitialLoading =
+    !locationInitialized || (isLoading && allItems.length === 0);
+  const isRefreshing = isLoading && !!data;
+
+  if (isInitialLoading) {
     return (
       <CustomView bgColor={colors.background} style={styles.container}>
         <AskKevinSection
@@ -313,23 +271,14 @@ const PaginatedContentList = () => {
               data={transformedData}
               onBucketPress={handleBucketPress}
               onItemPress={handleItemPress}
+              onLoadMore={handleLoadMore}
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
               showVerticalScrollIndicator={false}
-              onScroll={handleScroll}
-              // Add onMomentumScrollEnd for Android
-              {...(Platform.OS === "android" && {
-                onMomentumScrollEnd: handleMomentumScrollEnd,
-              })}
-              scrollEventThrottle={Platform.OS === "android" ? 16 : 400}
-              contentContainerStyle={[
-                styles.masonryContentContainer,
-                { paddingBottom: isFetchingNextPage ? 120 : 60 },
-              ]}
+              contentContainerStyle={styles.masonryContentContainer}
             />
-            {isFetchingNextPage && (
-              <View style={styles.loadMoreContainer}>
-                <AnimatedLoader customAnimationStyle={styles.loaderAnimation} />
-              </View>
-            )}
           </View>
         ) : (
           <CustomView style={styles.errorContainer}>
@@ -368,23 +317,12 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
   },
-  loaderAnimation: {
-    width: 80,
-    height: 80,
-  },
   contentContainer: {
     flex: 1,
   },
   masonryContentContainer: {
     marginTop: verticalScale(12),
     paddingHorizontal: horizontalScale(24),
-  },
-  loadMoreContainer: {
-    position: "absolute",
-    bottom: 10,
-    left: 0,
-    right: 0,
-    alignItems: "center",
   },
   errorContainer: {
     flex: 1,

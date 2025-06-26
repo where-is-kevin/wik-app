@@ -1,4 +1,4 @@
-// BucketBottomSheet.tsx - FIXED VERSION with null safety
+// BucketBottomSheet.tsx - FIXED VERSION with improved bucket fetching
 import React, { useMemo } from "react";
 import {
   View,
@@ -21,9 +21,9 @@ import {
 import { CustomBottomSheet } from "./CustomBottomSheet";
 import CustomTouchable from "../CustomTouchableOpacity";
 import CreateBucketPlus from "../SvgComponents/CreateBucketPlus";
-import { fetchBuckets, useBuckets } from "@/hooks/useBuckets";
+import { useBuckets } from "@/hooks/useBuckets";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { ScrollView } from "react-native-gesture-handler";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
 
@@ -54,20 +54,14 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
-  const jwt = authData?.accessToken;
 
-  // Fetch buckets data only when bottom sheet is visible
-  const { data: buckets, isLoading: bucketsLoading } = useQuery<any[], Error>({
-    queryKey: ["buckets"],
-    queryFn: () => {
-      // Your existing fetch logic
-      if (!jwt) throw new Error("No JWT found");
-      return fetchBuckets(jwt);
-    },
-    enabled: !!jwt && isVisible, // Only fetch when visible AND authenticated
-    staleTime: 5000,
-  });
+  // Use the existing useBuckets hook instead of manual useQuery
+  const {
+    data: buckets,
+    isLoading: bucketsLoading,
+    error: bucketsError,
+    refetch: refetchBuckets,
+  } = useBuckets();
 
   // Placeholder image for buckets without images
   const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
@@ -97,6 +91,14 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
         !Array.isArray(firstContent.internalImageUrls) ||
         firstContent.internalImageUrls.length === 0
       ) {
+        // Fallback to googlePlacesImageUrl if available
+        if (
+          firstContent.googlePlacesImageUrl &&
+          typeof firstContent.googlePlacesImageUrl === "string" &&
+          firstContent.googlePlacesImageUrl.trim() !== ""
+        ) {
+          return firstContent.googlePlacesImageUrl;
+        }
         return PLACEHOLDER_IMAGE;
       }
 
@@ -117,20 +119,46 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
 
   // Transform buckets data to BucketItem format with null safety
   const bucketItems = useMemo(() => {
-    // Early return if buckets is null, undefined, or not an array
-    if (!buckets || !Array.isArray(buckets) || buckets.length === 0) {
+    // Handle InfiniteData structure from React Query infinite query
+    let bucketsArray: any[] = [];
+
+    if (buckets?.pages) {
+      // InfiniteData structure: { pages: [{ items: [...] }, { items: [...] }], pageParams: [...] }
+      bucketsArray = buckets.pages.flatMap((page: any) => {
+        if (page?.items && Array.isArray(page.items)) {
+          return page.items;
+        }
+        return [];
+      });
+    } else if (
+      (buckets as any)?.items &&
+      Array.isArray((buckets as any).items)
+    ) {
+      // Direct paginated response: { items: [...], limit: 20, offset: 0, total: 13 }
+      bucketsArray = (buckets as any).items;
+    } else if (Array.isArray(buckets)) {
+      // Legacy structure: direct array
+      bucketsArray = buckets as any[];
+    } else {
+      return [];
+    }
+
+    if (!bucketsArray.length) {
       return [];
     }
 
     try {
-      return buckets
-        .filter((bucket) => bucket && typeof bucket === "object") // Filter out null/undefined items
+      return bucketsArray
+        .filter((bucket: any) => bucket && typeof bucket === "object") // Filter out null/undefined items
         .map((bucket: any) => {
           // Ensure required properties exist with fallbacks
           const id = bucket?.id || `bucket-${Math.random()}`;
-          const title = bucket?.bucketName || "Untitled Bucket";
+          const title =
+            bucket?.bucketName || bucket?.title || "Untitled Bucket";
           const contentIds = Array.isArray(bucket?.contentIds)
             ? bucket.contentIds
+            : Array.isArray(bucket?.content)
+            ? bucket.content.map((item: any) => item?.id).filter(Boolean)
             : [];
 
           return {
@@ -237,6 +265,31 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
       return (
         <CustomView style={styles.loadingContainer}>
           <AnimatedLoader />
+        </CustomView>
+      );
+    }
+
+    // Handle error state
+    if (bucketsError) {
+      return (
+        <CustomView style={styles.errorContainer}>
+          <CustomText
+            style={[
+              styles.errorText,
+              { color: colors?.label_dark || "#FF5252" },
+            ]}
+          >
+            Failed to load buckets
+          </CustomText>
+          <TouchableOpacity
+            style={[
+              styles.retryButton,
+              { backgroundColor: colors.light_blue || "#6C63FF" },
+            ]}
+            onPress={() => refetchBuckets()}
+          >
+            <CustomText style={styles.retryButtonText}>Try Again</CustomText>
+          </TouchableOpacity>
         </CustomView>
       );
     }
@@ -413,5 +466,27 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: scaleFontSize(14),
     textAlign: "center",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: verticalScale(40),
+    paddingHorizontal: 24,
+  },
+  errorText: {
+    fontSize: scaleFontSize(14),
+    textAlign: "center",
+    marginBottom: verticalScale(16),
+  },
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "white",
+    fontSize: scaleFontSize(14),
+    fontWeight: "600",
   },
 });

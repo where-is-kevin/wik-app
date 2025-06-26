@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useInfiniteQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import Constants from "expo-constants";
 import { firstValueFrom } from "rxjs";
 import { ajax } from "rxjs/ajax";
@@ -8,51 +13,69 @@ type Content = {
   id: string;
   category: string;
   title: string;
-  rating: number;
-  price: string;
-  phone: string;
-  latitude: number;
-  longitude: number;
-  googleMapsUrl: string;
-  googlePlacesImageUrl: string;
-  internalImages: string[] | [];
-  bookingUrl: string;
-  websiteUrl: string;
-  websiteScrape: string;
-  description: string;
-  descriptionGeminiEmbedding: number[];
-  descriptionMinilmEmbedding: number[];
-  reviews: string;
-  reviewsGeminiEmbedding: number[];
-  tags: string;
+  rating?: number;
+  price?: string;
+  phone?: string;
+  latitude?: number;
+  longitude?: number;
+  googleMapsUrl?: string;
+  googlePlacesImageUrl?: string;
+  internalImageUrls?: string[];
+  bookingUrl?: string;
+  websiteUrl?: string;
+  websiteScrape?: string;
+  description?: string;
+  descriptionGeminiEmbedding?: number[];
+  descriptionMinilmEmbedding?: number[];
+  reviews?: string;
+  reviewsGeminiEmbedding?: number[];
+  tags?: string;
   createdAt: string;
   updatedAt: string;
+  contentShareUrl?: string;
+  image?: string; // fallback image property
 };
 
 type Bucket = {
   id: string;
+  bucketId: string;
   userId: string;
   bucketName: string;
   contentIds: string[];
   content: Content[];
+  bucketShareUrl?: string;
+};
+
+// Paginated response structure
+type PaginatedResponse<T> = {
+  items: T[];
+  limit: number;
+  offset: number;
+  total: number;
 };
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
 
-// Fetch buckets function with search
+// Fetch buckets function with pagination
 export const fetchBuckets = async (
   jwt: string,
-  searchQuery?: string
-): Promise<Bucket[]> => {
+  pageParam: number = 0,
+  searchQuery?: string,
+  limit: number = 20
+): Promise<PaginatedResponse<Bucket>> => {
   try {
-    // Build URL with search parameter if provided
-    let url = `${API_URL}/buckets`;
+    const params = new URLSearchParams({
+      offset: pageParam.toString(),
+      limit: limit.toString(),
+    });
+
     if (searchQuery && searchQuery.trim()) {
-      const params = new URLSearchParams({ query: searchQuery.trim() });
-      url += `?${params.toString()}`;
+      params.append("query", searchQuery.trim());
     }
 
-    const observable$ = ajax<Bucket[]>({
+    const url = `${API_URL}/buckets?${params.toString()}`;
+
+    const observable$ = ajax<PaginatedResponse<Bucket>>({
       url,
       method: "GET",
       headers: {
@@ -70,47 +93,14 @@ export const fetchBuckets = async (
   }
 };
 
-// Fetch likes function with search (assuming similar API structure)
-const fetchLikes = async (
-  jwt: string,
-  searchQuery?: string
-): Promise<Content[]> => {
-  try {
-    // Build URL with search parameter if provided
-    let url = `${API_URL}/likes`;
-    if (searchQuery && searchQuery.trim()) {
-      const params = new URLSearchParams({ query: searchQuery.trim() });
-      url += `?${params.toString()}`;
-    }
-
-    const observable$ = ajax<Content[]>({
-      url,
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${jwt}`,
-        accept: "application/json",
-      },
-      responseType: "json",
-    });
-
-    const response = await firstValueFrom(observable$);
-    return response.response;
-  } catch (error) {
-    console.error("Error fetching likes:", error);
-    throw error;
-  }
-};
-
 const fetchBucketById = async (
   bucketId: string,
   jwt: string,
   searchQuery?: string
 ): Promise<Bucket> => {
   try {
-    // Construct the base URL
     let url = `${API_URL}/buckets/${bucketId}`;
 
-    // Add search query as URL parameter if provided
     if (searchQuery && searchQuery.trim()) {
       const params = new URLSearchParams({ query: searchQuery.trim() });
       url += `?${params.toString()}`;
@@ -182,45 +172,37 @@ const createBucket = async (
   await firstValueFrom(observable$);
 };
 
-// Custom hook for fetching buckets with search
-export function useBuckets(searchQuery?: string, enabled: boolean = true) {
+// Custom hook for fetching buckets with infinite pagination
+export function useBuckets(
+  searchQuery?: string,
+  enabled: boolean = true,
+  limit: number = 20
+) {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken;
 
-  // Use empty string as default to ensure consistent caching
   const normalizedSearchQuery = searchQuery?.trim() || "";
 
-  return useQuery<Bucket[], Error>({
-    queryKey: ["buckets", normalizedSearchQuery],
-    queryFn: () => {
+  return useInfiniteQuery<PaginatedResponse<Bucket>, Error>({
+    queryKey: ["buckets", normalizedSearchQuery, limit],
+    queryFn: ({ pageParam = 0 }) => {
       if (!jwt) throw new Error("No JWT found");
-      return fetchBuckets(jwt, normalizedSearchQuery || undefined);
+      return fetchBuckets(
+        jwt,
+        pageParam as number,
+        normalizedSearchQuery || undefined,
+        limit
+      );
     },
     enabled: !!jwt && enabled,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes (previously cacheTime)
-  });
-}
-
-// Custom hook for fetching likes with search
-export function useLikes(searchQuery?: string, enabled: boolean = true) {
-  const queryClient = useQueryClient();
-  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
-  const jwt = authData?.accessToken;
-
-  // Use empty string as default to ensure consistent caching
-  const normalizedSearchQuery = searchQuery?.trim() || "";
-
-  return useQuery<Content[], Error>({
-    queryKey: ["likes", normalizedSearchQuery],
-    queryFn: () => {
-      if (!jwt) throw new Error("No JWT found");
-      return fetchLikes(jwt, normalizedSearchQuery || undefined);
+    getNextPageParam: (lastPage) => {
+      const nextOffset = lastPage.offset + lastPage.items.length;
+      return nextOffset < lastPage.total ? nextOffset : undefined;
     },
-    enabled: !!jwt && enabled,
+    initialPageParam: 0,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes (previously cacheTime)
+    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 }
 

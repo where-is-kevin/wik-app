@@ -22,8 +22,28 @@ const ProfileScreen = () => {
   const router = useRouter();
 
   const { data: user, isLoading } = useUser();
-  const { data: likes, isLoading: likesLoading } = useLikes();
-  const { data: buckets, isLoading: bucketsLoading } = useBuckets();
+  const { data: likesData, isLoading: likesLoading } = useLikes(
+    undefined,
+    true,
+    10
+  ); // Limit to 10 likes
+
+  const { data: bucketsData, isLoading: bucketsLoading } = useBuckets(
+    undefined,
+    true,
+    10
+  ); // Limit to 10 buckets
+
+  // Flatten the paginated data
+  const buckets = useMemo(() => {
+    if (!bucketsData?.pages) return [];
+    return bucketsData.pages.flatMap((page) => page.items);
+  }, [bucketsData]);
+
+  const likes = useMemo(() => {
+    if (!likesData?.pages) return [];
+    return likesData.pages.flatMap((page) => page.items);
+  }, [likesData]);
 
   const hasBucketsContent = bucketsHaveContent(buckets || []);
   const hasLikesContent = likesHaveContent(likes || []);
@@ -77,7 +97,7 @@ const ProfileScreen = () => {
   const transformedLikesData = useMemo(() => {
     if (!likes || likes.length === 0) return [];
 
-    return likes.slice(0, 10).map((like: any) => {
+    return likes.map((like: any) => {
       // Use internal image first, then fallback to google places image, then placeholder
       let image = PLACEHOLDER_IMAGE;
       if (like.internalImageUrls && like.internalImageUrls.length > 0) {

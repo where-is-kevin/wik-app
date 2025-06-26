@@ -1,39 +1,82 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import Constants from 'expo-constants';
-import { firstValueFrom } from 'rxjs';
-import { ajax } from 'rxjs/ajax';
+import {
+  useMutation,
+  useInfiniteQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import Constants from "expo-constants";
+import { firstValueFrom } from "rxjs";
+import { ajax } from "rxjs/ajax";
 
-type Like = {
+type Content = {
   id: string;
-  userId: string;
-  content: Array<{
-    id: string;
-    title: string;
-    description: string;
-    imageUrl: string;
-  }>;
+  category: string;
+  title: string;
+  rating?: number;
+  price?: string;
+  phone?: string;
+  latitude?: number;
+  longitude?: number;
+  googleMapsUrl?: string;
+  googlePlacesImageUrl?: string;
+  internalImageUrls?: string[];
+  bookingUrl?: string;
+  websiteUrl?: string;
+  websiteScrape?: string;
+  description?: string;
+  descriptionGeminiEmbedding?: number[];
+  descriptionMinilmEmbedding?: number[];
+  reviews?: string;
+  reviewsGeminiEmbedding?: number[];
+  tags?: string;
   createdAt: string;
+  updatedAt: string;
+  contentShareUrl?: string;
+  image?: string; // fallback image property
+};
+
+// Paginated response structure
+type PaginatedResponse<T> = {
+  items: T[];
+  limit: number;
+  offset: number;
+  total: number;
 };
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
 
-// Fetch likes function
-const fetchLikes = async (jwt: string): Promise<Like[]> => {
+// Fetch likes function with pagination
+const fetchLikes = async (
+  jwt: string,
+  pageParam: number = 0,
+  searchQuery?: string,
+  limit: number = 20
+): Promise<PaginatedResponse<Content>> => {
   try {
-    const observable$ = ajax<Like[]>({
-      url: `${API_URL}/likes`,
-      method: 'GET',
+    const params = new URLSearchParams({
+      offset: pageParam.toString(),
+      limit: limit.toString(),
+    });
+
+    if (searchQuery && searchQuery.trim()) {
+      params.append("query", searchQuery.trim());
+    }
+
+    const url = `${API_URL}/likes?${params.toString()}`;
+
+    const observable$ = ajax<PaginatedResponse<Content>>({
+      url,
+      method: "GET",
       headers: {
         Authorization: `Bearer ${jwt}`,
-        accept: 'application/json',
+        accept: "application/json",
       },
-      responseType: 'json',
+      responseType: "json",
     });
 
     const response = await firstValueFrom(observable$);
     return response.response;
   } catch (error) {
-    console.error("Error fetching likes:", error); // Log any errors
+    console.error("Error fetching likes:", error);
     throw error;
   }
 };
@@ -46,48 +89,66 @@ type AddLikeInput = {
 const addLike = async (input: AddLikeInput, jwt: string): Promise<void> => {
   const observable$ = ajax<void>({
     url: `${API_URL}/likes/add`,
-    method: 'POST',
+    method: "POST",
     headers: {
-      accept: 'application/json',
-      'Content-Type': 'application/json',
+      accept: "application/json",
+      "Content-Type": "application/json",
       Authorization: `Bearer ${jwt}`,
     },
     body: JSON.stringify(input),
-    responseType: 'json',
+    responseType: "json",
   });
 
   await firstValueFrom(observable$);
 };
 
-// Custom hook for fetching likes
-export function useLikes() {
+// Custom hook for fetching likes with infinite pagination
+export function useLikes(
+  searchQuery?: string,
+  enabled: boolean = true,
+  limit: number = 20
+) {
   const queryClient = useQueryClient();
-  const authData = queryClient.getQueryData<{ accessToken?: string }>(['auth']);
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken;
 
-  return useQuery<Like[], Error>({
-    queryKey: ['likes'],
-    queryFn: () => {
-      if (!jwt) throw new Error('No JWT found');
-      return fetchLikes(jwt);
+  const normalizedSearchQuery = searchQuery?.trim() || "";
+
+  return useInfiniteQuery<PaginatedResponse<Content>, Error>({
+    queryKey: ["likes", normalizedSearchQuery, limit],
+    queryFn: ({ pageParam = 0 }) => {
+      if (!jwt) throw new Error("No JWT found");
+      return fetchLikes(
+        jwt,
+        pageParam as number,
+        normalizedSearchQuery || undefined,
+        limit
+      );
     },
-    enabled: !!jwt, // Only run if JWT is present
+    enabled: !!jwt && enabled,
+    getNextPageParam: (lastPage) => {
+      const nextOffset = lastPage.offset + lastPage.items.length;
+      return nextOffset < lastPage.total ? nextOffset : undefined;
+    },
+    initialPageParam: 0,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 }
 
 // Custom hook for adding a like
 export function useAddLike() {
   const queryClient = useQueryClient();
-  const authData = queryClient.getQueryData<{ accessToken?: string }>(['auth']);
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken;
 
   return useMutation({
     mutationFn: (input: AddLikeInput) => {
-      if (!jwt) throw new Error('No JWT found');
+      if (!jwt) throw new Error("No JWT found");
       return addLike(input, jwt);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["likes"] }); // Refresh likes data
+      queryClient.invalidateQueries({ queryKey: ["likes"] });
     },
   });
 }
