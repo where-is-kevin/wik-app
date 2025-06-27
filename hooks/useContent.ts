@@ -244,15 +244,24 @@ export function useContentWithParams(params: ContentParams | null) {
   });
 }
 
-// Individual content by ID (EventDetailsScreen) - JWT optional
 export function useContentById(contentId: string) {
   const queryClient = useQueryClient();
+
   const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
+
   const jwt = authData?.accessToken || null;
 
   return useQuery<Content, Error>({
-    queryKey: ["content", "byId", contentId, !!jwt], // Include JWT status in query key
-    queryFn: () => fetchContentById(contentId, jwt),
+    queryKey: ["content", "byId", contentId, !!jwt],
+    queryFn: () => {
+      const freshAuthData = queryClient.getQueryData<{ accessToken?: string }>([
+        "auth",
+      ]);
+      const freshJwt = freshAuthData?.accessToken || null;
+      return fetchContentById(contentId, freshJwt);
+    },
     enabled: !!API_URL && !!contentId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
