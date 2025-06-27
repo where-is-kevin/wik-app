@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useMemo } from "react";
 import {
   StyleSheet,
   View,
@@ -31,6 +31,9 @@ const SWIPE_UP_THRESHOLD = 0.25 * SCREEN_HEIGHT;
 const SWIPE_OUT_DURATION = 250;
 const TAP_DURATION_THRESHOLD = 200;
 
+// Limit the number of cards rendered at once
+const MAX_RENDERED_CARDS = 3;
+
 interface CardData {
   id: string;
   title: string;
@@ -54,368 +57,18 @@ interface SwipeCardsProps {
   hideBucketsButton?: boolean;
 }
 
-export const SwipeCards: React.FC<SwipeCardsProps> = ({
-  data,
-  onSwipeLeft,
-  onSwipeRight,
-  onSwipeUp,
-  onComplete,
-  onCardTap,
-  onBucketPress,
-  hideBucketsButton = false,
-}) => {
-  const { colors } = useTheme();
-  const router = useRouter();
-  const [cardIndex, setCardIndex] = React.useState(0);
-  const [imageLoaded, setImageLoaded] = useState<{ [key: string]: boolean }>(
-    {}
-  );
-  const position = useRef(new Animated.ValueXY()).current;
-
-  // Animation values for feedback
-  const feedbackOpacity = useRef(new Animated.Value(0)).current;
-  const feedbackScale = useRef(new Animated.Value(0.8)).current;
-
-  // Track current swipe direction for showing appropriate feedback image
-  const [currentSwipeDirection, setCurrentSwipeDirection] = useState<
-    "left" | "right" | "up" | null
-  >(null);
-
-  // Track touch start time and position to distinguish between tap and swipe
-  const touchStartTime = useRef<number>(0);
-  const touchStartPosition = useRef({ x: 0, y: 0 });
-
-  // Store the current card being interacted with at the start of gesture
-  const currentGestureCard = useRef<CardData | null>(null);
-
-  // Local placeholder image
-  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
-
-  // Feedback images
-  const APPROVE_IMAGE = require("@/assets/images/approve.png");
-  const CANCEL_IMAGE = require("@/assets/images/cancel.png");
-  const ARROW_UP = require("@/assets/images/arrow-up.png");
-
-  // Helper function to validate image URLs
-  const getValidImageUrl = useCallback((imageUrl: string): string | null => {
-    if (typeof imageUrl === "string" && imageUrl.trim() !== "") {
-      return imageUrl;
-    }
-    return null;
-  }, []);
-
-  // Helper function to update feedback opacity based on gesture distance
-  const updateFeedbackOpacity = useCallback(
-    (gesture: { dx: number; dy: number }) => {
-      const absDx = Math.abs(gesture.dx);
-      const absDy = Math.abs(gesture.dy);
-
-      // Calculate the strongest direction and its opacity
-      let maxOpacity = 0;
-      let direction: "left" | "right" | "up" | null = null;
-
-      if (gesture.dx > 0 && gesture.dx > absDy) {
-        // Right swipe
-        maxOpacity = Math.min(gesture.dx / 150, 1);
-        direction = "right";
-      } else if (gesture.dx < 0 && absDx > absDy) {
-        // Left swipe
-        maxOpacity = Math.min(absDx / 150, 1);
-        direction = "left";
-      } else if (gesture.dy < 0 && absDy > absDx) {
-        // Up swipe
-        maxOpacity = Math.min(absDy / 150, 1);
-        direction = "up";
-      }
-
-      setCurrentSwipeDirection(direction);
-      feedbackOpacity.setValue(maxOpacity);
-      feedbackScale.setValue(maxOpacity > 0 ? 1 : 0.8);
-    },
-    [feedbackOpacity, feedbackScale]
-  );
-
-  // Helper function to immediately hide all feedback
-  const hideAllFeedback = useCallback(() => {
-    feedbackOpacity.setValue(0);
-    feedbackScale.setValue(0.8);
-    setCurrentSwipeDirection(null);
-  }, [feedbackOpacity, feedbackScale]);
-
-  // Early return if no data
-  if (!data || data.length === 0) {
-    return (
-      <View style={styles.emptyCardsContainer}>
-        <AnimatedLoader />
-      </View>
-    );
-  }
-
-  const rotate = position.x.interpolate({
-    inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
-    outputRange: ["-10deg", "0deg", "10deg"],
-    extrapolate: "clamp",
-  });
-
-  const scaleUp = position.y.interpolate({
-    inputRange: [-SCREEN_HEIGHT / 4, 0],
-    outputRange: [0.8, 1],
-    extrapolate: "clamp",
-  });
-
-  const nextCardOpacity = position.x.interpolate({
-    inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
-    outputRange: [1, 0.5, 1],
-    extrapolate: "clamp",
-  });
-
-  const nextCardScale = position.x.interpolate({
-    inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
-    outputRange: [1, 0.9, 1],
-    extrapolate: "clamp",
-  });
-
-  const handleCardTap = useCallback(
-    (item: CardData) => {
-      if (onCardTap) {
-        onCardTap(item);
-      } else {
-        router.push(`/event-details/${item.id}`);
-      }
-    },
-    [onCardTap, router]
-  );
-
-  const handleImageLoad = useCallback((itemId: string) => {
-    setImageLoaded((prev) => ({ ...prev, [itemId]: true }));
-  }, []);
-
-  const handleImageError = useCallback((itemId: string) => {
-    setImageLoaded((prev) => ({ ...prev, [itemId]: true }));
-  }, []);
-
-  const forceSwipe = useCallback(
-    (direction: "left" | "right" | "up") => {
-      const x =
-        direction === "right"
-          ? SCREEN_WIDTH
-          : direction === "left"
-          ? -SCREEN_WIDTH
-          : 0;
-      const y = direction === "up" ? -SCREEN_HEIGHT : 0;
-
-      Animated.timing(position, {
-        toValue: { x, y },
-        duration: SWIPE_OUT_DURATION,
-        useNativeDriver: false,
-      }).start(() => onSwipeComplete(direction));
-    },
-    [position]
-  );
-
-  const resetPosition = useCallback(() => {
-    Animated.spring(position, {
-      toValue: { x: 0, y: 0 },
-      friction: 4,
-      useNativeDriver: false,
-    }).start();
-    hideAllFeedback();
-    currentGestureCard.current = null;
-  }, [position, hideAllFeedback]);
-
-  const onSwipeComplete = useCallback(
-    (direction: "left" | "right" | "up") => {
-      hideAllFeedback();
-
-      if (!data || data.length === 0) {
-        return;
-      }
-
-      // Use the gesture card if available, fallback to cardIndex
-      let item: CardData | null = null;
-
-      if (currentGestureCard.current) {
-        item = currentGestureCard.current;
-      } else if (cardIndex < data.length) {
-        item = data[cardIndex];
-      }
-
-      if (!item) {
-        return;
-      }
-
-      try {
-        if (direction === "right") {
-          onSwipeRight(item);
-        } else if (direction === "left") {
-          onSwipeLeft(item);
-        } else if (direction === "up") {
-          onSwipeUp(item);
-        }
-      } catch (error) {
-        // Handle error silently
-      }
-
-      // Clear the gesture card after processing
-      currentGestureCard.current = null;
-
-      if (direction === "up") {
-        setTimeout(() => {
-          position.setValue({ x: 0, y: 0 });
-          hideAllFeedback();
-        }, 100);
-      } else {
-        setCardIndex((prevIndex) => {
-          const nextIndex = prevIndex + 1;
-
-          if (nextIndex >= data.length) {
-            setTimeout(() => {
-              position.setValue({ x: 0, y: 0 });
-              hideAllFeedback();
-              onComplete();
-            }, 300);
-          } else {
-            setTimeout(() => {
-              position.setValue({ x: 0, y: 0 });
-              hideAllFeedback();
-            }, 100);
-          }
-
-          return nextIndex;
-        });
-      }
-    },
-    [
-      data,
-      cardIndex,
-      onSwipeRight,
-      onSwipeLeft,
-      onSwipeUp,
-      onComplete,
-      position,
-      hideAllFeedback,
-    ]
-  );
-
-  const createPanResponder = useCallback(
-    (item: CardData, isCurrentCard: boolean) => {
-      return PanResponder.create({
-        onStartShouldSetPanResponder: () => isCurrentCard && data.length > 0,
-        onPanResponderGrant: (evt) => {
-          // Store the exact card being touched
-          currentGestureCard.current = item;
-          touchStartTime.current = Date.now();
-          touchStartPosition.current = {
-            x: evt.nativeEvent.locationX,
-            y: evt.nativeEvent.locationY,
-          };
-        },
-        onPanResponderMove: (event, gesture) => {
-          if (isCurrentCard) {
-            position.setValue({ x: gesture.dx, y: gesture.dy });
-            updateFeedbackOpacity(gesture);
-          }
-        },
-        onPanResponderRelease: (event, gesture) => {
-          const touchDuration = Date.now() - touchStartTime.current;
-          const distanceMoved = Math.sqrt(
-            Math.pow(gesture.dx, 2) + Math.pow(gesture.dy, 2)
-          );
-
-          if (!data || data.length === 0) {
-            resetPosition();
-            return;
-          }
-
-          const gestureCard = currentGestureCard.current;
-          if (!gestureCard) {
-            resetPosition();
-            return;
-          }
-
-          if (touchDuration < TAP_DURATION_THRESHOLD && distanceMoved < 10) {
-            handleCardTap(gestureCard);
-            resetPosition();
-            hideAllFeedback();
-            return;
-          }
-
-          if (isCurrentCard) {
-            if (gesture.dx > SWIPE_THRESHOLD) {
-              forceSwipe("right");
-            } else if (gesture.dx < -SWIPE_THRESHOLD) {
-              forceSwipe("left");
-            } else if (gesture.dy < -SWIPE_UP_THRESHOLD) {
-              forceSwipe("up");
-            } else {
-              resetPosition();
-              hideAllFeedback();
-            }
-          } else {
-            resetPosition();
-            hideAllFeedback();
-          }
-        },
-      });
-    },
-    [
-      data,
-      cardIndex,
-      handleCardTap,
-      updateFeedbackOpacity,
-      hideAllFeedback,
-      resetPosition,
-      forceSwipe,
-    ]
-  );
-
-  // Function to get the appropriate feedback image based on swipe direction
-  const getFeedbackImage = () => {
-    switch (currentSwipeDirection) {
-      case "right":
-        return APPROVE_IMAGE;
-      case "left":
-        return CANCEL_IMAGE;
-      case "up":
-        return ARROW_UP;
-      default:
-        return APPROVE_IMAGE;
-    }
-  };
-
-  const renderSwipeFeedback = () => {
-    if (!currentSwipeDirection) return null;
-
-    const feedbackImage = getFeedbackImage();
-    if (!feedbackImage) return null;
-
-    return (
-      <Animated.View
-        style={[
-          styles.swipeFeedbackCenter,
-          {
-            opacity: feedbackOpacity,
-            transform: [{ scale: feedbackScale }],
-          },
-        ]}
-      >
-        <Image
-          source={feedbackImage}
-          style={styles.feedbackImage}
-          resizeMode="contain"
-        />
-      </Animated.View>
-    );
-  };
-
-  // Helper function to render content overlay based on sponsored status
-  const renderContentOverlay = (item: CardData) => {
+// Memoized card overlay component to prevent unnecessary re-renders
+const CardContentOverlay = React.memo<{
+  item: CardData;
+  colors: any;
+  onBucketPress?: (value: string) => void;
+  hideBucketsButton?: boolean;
+}>(({ item, colors, onBucketPress, hideBucketsButton }) => {
+  const renderContentOverlay = () => {
     if (item.isSponsored) {
-      // Sponsored design - solid background instead of gradient
       return (
         <View style={styles.sponsoredOverlay}>
           <View style={styles.cardContent}>
-            {/* Category and Sponsored tags */}
             <View style={styles.tagsContainer}>
               {item.category && (
                 <CategoryTag
@@ -474,7 +127,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
         </View>
       );
     } else {
-      // Regular design - gradient overlay
       return (
         <LinearGradient
           colors={["transparent", "rgba(0,0,0,0.3)", "rgba(0,0,0,0.8)"]}
@@ -530,6 +182,393 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     }
   };
 
+  return (
+    <>
+      {/* Share/Bucket buttons */}
+      <CustomView bgColor={colors.overlay} style={styles.shareContainer}>
+        <CustomView bgColor={colors.overlay} style={styles.row}>
+          {!hideBucketsButton && (
+            <CustomTouchable
+              style={styles.bucketContainer}
+              bgColor={colors.label_dark}
+              onPress={() => onBucketPress?.(item.id)}
+            >
+              <BucketSvg />
+            </CustomTouchable>
+          )}
+          <CustomTouchable
+            bgColor={colors.onboarding_gray}
+            style={styles.shareButton}
+          >
+            <ShareButton
+              width={14}
+              height={14}
+              title={""}
+              message={`Check out this bucket: `}
+              url={item.contentShareUrl || ""}
+            />
+          </CustomTouchable>
+        </CustomView>
+      </CustomView>
+      {renderContentOverlay()}
+    </>
+  );
+});
+
+export const SwipeCards: React.FC<SwipeCardsProps> = ({
+  data,
+  onSwipeLeft,
+  onSwipeRight,
+  onSwipeUp,
+  onComplete,
+  onCardTap,
+  onBucketPress,
+  hideBucketsButton = false,
+}) => {
+  const { colors } = useTheme();
+  const router = useRouter();
+  const [cardIndex, setCardIndex] = React.useState(0);
+  const [imageLoaded, setImageLoaded] = useState<{ [key: string]: boolean }>(
+    {}
+  );
+
+  // Use native driver for better performance
+  const position = useRef(new Animated.ValueXY()).current;
+  const feedbackOpacity = useRef(new Animated.Value(0)).current;
+  const feedbackScale = useRef(new Animated.Value(0.8)).current;
+
+  const [currentSwipeDirection, setCurrentSwipeDirection] = useState<
+    "left" | "right" | "up" | null
+  >(null);
+
+  const touchStartTime = useRef<number>(0);
+  const touchStartPosition = useRef({ x: 0, y: 0 });
+  const currentGestureCard = useRef<CardData | null>(null);
+
+  // Memoize static assets
+  const PLACEHOLDER_IMAGE = useMemo(
+    () => require("@/assets/images/placeholder-bucket.png"),
+    []
+  );
+  const APPROVE_IMAGE = useMemo(
+    () => require("@/assets/images/approve.png"),
+    []
+  );
+  const CANCEL_IMAGE = useMemo(() => require("@/assets/images/cancel.png"), []);
+  const ARROW_UP = useMemo(() => require("@/assets/images/arrow-up.png"), []);
+
+  // Memoize the visible cards data to prevent unnecessary re-renders
+  const visibleCards = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    const endIndex = Math.min(cardIndex + MAX_RENDERED_CARDS, data.length);
+    return data.slice(cardIndex, endIndex);
+  }, [data, cardIndex]);
+
+  // Memoize interpolations to prevent recreation on every render
+  const animatedValues = useMemo(
+    () => ({
+      rotate: position.x.interpolate({
+        inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+        outputRange: ["-10deg", "0deg", "10deg"],
+        extrapolate: "clamp",
+      }),
+      scaleUp: position.y.interpolate({
+        inputRange: [-SCREEN_HEIGHT / 4, 0],
+        outputRange: [0.8, 1],
+        extrapolate: "clamp",
+      }),
+      nextCardOpacity: position.x.interpolate({
+        inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+        outputRange: [1, 0.5, 1],
+        extrapolate: "clamp",
+      }),
+      nextCardScale: position.x.interpolate({
+        inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+        outputRange: [1, 0.9, 1],
+        extrapolate: "clamp",
+      }),
+    }),
+    [position]
+  );
+
+  const getValidImageUrl = useCallback((imageUrl: string): string | null => {
+    if (typeof imageUrl === "string" && imageUrl.trim() !== "") {
+      return imageUrl;
+    }
+    return null;
+  }, []);
+
+  // Optimized feedback update with debouncing
+  const updateFeedbackOpacity = useCallback(
+    (gesture: { dx: number; dy: number }) => {
+      const absDx = Math.abs(gesture.dx);
+      const absDy = Math.abs(gesture.dy);
+
+      let maxOpacity = 0;
+      let direction: "left" | "right" | "up" | null = null;
+
+      if (gesture.dx > 0 && gesture.dx > absDy) {
+        maxOpacity = Math.min(gesture.dx / 150, 1);
+        direction = "right";
+      } else if (gesture.dx < 0 && absDx > absDy) {
+        maxOpacity = Math.min(absDx / 150, 1);
+        direction = "left";
+      } else if (gesture.dy < 0 && absDy > absDx) {
+        maxOpacity = Math.min(absDy / 150, 1);
+        direction = "up";
+      }
+
+      // Only update if direction changed to reduce state updates
+      if (currentSwipeDirection !== direction) {
+        setCurrentSwipeDirection(direction);
+      }
+
+      feedbackOpacity.setValue(maxOpacity);
+      feedbackScale.setValue(maxOpacity > 0 ? 1 : 0.8);
+    },
+    [feedbackOpacity, feedbackScale, currentSwipeDirection]
+  );
+
+  const hideAllFeedback = useCallback(() => {
+    feedbackOpacity.setValue(0);
+    feedbackScale.setValue(0.8);
+    setCurrentSwipeDirection(null);
+  }, [feedbackOpacity, feedbackScale]);
+
+  const handleCardTap = useCallback(
+    (item: CardData) => {
+      if (onCardTap) {
+        onCardTap(item);
+      } else {
+        router.push(`/event-details/${item.id}`);
+      }
+    },
+    [onCardTap, router]
+  );
+
+  const handleImageLoad = useCallback((itemId: string) => {
+    setImageLoaded((prev) => ({ ...prev, [itemId]: true }));
+  }, []);
+
+  const handleImageError = useCallback((itemId: string) => {
+    setImageLoaded((prev) => ({ ...prev, [itemId]: true }));
+  }, []);
+
+  const forceSwipe = useCallback(
+    (direction: "left" | "right" | "up") => {
+      const x =
+        direction === "right"
+          ? SCREEN_WIDTH
+          : direction === "left"
+          ? -SCREEN_WIDTH
+          : 0;
+      const y = direction === "up" ? -SCREEN_HEIGHT : 0;
+
+      Animated.timing(position, {
+        toValue: { x, y },
+        duration: SWIPE_OUT_DURATION,
+        useNativeDriver: true, // Use native driver for better performance
+      }).start(() => onSwipeComplete(direction));
+    },
+    [position]
+  );
+
+  const resetPosition = useCallback(() => {
+    Animated.spring(position, {
+      toValue: { x: 0, y: 0 },
+      friction: 4,
+      useNativeDriver: true, // Use native driver
+    }).start();
+    hideAllFeedback();
+    currentGestureCard.current = null;
+  }, [position, hideAllFeedback]);
+
+  const onSwipeComplete = useCallback(
+    (direction: "left" | "right" | "up") => {
+      hideAllFeedback();
+
+      if (!data || data.length === 0) return;
+
+      let item: CardData | null = null;
+
+      if (currentGestureCard.current) {
+        item = currentGestureCard.current;
+      } else if (cardIndex < data.length) {
+        item = data[cardIndex];
+      }
+
+      if (!item) return;
+
+      try {
+        if (direction === "right") {
+          onSwipeRight(item);
+        } else if (direction === "left") {
+          onSwipeLeft(item);
+        } else if (direction === "up") {
+          onSwipeUp(item);
+        }
+      } catch (error) {
+        console.error("Swipe callback error:", error);
+      }
+
+      currentGestureCard.current = null;
+
+      if (direction === "up") {
+        setTimeout(() => {
+          position.setValue({ x: 0, y: 0 });
+          hideAllFeedback();
+        }, 100);
+      } else {
+        setCardIndex((prevIndex) => {
+          const nextIndex = prevIndex + 1;
+
+          if (nextIndex >= data.length) {
+            setTimeout(() => {
+              position.setValue({ x: 0, y: 0 });
+              hideAllFeedback();
+              onComplete();
+            }, 300);
+          } else {
+            setTimeout(() => {
+              position.setValue({ x: 0, y: 0 });
+              hideAllFeedback();
+            }, 100);
+          }
+
+          return nextIndex;
+        });
+      }
+    },
+    [
+      data,
+      cardIndex,
+      onSwipeRight,
+      onSwipeLeft,
+      onSwipeUp,
+      onComplete,
+      position,
+      hideAllFeedback,
+    ]
+  );
+
+  // Memoize PanResponder creation to prevent recreation
+  const createPanResponder = useCallback(
+    (item: CardData, isCurrentCard: boolean) => {
+      return PanResponder.create({
+        onStartShouldSetPanResponder: () => isCurrentCard && data.length > 0,
+        onPanResponderGrant: (evt) => {
+          currentGestureCard.current = item;
+          touchStartTime.current = Date.now();
+          touchStartPosition.current = {
+            x: evt.nativeEvent.locationX,
+            y: evt.nativeEvent.locationY,
+          };
+        },
+        onPanResponderMove: (event, gesture) => {
+          if (isCurrentCard) {
+            position.setValue({ x: gesture.dx, y: gesture.dy });
+            updateFeedbackOpacity(gesture);
+          }
+        },
+        onPanResponderRelease: (event, gesture) => {
+          const touchDuration = Date.now() - touchStartTime.current;
+          const distanceMoved = Math.sqrt(
+            Math.pow(gesture.dx, 2) + Math.pow(gesture.dy, 2)
+          );
+
+          if (!data || data.length === 0) {
+            resetPosition();
+            return;
+          }
+
+          const gestureCard = currentGestureCard.current;
+          if (!gestureCard) {
+            resetPosition();
+            return;
+          }
+
+          if (touchDuration < TAP_DURATION_THRESHOLD && distanceMoved < 10) {
+            handleCardTap(gestureCard);
+            resetPosition();
+            hideAllFeedback();
+            return;
+          }
+
+          if (isCurrentCard) {
+            if (gesture.dx > SWIPE_THRESHOLD) {
+              forceSwipe("right");
+            } else if (gesture.dx < -SWIPE_THRESHOLD) {
+              forceSwipe("left");
+            } else if (gesture.dy < -SWIPE_UP_THRESHOLD) {
+              forceSwipe("up");
+            } else {
+              resetPosition();
+              hideAllFeedback();
+            }
+          } else {
+            resetPosition();
+            hideAllFeedback();
+          }
+        },
+      });
+    },
+    [
+      data,
+      handleCardTap,
+      updateFeedbackOpacity,
+      hideAllFeedback,
+      resetPosition,
+      forceSwipe,
+    ]
+  );
+
+  const getFeedbackImage = useCallback(() => {
+    switch (currentSwipeDirection) {
+      case "right":
+        return APPROVE_IMAGE;
+      case "left":
+        return CANCEL_IMAGE;
+      case "up":
+        return ARROW_UP;
+      default:
+        return APPROVE_IMAGE;
+    }
+  }, [currentSwipeDirection, APPROVE_IMAGE, CANCEL_IMAGE, ARROW_UP]);
+
+  const renderSwipeFeedback = () => {
+    if (!currentSwipeDirection) return null;
+
+    const feedbackImage = getFeedbackImage();
+    if (!feedbackImage) return null;
+
+    return (
+      <Animated.View
+        style={[
+          styles.swipeFeedbackCenter,
+          {
+            opacity: feedbackOpacity,
+            transform: [{ scale: feedbackScale }],
+          },
+        ]}
+      >
+        <Image
+          source={feedbackImage}
+          style={styles.feedbackImage}
+          resizeMode="contain"
+        />
+      </Animated.View>
+    );
+  };
+
+  // Early return if no data
+  if (!data || data.length === 0) {
+    return (
+      <View style={styles.emptyCardsContainer}>
+        <AnimatedLoader />
+      </View>
+    );
+  }
+
   const renderCards = () => {
     if (cardIndex >= data.length) {
       return (
@@ -541,20 +580,17 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
       );
     }
 
-    return data
-      .map((item, i) => {
-        if (i < cardIndex) {
-          return null;
-        }
-
-        const isCurrentCard = i === cardIndex;
-        const panResponder = createPanResponder(item, isCurrentCard);
+    // Only render the visible cards to improve performance
+    return visibleCards
+      .map((item, relativeIndex) => {
+        const absoluteIndex = cardIndex + relativeIndex;
+        const isCurrentCard = absoluteIndex === cardIndex;
         const validImageUrl = getValidImageUrl(item.imageUrl);
 
         if (isCurrentCard) {
           const isCurrentImageLoaded = imageLoaded[item.id];
+          const panResponder = createPanResponder(item, true);
 
-          // Show AnimatedLoader until image is loaded
           if (!isCurrentImageLoaded) {
             return (
               <View key={item.id} style={styles.loaderContainer}>
@@ -573,7 +609,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
             );
           }
 
-          // Show actual card when image is loaded
           return (
             <Animated.View
               key={item.id}
@@ -583,8 +618,8 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                   transform: [
                     { translateX: position.x },
                     { translateY: position.y },
-                    { rotate },
-                    { scale: scaleUp },
+                    { rotate: animatedValues.rotate },
+                    { scale: animatedValues.scaleUp },
                   ],
                   zIndex: 999,
                 },
@@ -601,57 +636,29 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                 showLoader={false}
                 fallbackSource={PLACEHOLDER_IMAGE}
               >
-                {/* Share/Bucket buttons */}
-                <CustomView
-                  bgColor={colors.overlay}
-                  style={styles.shareContainer}
-                >
-                  <CustomView bgColor={colors.overlay} style={styles.row}>
-                    {!hideBucketsButton && (
-                      <CustomTouchable
-                        style={styles.bucketContainer}
-                        bgColor={colors.label_dark}
-                        onPress={() => {
-                          onBucketPress?.(item.id);
-                        }}
-                      >
-                        <BucketSvg />
-                      </CustomTouchable>
-                    )}
-                    <CustomTouchable
-                      bgColor={colors.onboarding_gray}
-                      style={styles.shareButton}
-                    >
-                      <ShareButton
-                        width={14}
-                        height={14}
-                        title={""}
-                        message={`Check out this bucket: `}
-                        url={item.contentShareUrl || ""}
-                      />
-                    </CustomTouchable>
-                  </CustomView>
-                </CustomView>
-
-                {/* Content overlay - different for sponsored vs regular */}
-                {renderContentOverlay(item)}
+                <CardContentOverlay
+                  item={item}
+                  colors={colors}
+                  onBucketPress={onBucketPress}
+                  hideBucketsButton={hideBucketsButton}
+                />
               </OptimizedImageBackground>
             </Animated.View>
           );
         }
 
-        // Show next card (also preload its image)
-        if (i === cardIndex + 1) {
+        // Next card
+        if (absoluteIndex === cardIndex + 1) {
           return (
             <Animated.View
               key={item.id}
               style={[
                 styles.cardStyle,
                 {
-                  opacity: nextCardOpacity,
-                  transform: [{ scale: nextCardScale }],
+                  opacity: animatedValues.nextCardOpacity,
+                  transform: [{ scale: animatedValues.nextCardScale }],
                   top: 10,
-                  zIndex: -1, // Behind current card
+                  zIndex: -1,
                 },
               ]}
             >
@@ -667,7 +674,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                 onLoad={() => handleImageLoad(item.id)}
                 onError={() => handleImageError(item.id)}
               >
-                {/* Simple gradient for next card preview */}
                 <LinearGradient
                   colors={["transparent", "rgba(0,0,0,0.5)"]}
                   style={styles.gradientOverlay}
@@ -693,7 +699,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Render feedback behind all cards */}
       {renderSwipeFeedback()}
       {renderCards()}
     </View>
@@ -761,7 +766,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "flex-start",
   },
-  // New styles for sponsored tags
   tagsContainer: {
     flexDirection: "row",
     gap: horizontalScale(8),
@@ -831,7 +835,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  // Swipe feedback styles - now positioned behind cards
   swipeFeedbackCenter: {
     position: "absolute",
     top: 0,
@@ -840,8 +843,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 1100, // Above all cards
-    pointerEvents: "none", // Don't intercept touches
+    zIndex: 1100,
+    pointerEvents: "none",
   },
   feedbackImage: {
     width: 100,
