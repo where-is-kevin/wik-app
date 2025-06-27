@@ -268,15 +268,11 @@ const SwipeableCards = () => {
     return (
       <CustomView style={styles.errorContainer}>
         <CustomText style={styles.errorTitle}>
-          {`We are coming to your\narea soon! 🚀`}
+          You're on the edge of something amazing.
         </CustomText>
         <CustomText style={styles.errorText}>
-          We don't have any content at your location currently, but we are
-          working hard to bring amazing experiences to you soon!
+          {`We're not live in your area just yet, but as soon as we reach 5000 signed up nearby we'll launch. To help us reach our goal, tell your friends so you can all be part of launching something amazing in your area.`}
         </CustomText>
-        <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
-          <CustomText style={styles.retryButtonText}>Check Again</CustomText>
-        </TouchableOpacity>
       </CustomView>
     );
   }

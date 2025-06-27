@@ -247,18 +247,16 @@ export function useContentWithParams(params: ContentParams | null) {
 export function useContentById(contentId: string) {
   const queryClient = useQueryClient();
 
-  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
-
-  const jwt = authData?.accessToken || null;
-
   return useQuery<Content, Error>({
-    queryKey: ["content", "byId", contentId, !!jwt],
+    // Don't include JWT in query key - let React Query handle auth changes differently
+    queryKey: ["content", "byId", contentId],
     queryFn: () => {
-      const freshAuthData = queryClient.getQueryData<{ accessToken?: string }>([
+      // Always get fresh JWT when query executes
+      const authData = queryClient.getQueryData<{ accessToken?: string }>([
         "auth",
       ]);
-      const freshJwt = freshAuthData?.accessToken || null;
-      return fetchContentById(contentId, freshJwt);
+      const jwt = authData?.accessToken || null;
+      return fetchContentById(contentId, jwt);
     },
     enabled: !!API_URL && !!contentId,
     staleTime: 5 * 60 * 1000,
