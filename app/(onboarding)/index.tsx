@@ -104,6 +104,7 @@ const OnboardingScreen = () => {
         address: item.address || "",
         isSponsored: item.isSponsored,
         contentShareUrl: item.contentShareUrl,
+        tags: item.tags,
       }))
     : [];
 

@@ -44,6 +44,7 @@ interface CardData {
   address?: string;
   isSponsored?: boolean;
   contentShareUrl: string;
+  tags?: string; // Added tags property
 }
 
 interface SwipeCardsProps {
@@ -57,6 +58,38 @@ interface SwipeCardsProps {
   hideBucketsButton?: boolean;
 }
 
+// Helper function to format tags - fully dynamic, no hardcoded mappings
+export const formatTags = (tags: string): string => {
+  if (!tags) return "";
+
+  return tags
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter((tag) => tag.length > 0) // Remove empty tags
+    .map((tag) => {
+      return tag
+        .toLowerCase()
+        .split(/[_\s-]+/) // Split on underscores, spaces, or hyphens
+        .map((word) => {
+          // Handle special cases for common abbreviations
+          if (word === "atm") return "ATM";
+          if (word === "rv") return "RV";
+          if (word === "tv") return "TV";
+          if (word === "wifi") return "WiFi";
+          if (word === "api") return "API";
+          if (word === "gps") return "GPS";
+          if (word === "usa") return "USA";
+          if (word === "uk") return "UK";
+
+          // Regular capitalization for other words
+          return word.charAt(0).toUpperCase() + word.slice(1);
+        })
+        .join(" ");
+    })
+    .slice(0, 5) // Limit to first 5 tags to avoid UI overflow
+    .join(", ");
+};
+
 // Memoized card overlay component to prevent unnecessary re-renders
 const CardContentOverlay = React.memo<{
   item: CardData;
@@ -69,24 +102,6 @@ const CardContentOverlay = React.memo<{
       return (
         <View style={styles.sponsoredOverlay}>
           <View style={styles.cardContent}>
-            <View style={styles.tagsContainer}>
-              {item.category && (
-                <CategoryTag
-                  style={styles.tagContainer}
-                  category={item.category}
-                  colors={colors}
-                />
-              )}
-              <CustomView bgColor={colors.lime} style={styles.experienceTag}>
-                <CustomText
-                  fontFamily="Inter-SemiBold"
-                  style={styles.experienceText}
-                >
-                  SPONSORED
-                </CustomText>
-              </CustomView>
-            </View>
-
             <CustomText
               fontFamily="Inter-SemiBold"
               style={[styles.cardTitle, { color: colors.background }]}
@@ -123,23 +138,24 @@ const CardContentOverlay = React.memo<{
                 {item.address}
               </CustomText>
             )}
+            {item.tags && (
+              <CustomText
+                fontFamily="Inter-SemiBold"
+                style={[styles.addressText, { color: colors.background }]}
+              >
+                {formatTags(item.tags)}
+              </CustomText>
+            )}
           </View>
         </View>
       );
     } else {
       return (
         <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.3)", "rgba(0,0,0,0.8)"]}
+          colors={["rgba(242, 242, 243, 0)", "#0B2E34"]}
           style={styles.gradientOverlay}
         >
           <View style={styles.cardContent}>
-            {item.category && (
-              <CategoryTag
-                style={styles.tagContainer}
-                category={item.category}
-                colors={colors}
-              />
-            )}
             <CustomText
               fontFamily="Inter-SemiBold"
               style={[styles.cardTitle, { color: colors.background }]}
@@ -174,6 +190,14 @@ const CardContentOverlay = React.memo<{
                 style={[styles.addressText, { color: colors.background }]}
               >
                 {item.address}
+              </CustomText>
+            )}
+            {item.tags && (
+              <CustomText
+                fontFamily="Inter-SemiBold"
+                style={[styles.addressText, { color: colors.background }]}
+              >
+                {formatTags(item.tags)}
               </CustomText>
             )}
           </View>
@@ -184,32 +208,54 @@ const CardContentOverlay = React.memo<{
 
   return (
     <>
-      {/* Share/Bucket buttons */}
-      <CustomView bgColor={colors.overlay} style={styles.shareContainer}>
-        <CustomView bgColor={colors.overlay} style={styles.row}>
-          {!hideBucketsButton && (
-            <CustomTouchable
-              style={styles.bucketContainer}
-              bgColor={colors.label_dark}
-              onPress={() => onBucketPress?.(item.id)}
-            >
-              <BucketSvg />
-            </CustomTouchable>
-          )}
-          <CustomTouchable
-            bgColor={colors.onboarding_gray}
-            style={styles.shareButton}
-          >
-            <ShareButton
-              width={14}
-              height={14}
-              title={""}
-              message={`Check out this bucket: `}
-              url={item.contentShareUrl || ""}
+      {/* Top row with category tag, dots, and bucket/share buttons */}
+      <View style={styles.topRowContainer}>
+        <View style={styles.leftTopSection}>
+          {item.category && (
+            <CategoryTag
+              style={styles.topTagContainer}
+              category={item.category}
+              colors={colors}
             />
-          </CustomTouchable>
+          )}
+          {item.isSponsored && (
+            <CustomView bgColor={colors.lime} style={styles.topExperienceTag}>
+              <CustomText
+                fontFamily="Inter-SemiBold"
+                style={styles.topExperienceText}
+              >
+                SPONSORED
+              </CustomText>
+            </CustomView>
+          )}
+        </View>
+
+        <CustomView bgColor={colors.overlay} style={styles.rightTopSection}>
+          <CustomView bgColor={colors.overlay} style={styles.row}>
+            {!hideBucketsButton && (
+              <CustomTouchable
+                style={styles.bucketContainer}
+                bgColor={colors.label_dark}
+                onPress={() => onBucketPress?.(item.id)}
+              >
+                <BucketSvg />
+              </CustomTouchable>
+            )}
+            <CustomTouchable
+              bgColor={colors.onboarding_gray}
+              style={styles.shareButton}
+            >
+              <ShareButton
+                width={14}
+                height={14}
+                title={""}
+                message={`Check out this bucket: `}
+                url={item.contentShareUrl || ""}
+              />
+            </CustomTouchable>
+          </CustomView>
         </CustomView>
-      </CustomView>
+      </View>
       {renderContentOverlay()}
     </>
   );
@@ -675,7 +721,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                 onError={() => handleImageError(item.id)}
               >
                 <LinearGradient
-                  colors={["transparent", "rgba(0,0,0,0.5)"]}
+                  colors={["rgba(242, 242, 243, 0)", "#0B2E34"]}
                   style={styles.gradientOverlay}
                 >
                   <View style={styles.cardContent}>
@@ -746,37 +792,48 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: "50%",
+    height: "60%",
     justifyContent: "flex-end",
   },
-  shareContainer: {
+  // TOP ROW STYLES
+  topRowContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    paddingHorizontal: horizontalScale(12),
+    paddingTop: verticalScale(16),
+    zIndex: 1000,
+  },
+  leftTopSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: horizontalScale(8),
+    flex: 1,
+  },
+  rightTopSection: {
     alignSelf: "flex-end",
-    marginRight: horizontalScale(12),
-    marginTop: verticalScale(16),
   },
-  venueText: {
-    fontSize: scaleFontSize(10),
-    textTransform: "uppercase",
-  },
-  tagContainer: {
+  topTagContainer: {
     borderRadius: 12,
     paddingVertical: 6,
-    marginBottom: verticalScale(9),
+    paddingHorizontal: 8,
     justifyContent: "center",
     alignItems: "center",
-    alignSelf: "flex-start",
+    minHeight: verticalScale(24),
   },
-  tagsContainer: {
-    flexDirection: "row",
-    gap: horizontalScale(8),
+  topExperienceTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 12,
+    justifyContent: "center",
     alignItems: "center",
+    minHeight: verticalScale(24),
   },
-  sponsoredText: {
-    fontSize: scaleFontSize(10),
+  topExperienceText: {
     color: "#0B2E34",
-    textTransform: "uppercase",
-    fontWeight: "700",
+    fontSize: scaleFontSize(10),
   },
+  // CARD CONTENT STYLES
   cardContent: {
     padding: horizontalScale(12),
     paddingBottom: verticalScale(16),
@@ -802,13 +859,7 @@ const styles = StyleSheet.create({
     fontSize: scaleFontSize(14),
     marginTop: verticalScale(6),
   },
-  sendIconContainer: {
-    position: "absolute",
-    bottom: verticalScale(16),
-    right: horizontalScale(12),
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  // BUTTON STYLES
   transitionContainer: {
     position: "absolute",
     width: "100%",
@@ -835,6 +886,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  // FEEDBACK STYLES
   swipeFeedbackCenter: {
     position: "absolute",
     top: 0,
@@ -850,17 +902,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
   },
-  experienceTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: verticalScale(9),
-  },
-  experienceText: {
-    fontSize: scaleFontSize(10),
-  },
+  // OVERLAY STYLES
   sponsoredOverlay: {
     position: "absolute",
     bottom: 0,
