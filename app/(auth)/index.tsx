@@ -4,13 +4,14 @@ import CustomView from "@/components/CustomView";
 import LoginLogoSvg from "@/components/SvgComponents/LoginLogoSvg";
 import CustomTextInput from "@/components/TextInput/CustomTextInput";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useUXCam } from "@/contexts/UXCamContext"; // Add this import
 import {
   horizontalScale,
   scaleFontSize,
   verticalScale,
 } from "@/utilities/scaling";
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dimensions, Platform, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -24,28 +25,52 @@ interface SignInScreenProps {
 const windowHeight = Dimensions.get("window").height;
 
 const SignInScreen: React.FC<SignInScreenProps> = () => {
-  const [email, setEmail] = useState<string>("user@example.com");
-  const [password, setPassword] = useState<string>("string");
+  const [email, setEmail] = useState<string>(__DEV__ ? "user@example.com" : "");
+  const [password, setPassword] = useState<string>(__DEV__ ? "string" : "");
   const { colors } = useTheme();
   const router = useRouter();
   const { mutate: login, isPending } = useAuth();
   const { checkAndNavigate } = useLocationPermissionGuard({
     redirectToTabs: true,
   });
+  const { setUserId, setUserProperty, logEvent } = useUXCam(); // Add setUserProperty
   const isFormValid = email.trim() !== "" && password.trim() !== "";
 
   const handleSignIn = (): void => {
     if (!isFormValid) return;
+
+    // Log sign in attempt
+    logEvent("signin_attempt", {
+      method: "email",
+      email: email,
+    });
+
     login(
       {
         username: email,
         password,
       },
       {
-        onSuccess: async () => {
+        onSuccess: async (data) => {
+          if (data?.user?.id) {
+            setUserId(data.user.id.toString());
+          }
+          setUserProperty("email", email);
+          logEvent("signin_success", {
+            method: "email",
+            email: email,
+          });
+
           await checkAndNavigate(); // Navigate after login
         },
         onError: (err: any) => {
+          // Log failed login
+          logEvent("signin_failed", {
+            method: "email",
+            email: email,
+            error: err?.detail || err?.response?.data?.detail || "Login failed",
+          });
+
           alert(err?.detail || err?.response?.data?.detail || "Login failed");
         },
       }
@@ -53,10 +78,16 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
   };
 
   const handleForgotPassword = (): void => {
+    logEvent("forgot_password_clicked", {
+      screen: "signin_screen",
+    });
     // router.push("/forgot-password");
   };
 
   const handleSignUp = (): void => {
+    logEvent("signup_clicked", {
+      screen: "signin_screen",
+    });
     router.push("/(onboarding)");
   };
 
@@ -74,6 +105,7 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
         resetScrollToCoords={{ x: 0, y: 0 }}
         scrollEnabled={true}
         bounces={false}
+        keyboardShouldPersistTaps="handled"
       >
         <CustomView style={styles.content}>
           <CustomView style={styles.logoContainer}>

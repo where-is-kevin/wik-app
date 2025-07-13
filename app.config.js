@@ -4,6 +4,7 @@ export default ({ config }) => ({
   ...config, // Merge existing app.json configuration
   extra: {
     ...config.extra, // Retain existing extra fields
-    apiUrl: process.env.API_URL // Load API URL from .env
-  }
+    apiUrl: process.env.API_URL, // Load API URL from .env
+    uxcamAppKey: process.env.UXCAM_APP_KEY, // Add UXCam app key
+  },
 });
