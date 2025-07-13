@@ -110,7 +110,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
     // Optional: Add any logic when sheet changes
   }, []);
 
-  // Handle like press
+  // Fixed handleLikePress function with correct query key
   const handleLikePress = useCallback(() => {
     if (!contentData || contentData.userDisliked) return;
 
@@ -120,28 +120,14 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
     addLikeMutation.mutate(likeData, {
       onSuccess: () => {
-        // Update the authenticated query (has userLiked/userDisliked fields)
+        // Update the correct query key that matches useContentById
         queryClient.setQueryData(
-          ["content", "byId", eventId, true],
+          ["content", "byId", eventId], // ✅ This matches your hook's query key
           (oldData: any) => {
             if (oldData) {
               return {
                 ...oldData,
                 userLiked: !oldData.userLiked,
-              };
-            }
-            return oldData;
-          }
-        );
-
-        // Update the non-authenticated query (basic content data)
-        queryClient.setQueryData(
-          ["content", "byId", eventId, false],
-          (oldData: any) => {
-            if (oldData) {
-              return {
-                ...oldData,
-                userLiked: true,
               };
             }
             return oldData;
@@ -157,7 +143,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
     });
   }, [contentData, eventId, addLikeMutation, queryClient]);
 
-  // Handle dislike press
+  // Fixed handleDislikePress function with correct query key
   const handleDislikePress = useCallback(() => {
     if (!contentData || contentData.userDisliked) return;
 
@@ -167,28 +153,15 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
     addDislikeMutation.mutate(dislikeData, {
       onSuccess: () => {
-        // Update the authenticated query (has userLiked/userDisliked fields)
+        // Update the correct query key that matches useContentById
         queryClient.setQueryData(
-          ["content", "byId", eventId, true],
+          ["content", "byId", eventId], // ✅ This matches your hook's query key
           (oldData: any) => {
             if (oldData) {
               return {
                 ...oldData,
                 userDisliked: true,
-              };
-            }
-            return oldData;
-          }
-        );
-
-        // Update the non-authenticated query (basic content data)
-        queryClient.setQueryData(
-          ["content", "byId", eventId, false],
-          (oldData: any) => {
-            if (oldData) {
-              return {
-                ...oldData,
-                userDisliked: true,
+                userLiked: false, // Remove like when disliking
               };
             }
             return oldData;
@@ -204,8 +177,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
         console.error("Failed to add dislike:", error);
       },
     });
-  }, [contentData, eventId, addDislikeMutation, queryClient]);
-
+  }, [contentData, eventId, addDislikeMutation, queryClient, router]);
   // Handle three dots button press
   const handleMoreOptionsPress = () => {
     if (contentData?.websiteUrl) {

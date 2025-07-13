@@ -25,8 +25,8 @@ interface SignInScreenProps {
 const windowHeight = Dimensions.get("window").height;
 
 const SignInScreen: React.FC<SignInScreenProps> = () => {
-  const [email, setEmail] = useState<string>("user@example.com");
-  const [password, setPassword] = useState<string>("string");
+  const [email, setEmail] = useState<string>(__DEV__ ? "user@example.com" : "");
+  const [password, setPassword] = useState<string>(__DEV__ ? "string" : "");
   const { colors } = useTheme();
   const router = useRouter();
   const { mutate: login, isPending } = useAuth();
@@ -105,6 +105,7 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
         resetScrollToCoords={{ x: 0, y: 0 }}
         scrollEnabled={true}
         bounces={false}
+        keyboardShouldPersistTaps="handled"
       >
         <CustomView style={styles.content}>
           <CustomView style={styles.logoContainer}>

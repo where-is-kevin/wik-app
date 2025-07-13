@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { OnboardingOption } from "@/components/Onboarding/OnboardingOption";
 import { OnboardingProgressBar } from "@/components/Onboarding/OnboardingProgressBar";
 import {
@@ -28,7 +27,6 @@ import {
   OnboardingForm,
   PersonalFormData,
 } from "@/components/Onboarding/OnboardingForm";
-import { SwipeCards } from "@/components/Onboarding/SwipeCards";
 import SwipeCardTooltips from "@/components/Tooltips/SwipeCardTooltips";
 import LottieView from "lottie-react-native";
 import OnboardingAnimationStart from "@/assets/animations/onboarding-animation-start.json";
@@ -37,29 +35,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useCreateUser } from "@/hooks/useUser";
 import type { CreateUserInput } from "@/hooks/useUser";
-import { useAuth } from "@/hooks/useAuth"; // Changed from useLogin
+import { useAuth } from "@/hooks/useAuth";
 import { useContent } from "@/hooks/useContent";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { Linking } from "react-native";
-
-// Define the interface for card data
-interface CardData {
-  id: string;
-  title: string;
-  imageUrl: string;
-  price?: string;
-  category?: string;
-  websiteUrl?: string;
-  rating?: string;
-  address?: string;
-  isSponsored?: boolean;
-  contentShareUrl: string;
-}
+import { CardData, SwipeCards } from "@/components/SwipeCards/SwipeCards";
 
 const OnboardingScreen = () => {
   const router = useRouter();
   const { mutate: createUser, isPending } = useCreateUser();
-  const { mutate: login } = useAuth(); // Changed from useLogin
+  const { mutate: login } = useAuth();
   const { colors } = useTheme();
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [selections, setSelections] = useState<OnboardingSelections>({});
@@ -217,13 +202,8 @@ const OnboardingScreen = () => {
 
   const handleSwipeUp = (item: CardData) => {
     if (!item) return;
-    if (item?.websiteUrl) {
-      Linking.openURL(item.websiteUrl).catch((err) => {
-        console.error("Failed to open URL:", err);
-      });
-    } else {
-      // console.log("No website URL available for this item");
-    }
+    // For onboarding, you might want to handle this differently
+    console.log("Swiped up on:", item.title);
   };
 
   const handleSwipeComplete = () => {
@@ -241,7 +221,6 @@ const OnboardingScreen = () => {
 
   const handleCardTap = (item: CardData) => {
     if (!item) return;
-    // console.log("Card tapped:", item.title);
 
     // Navigate to event details with hideBucketsButton param
     router.push({

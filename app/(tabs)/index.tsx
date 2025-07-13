@@ -8,7 +8,6 @@ import {
   View,
   Linking,
 } from "react-native";
-import { SwipeCards } from "@/components/Onboarding/SwipeCards";
 import CustomView from "@/components/CustomView";
 import { horizontalScale, verticalScale } from "@/utilities/scaling";
 import {
@@ -26,17 +25,7 @@ import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { useAddDislike } from "@/hooks/useDislikes";
 import { useLocationForAPI } from "@/contexts/LocationContext";
 import CustomText from "@/components/CustomText";
-
-// Define the interface that matches your SwipeCards component
-interface CardData {
-  id: string;
-  title: string;
-  imageUrl: string;
-  price?: string;
-  category?: string;
-  websiteUrl?: string;
-  contentShareUrl: string;
-}
+import { CardData, SwipeCards } from "@/components/SwipeCards/SwipeCards";
 
 const SwipeableCards = () => {
   const { getLocationForAPI, hasLocationPermission } = useLocationForAPI();
@@ -295,7 +284,7 @@ const SwipeableCards = () => {
             onSwipeUp={handleSwipeUp}
             onComplete={handleComplete}
             onBucketPress={handleShowBucketBottomSheet}
-            // onCardTap={handleCardTap}
+            // onCardTap={handleCardTap} // Remove this if you don't need it
           />
         </CustomView>
       </CustomView>

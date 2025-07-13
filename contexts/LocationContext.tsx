@@ -1,5 +1,12 @@
 // contexts/LocationContext.tsx
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
 import * as Location from "expo-location";
 import { AppState, AppStateStatus } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -77,7 +84,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const requestLocationPermission = async (): Promise<boolean> => {
+  const requestLocationPermission = useCallback(async (): Promise<boolean> => {
     try {
       setIsLoading(true);
       setError(null);
@@ -100,63 +107,75 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const getCurrentLocation = async (): Promise<LocationData | null> => {
-    try {
-      setIsLoading(true);
-      setError(null);
+  const getCurrentLocation =
+    useCallback(async (): Promise<LocationData | null> => {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-      const locationResult = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 1000,
-        distanceInterval: 10,
-      });
+        const locationResult = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 1000,
+          distanceInterval: 10,
+        });
 
-      const newLocation: LocationData = {
-        latitude: locationResult.coords.latitude,
-        longitude: locationResult.coords.longitude,
-        timestamp: Date.now(),
-      };
+        const newLocation: LocationData = {
+          latitude: locationResult.coords.latitude,
+          longitude: locationResult.coords.longitude,
+          timestamp: Date.now(),
+        };
 
-      setLocation(newLocation);
-      await AsyncStorage.setItem(
-        LOCATION_STORAGE_KEY,
-        JSON.stringify(newLocation)
-      );
+        setLocation(newLocation);
+        await AsyncStorage.setItem(
+          LOCATION_STORAGE_KEY,
+          JSON.stringify(newLocation)
+        );
 
-      return newLocation;
-    } catch (error) {
-      setError("Failed to get current location");
-      console.error("Get location error:", error);
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        return newLocation;
+      } catch (error) {
+        setError("Failed to get current location");
+        console.error("Get location error:", error);
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    }, []);
 
-  const refreshLocation = async (): Promise<void> => {
+  const refreshLocation = useCallback(async (): Promise<void> => {
     if (!hasLocationPermission) {
       setError("Location permission not granted");
       return;
     }
     await getCurrentLocation();
-  };
+  }, [hasLocationPermission, getCurrentLocation]);
 
-  const refreshLocationIfStale = async () => {
+  const refreshLocationIfStale = useCallback(async () => {
     if (!location || Date.now() - location.timestamp > LOCATION_EXPIRY_TIME) {
       await refreshLocation();
     }
-  };
+  }, [location, refreshLocation]);
 
-  const value: LocationContextType = {
-    location,
-    isLoading,
-    error,
-    requestLocationPermission,
-    refreshLocation,
-    hasLocationPermission,
-  };
+  // Memoize the context value to prevent unnecessary re-renders
+  const value = useMemo<LocationContextType>(
+    () => ({
+      location,
+      isLoading,
+      error,
+      requestLocationPermission,
+      refreshLocation,
+      hasLocationPermission,
+    }),
+    [
+      location,
+      isLoading,
+      error,
+      requestLocationPermission,
+      refreshLocation,
+      hasLocationPermission,
+    ]
+  );
 
   return (
     <LocationContext.Provider value={value}>
@@ -177,7 +196,8 @@ export const useLocation = (): LocationContextType => {
 export const useLocationForAPI = () => {
   const { location, refreshLocation, hasLocationPermission } = useLocation();
 
-  const getLocationForAPI = async (): Promise<{
+  // 🔥 This is the key fix - memoize the function
+  const getLocationForAPI = useCallback(async (): Promise<{
     lat: number;
     lon: number;
   } | null> => {
@@ -193,7 +213,14 @@ export const useLocationForAPI = () => {
     return location
       ? { lat: location.latitude, lon: location.longitude }
       : null;
-  };
+  }, [hasLocationPermission, location, refreshLocation]);
 
-  return { getLocationForAPI, hasLocationPermission };
+  // Also memoize the return object
+  return useMemo(
+    () => ({
+      getLocationForAPI,
+      hasLocationPermission,
+    }),
+    [getLocationForAPI, hasLocationPermission]
+  );
 };
