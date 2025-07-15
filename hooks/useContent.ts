@@ -32,6 +32,7 @@ type Content = {
   userDisliked?: boolean;
   isSponsored: boolean;
   contentShareUrl: string;
+  similarity: number;
 };
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;

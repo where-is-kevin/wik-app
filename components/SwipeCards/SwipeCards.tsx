@@ -33,6 +33,7 @@ export interface CardData {
   isSponsored?: boolean;
   contentShareUrl: string;
   tags?: string;
+  similarity: number;
 }
 
 interface SwipeCardsProps {

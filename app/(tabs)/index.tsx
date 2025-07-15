@@ -96,6 +96,7 @@ const SwipeableCards = () => {
         isSponsored: item.isSponsored,
         contentShareUrl: item.contentShareUrl,
         tags: item.tags,
+        similarity: item.similarity,
       }))
     : [];
 

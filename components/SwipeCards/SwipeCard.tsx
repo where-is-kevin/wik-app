@@ -21,6 +21,7 @@ interface CardData {
   isSponsored?: boolean;
   contentShareUrl: string;
   tags?: string;
+  similarity: number;
 }
 
 interface SwipeCardProps {

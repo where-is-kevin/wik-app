@@ -90,6 +90,7 @@ const OnboardingScreen = () => {
         isSponsored: item.isSponsored,
         contentShareUrl: item.contentShareUrl,
         tags: item.tags,
+        similarity: item.similarity,
       }))
     : [];
 

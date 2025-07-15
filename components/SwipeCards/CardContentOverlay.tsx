@@ -14,6 +14,10 @@ import {
   verticalScale,
 } from "@/utilities/scaling";
 import { formatTags } from "@/utilities/formatTags";
+import { formatSimilarity } from "@/utilities/formatSimilarity";
+import SponsoredKevinSvg from "../SvgComponents/SponsoredKevinSvg";
+import SendSvgSmall from "../SvgComponents/SendSvgSmall";
+import RatingStarSvg from "../SvgComponents/RatingStarSvg";
 
 interface CardData {
   id: string;
@@ -26,6 +30,7 @@ interface CardData {
   isSponsored?: boolean;
   contentShareUrl: string;
   tags?: string;
+  similarity: number;
 }
 
 interface CardContentOverlayProps {
@@ -69,22 +74,87 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
       return "No rating";
     };
 
+    const renderTagBubbles = () => {
+      if (!formattedTags || formattedTags.length === 0) return null;
+
+      return (
+        <View style={styles.tagsContainer}>
+          {formattedTags.map((tag, index) => (
+            <View key={index} style={styles.tagBubble}>
+              <CustomText
+                fontFamily="Inter-SemiBold"
+                style={[styles.tagText, { color: colors.background }]}
+              >
+                {tag}
+              </CustomText>
+            </View>
+          ))}
+        </View>
+      );
+    };
+
     const renderCardContent = () => (
       <View style={styles.cardContent}>
+        {item.isSponsored && (
+          <CustomView bgColor={colors.bakground} style={styles.sponsoredCard}>
+            <SponsoredKevinSvg />
+            <CustomText
+              fontFamily="Inter-SemiBold"
+              style={styles.sponsoredText}
+            >
+              SPONSORED
+            </CustomText>
+          </CustomView>
+        )}
         <CustomText
           fontFamily="Inter-SemiBold"
           style={[styles.cardTitle, { color: colors.background }]}
+          numberOfLines={2}
+          ellipsizeMode="tail"
         >
           {item.title}
         </CustomText>
 
-        <CustomText
-          fontFamily="Inter-SemiBold"
-          style={[styles.priceText, { color: colors.lime }]}
-        >
-          {renderPriceOrRating()}
-        </CustomText>
+        <View style={styles.matchContainer}>
+          <CustomText
+            fontFamily="Inter-SemiBold"
+            style={[styles.priceText, { color: colors.lime }]}
+          >
+            {formatSimilarity(item?.similarity)}
+          </CustomText>
+          <CustomText
+            fontFamily="Inter-SemiBold"
+            style={[styles.matchText, { color: colors.lime }]}
+          >
+            {"match"}
+          </CustomText>
+        </View>
 
+        {/* Rating, Price, and Address in same row */}
+        <View style={styles.infoRow}>
+          {item.rating && (
+            <View style={styles.ratingContainer}>
+              <RatingStarSvg />
+              <CustomText
+                style={[styles.infoText, { color: colors.background }]}
+              >
+                {item.rating}
+              </CustomText>
+            </View>
+          )}
+
+          {item.rating && item.price && (
+            <View style={styles.dotSeparator}>
+              <View style={styles.whiteDot} />
+            </View>
+          )}
+
+          {item.price && (
+            <CustomText style={[styles.infoText, { color: colors.background }]}>
+              {item.price}
+            </CustomText>
+          )}
+        </View>
         {item.address && (
           <CustomText
             fontFamily="Inter-SemiBold"
@@ -94,38 +164,19 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
           </CustomText>
         )}
 
-        {formattedTags && (
-          <CustomText
-            fontFamily="Inter-SemiBold"
-            style={[styles.addressText, { color: colors.background }]}
-          >
-            {formattedTags}
-          </CustomText>
-        )}
+        {renderTagBubbles()}
       </View>
     );
 
     const renderTopRow = () => (
       <View style={styles.topRowContainer}>
-        <View style={styles.leftTopSection}>
-          {item.category && (
-            <CategoryTag
-              style={styles.topTagContainer}
-              category={item.category}
-              colors={colors}
-            />
-          )}
-          {item.isSponsored && (
-            <CustomView bgColor={colors.lime} style={styles.topExperienceTag}>
-              <CustomText
-                fontFamily="Inter-SemiBold"
-                style={styles.topExperienceText}
-              >
-                SPONSORED
-              </CustomText>
-            </CustomView>
-          )}
-        </View>
+        {item.category && (
+          <CategoryTag
+            style={styles.topTagContainer}
+            category={item.category}
+            colors={colors}
+          />
+        )}
 
         <CustomView bgColor={colors.overlay} style={styles.rightTopSection}>
           <CustomView bgColor={colors.overlay} style={styles.row}>
@@ -138,16 +189,14 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
                 <BucketSvg />
               </CustomTouchable>
             )}
-            <CustomTouchable
-              bgColor={colors.onboarding_gray}
-              style={styles.shareButton}
-            >
+            <CustomTouchable bgColor={colors.lime} style={styles.shareButton}>
               <ShareButton
-                width={14}
-                height={14}
                 title={""}
                 message={`Check out this bucket: `}
                 url={item.contentShareUrl || ""}
+                IconComponent={() => (
+                  <SendSvgSmall width={18} height={18} stroke="#131314" />
+                )}
               />
             </CustomTouchable>
           </CustomView>
@@ -182,16 +231,9 @@ const styles = StyleSheet.create({
   topRowContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    paddingHorizontal: horizontalScale(12),
-    paddingTop: verticalScale(16),
-    zIndex: 1000,
-  },
-  leftTopSection: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: horizontalScale(8),
-    flex: 1,
+    paddingHorizontal: horizontalScale(20),
+    paddingTop: verticalScale(20),
   },
   rightTopSection: {
     alignSelf: "flex-end",
@@ -202,19 +244,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     justifyContent: "center",
     alignItems: "center",
-    minHeight: verticalScale(24),
   },
-  topExperienceTag: {
+  sponsoredCard: {
     paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#3C62FA",
     justifyContent: "center",
     alignItems: "center",
-    minHeight: verticalScale(24),
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    gap: 5,
   },
-  topExperienceText: {
-    color: "#0B2E34",
-    fontSize: scaleFontSize(10),
+  sponsoredText: {
+    color: "#3C62FA",
+    fontSize: scaleFontSize(8),
   },
   row: {
     flexDirection: "row",
@@ -222,45 +267,54 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   bucketContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 24,
+    width: 30,
+    height: 30,
+    borderRadius: 1000,
     justifyContent: "center",
     alignItems: "center",
   },
   shareButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 24,
+    width: 30,
+    height: 30,
+    borderRadius: 1000,
     justifyContent: "center",
     alignItems: "center",
   },
   cardContent: {
-    padding: horizontalScale(12),
-    paddingBottom: verticalScale(16),
+    paddingHorizontal: horizontalScale(20),
+    paddingBottom: verticalScale(20),
   },
   cardTitle: {
     fontSize: scaleFontSize(24),
-    marginBottom: verticalScale(6),
+    marginVertical: verticalScale(8),
   },
   priceText: {
     fontSize: scaleFontSize(24),
-    marginTop: verticalScale(6),
-    marginBottom: verticalScale(6),
   },
   perPersonText: {
     fontSize: scaleFontSize(12),
   },
-  addressText: {
-    fontSize: scaleFontSize(14),
-    marginTop: verticalScale(6),
+  tagsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 5,
+  },
+  tagBubble: {
+    borderWidth: 1,
+    borderColor: "#FFF",
+    borderRadius: 30,
+    paddingHorizontal: horizontalScale(8),
+    paddingVertical: verticalScale(4),
+  },
+  tagText: {
+    fontSize: scaleFontSize(12),
   },
   gradientOverlay: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    height: "60%",
+    height: "100%",
     justifyContent: "flex-end",
   },
   sponsoredOverlay: {
@@ -270,5 +324,44 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: "#0B2E34",
     justifyContent: "flex-end",
+  },
+  matchContainer: {
+    flexDirection: "row",
+    alignItems: "baseline",
+  },
+  matchText: {
+    fontSize: scaleFontSize(12),
+    marginLeft: horizontalScale(4), // Small spacing between percentage and "match"
+  },
+  ratingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: horizontalScale(4),
+  },
+  ratingText: {
+    fontSize: scaleFontSize(16),
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: verticalScale(10),
+  },
+  infoText: {
+    fontSize: scaleFontSize(14),
+  },
+  addressText: {
+    fontSize: scaleFontSize(14),
+    marginBottom: verticalScale(10),
+  },
+  dotSeparator: {
+    paddingHorizontal: horizontalScale(6),
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  whiteDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "white",
   },
 });
