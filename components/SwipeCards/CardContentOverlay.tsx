@@ -15,6 +15,7 @@ import {
 } from "@/utilities/scaling";
 import { formatTags } from "@/utilities/formatTags";
 import { formatSimilarity } from "@/utilities/formatSimilarity";
+import { formatDistance } from "@/utilities/formatDistance";
 import SponsoredKevinSvg from "../SvgComponents/SponsoredKevinSvg";
 import SendSvgSmall from "../SvgComponents/SendSvgSmall";
 import RatingStarSvg from "../SvgComponents/RatingStarSvg";
@@ -31,6 +32,7 @@ interface CardData {
   contentShareUrl: string;
   tags?: string;
   similarity: number;
+  distance?: number;
 }
 
 interface CardContentOverlayProps {
@@ -154,6 +156,17 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
               {item.price}
             </CustomText>
           )}
+          {(item.rating || item.price) &&
+            item.distance && (
+              <View style={styles.dotSeparator}>
+                <View style={styles.whiteDot} />
+              </View>
+            )}
+          {item.distance && (
+            <CustomText style={[styles.infoText, { color: colors.background }]}>
+              {formatDistance(item.distance)}
+            </CustomText>
+          )}
         </View>
         {item.address && (
           <CustomText
@@ -183,10 +196,10 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
             {!hideBucketsButton && (
               <CustomTouchable
                 style={styles.bucketContainer}
-                bgColor={colors.label_dark}
+                bgColor={colors.lime}
                 onPress={handleBucketPress}
               >
-                <BucketSvg />
+                <BucketSvg stroke={colors.label_dark} />
               </CustomTouchable>
             )}
             <CustomTouchable bgColor={colors.lime} style={styles.shareButton}>
@@ -195,7 +208,11 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
                 message={`Check out this bucket: `}
                 url={item.contentShareUrl || ""}
                 IconComponent={() => (
-                  <SendSvgSmall width={18} height={18} stroke="#131314" />
+                  <SendSvgSmall
+                    width={18}
+                    height={18}
+                    stroke={colors.label_dark}
+                  />
                 )}
               />
             </CustomTouchable>

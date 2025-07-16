@@ -34,7 +34,10 @@ export interface CardData {
   contentShareUrl: string;
   tags?: string;
   similarity: number;
+  distance?: number;
 }
+
+export type FilterType = "events" | "venues" | "experiences";
 
 interface SwipeCardsProps {
   data: CardData[];

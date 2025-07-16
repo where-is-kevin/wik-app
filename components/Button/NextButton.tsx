@@ -1,4 +1,9 @@
-import { StyleSheet, ViewStyle, TouchableOpacity } from "react-native";
+import {
+  StyleSheet,
+  ViewStyle,
+  TouchableOpacity,
+  TextStyle,
+} from "react-native";
 import React from "react";
 import { scaleFontSize, verticalScale } from "@/utilities/scaling";
 import CustomText from "../CustomText";
@@ -11,6 +16,7 @@ interface NextButtonProps {
   customStyles?: ViewStyle | ViewStyle[];
   bgColor?: string;
   textColor?: string;
+  customTextStyle?: TextStyle;
 }
 
 const NextButton = ({
@@ -20,6 +26,7 @@ const NextButton = ({
   customStyles,
   bgColor,
   textColor,
+  customTextStyle,
 }: NextButtonProps) => {
   const { colors } = useTheme();
   const backgroundColor = bgColor !== undefined ? bgColor : colors.background;
@@ -41,6 +48,7 @@ const NextButton = ({
         style={[
           styles.nextButtonText,
           customTextColor !== null && { color: customTextColor },
+          customTextStyle,
         ]}
       >
         {title || ""}

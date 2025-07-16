@@ -33,6 +33,7 @@ type Content = {
   isSponsored: boolean;
   contentShareUrl: string;
   similarity: number;
+  distance?: number;
 };
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
@@ -41,6 +42,7 @@ const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
 interface BasicContentParams {
   latitude?: number;
   longitude?: number;
+  category_filter?: string;
 }
 
 // Fixed: Now returns Content[] instead of Content and accepts optional location params
@@ -62,13 +64,15 @@ const fetchContent = async (
   // Add query parameters if provided
   if (
     params &&
-    (params.latitude !== undefined || params.longitude !== undefined)
+    (params.latitude !== undefined || params.longitude !== undefined || params.category_filter !== undefined)
   ) {
     const cleanParams: Record<string, string> = {};
     if (params.latitude !== undefined)
       cleanParams.latitude = params.latitude.toString();
     if (params.longitude !== undefined)
       cleanParams.longitude = params.longitude.toString();
+    if (params.category_filter !== undefined)
+      cleanParams.category_filter = params.category_filter;
 
     const queryString = new URLSearchParams(cleanParams).toString();
     url += `?${queryString}`;
