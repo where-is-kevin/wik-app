@@ -9,7 +9,11 @@ import {
   Linking,
 } from "react-native";
 import CustomView from "@/components/CustomView";
-import { horizontalScale, verticalScale } from "@/utilities/scaling";
+import {
+  horizontalScale,
+  scaleFontSize,
+  verticalScale,
+} from "@/utilities/scaling";
 import {
   BucketBottomSheet,
   BucketItem,
@@ -26,13 +30,19 @@ import { useAddDislike } from "@/hooks/useDislikes";
 import { useLocationForAPI } from "@/contexts/LocationContext";
 import CustomText from "@/components/CustomText";
 import { CardData, SwipeCards } from "@/components/SwipeCards/SwipeCards";
+import FilterModal, { FilterType } from "@/components/FilterModal/FilterModal";
+import FilterSvg from "@/components/SvgComponents/FilterSvg";
+import CustomTouchable from "@/components/CustomTouchableOpacity";
 
 const SwipeableCards = () => {
   const { getLocationForAPI, hasLocationPermission } = useLocationForAPI();
   const [locationParams, setLocationParams] = useState<{
     latitude?: number;
     longitude?: number;
-  }>({});
+    category_filter?: string;
+  }>({
+    category_filter: "event;venue;experience",
+  });
 
   // Get location data and update params
   useEffect(() => {
@@ -40,10 +50,11 @@ const SwipeableCards = () => {
       if (hasLocationPermission) {
         const locationData = await getLocationForAPI();
         if (locationData) {
-          setLocationParams({
+          setLocationParams((prev) => ({
+            ...prev,
             latitude: locationData.lat,
             longitude: locationData.lon,
-          });
+          }));
           // console.log("Location updated for SwipeableCards:", locationData);
         }
       }
@@ -68,6 +79,12 @@ const SwipeableCards = () => {
     isCreateBucketBottomSheetVisible,
     setIsCreateBucketBottomSheetVisible,
   ] = useState(false);
+  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+  const [selectedFilters, setSelectedFilters] = useState<FilterType[]>([
+    "events",
+    "venues",
+    "experiences",
+  ]);
 
   // Mutation hooks
   const addBucketMutation = useAddBucket();
@@ -76,8 +93,6 @@ const SwipeableCards = () => {
   const dislikeMutation = useAddDislike();
 
   // Transform your content data to match SwipeCards interface
-  const isBottomSheetOpen =
-    isBucketBottomSheetVisible || isCreateBucketBottomSheetVisible;
 
   // Fixed: Now content is always an array, so we can map directly
   const transformedData: CardData[] = content
@@ -96,6 +111,8 @@ const SwipeableCards = () => {
         isSponsored: item.isSponsored,
         contentShareUrl: item.contentShareUrl,
         tags: item.tags,
+        similarity: item.similarity,
+        distance: item.distance,
       }))
     : [];
 
@@ -227,6 +244,30 @@ const SwipeableCards = () => {
     }
   };
 
+  const handleFilterApply = (filters: FilterType[]) => {
+    setSelectedFilters(filters);
+
+    // Convert filters to API format: semi-colon separated list
+    // Map "events" -> "event", "venues" -> "venue", "experiences" -> "experience"
+    const categoryFilter =
+      filters.length > 0
+        ? filters
+            .map((filter) => {
+              if (filter === "events") return "event";
+              if (filter === "venues") return "venue";
+              if (filter === "experiences") return "experience";
+              return filter;
+            })
+            .join(";")
+        : undefined;
+
+    // Update location params with new category filter
+    setLocationParams((prev) => ({
+      ...prev,
+      category_filter: categoryFilter,
+    }));
+  };
+
   if (error) {
     return (
       <CustomView style={styles.errorContainer}>
@@ -270,13 +311,22 @@ const SwipeableCards = () => {
   return (
     <>
       <CustomView style={styles.content}>
-        <CustomView
-          style={[
-            styles.swipeContainer,
-            isBottomSheetOpen && { display: "none" },
-            { height: insets.top },
-          ]}
+        <CustomTouchable
+          style={[styles.filterSvgButton, { marginTop: insets.top }]}
+          onPress={() => setIsFilterModalVisible(true)}
         >
+          <CustomView style={styles.filterSvgContainer}>
+            <FilterSvg />
+            {selectedFilters.length < 3 && (
+              <CustomView
+                bgColor={colors.light_blue}
+                style={styles.filterIndicatorDot}
+              />
+            )}
+          </CustomView>
+        </CustomTouchable>
+
+        <CustomView style={[styles.swipeContainer]}>
           <SwipeCards
             data={transformedData}
             onSwipeLeft={handleSwipeLeft}
@@ -284,7 +334,6 @@ const SwipeableCards = () => {
             onSwipeUp={handleSwipeUp}
             onComplete={handleComplete}
             onBucketPress={handleShowBucketBottomSheet}
-            // onCardTap={handleCardTap} // Remove this if you don't need it
           />
         </CustomView>
       </CustomView>
@@ -300,6 +349,13 @@ const SwipeableCards = () => {
         isVisible={isCreateBucketBottomSheetVisible}
         onClose={handleCloseCreateBucketBottomSheet}
         onCreateBucket={handleCreateBucket}
+      />
+
+      <FilterModal
+        isVisible={isFilterModalVisible}
+        onClose={() => setIsFilterModalVisible(false)}
+        onApply={handleFilterApply}
+        selectedFilters={selectedFilters}
       />
     </>
   );
@@ -392,14 +448,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: horizontalScale(24),
     alignItems: "center",
     justifyContent: "center",
-    paddingTop: verticalScale(45),
   },
   swipeContainer: {
     flex: 1,
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
-    paddingBottom: verticalScale(30),
+    paddingBottom: verticalScale(5),
+  },
+  filterSvgButton: {
+    paddingVertical: verticalScale(4),
+    marginBottom: verticalScale(5),
+    alignSelf: "flex-end",
+  },
+  filterSvgContainer: {
+    position: "relative",
+  },
+  filterIndicatorDot: {
+    position: "absolute",
+    bottom: 0,
+    right: 2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 });
 

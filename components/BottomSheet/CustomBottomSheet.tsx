@@ -10,6 +10,7 @@ import React, {
 import { View, StyleSheet, Pressable, Animated, Keyboard } from "react-native";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import { useTheme } from "@/contexts/ThemeContext";
+import { Portal } from "@gorhom/portal";
 
 export interface CustomBottomSheetRef {
   expand: () => void;
@@ -130,7 +131,7 @@ export const CustomBottomSheet = forwardRef<
     );
 
     return (
-      <>
+      <Portal>
         {/* Animated Overlay - behind bottom sheet */}
         {isVisible && (
           <Animated.View
@@ -163,7 +164,7 @@ export const CustomBottomSheet = forwardRef<
             {children}
           </BottomSheetView>
         </BottomSheet>
-      </>
+      </Portal>
     );
   }
 );

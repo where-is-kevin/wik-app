@@ -9,6 +9,7 @@ interface ShareButtonProps {
   onMorePress?: () => void;
   width?: number;
   height?: number;
+  IconComponent?: React.ComponentType<{ width?: number; height?: number }>;
 }
 
 const ShareButton: React.FC<ShareButtonProps> = ({
@@ -18,6 +19,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({
   width,
   height,
   onMorePress,
+  IconComponent = MoreSvg, // Default to MoreSvg if no component provided
 }) => {
   const [isSharing, setIsSharing] = useState(false);
 
@@ -93,7 +95,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({
       accessibilityHint="Opens sharing options for this content"
       style={{ opacity: isSharing ? 0.6 : 1 }}
     >
-      <MoreSvg width={width} height={height} />
+      <IconComponent width={width} height={height} />
     </TouchableOpacity>
   );
 };

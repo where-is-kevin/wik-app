@@ -1,5 +1,6 @@
-export const formatTags = (tags: string): string => {
-  if (!tags) return "";
+// utilities/formatTags.ts
+export const formatTags = (tags: string): string[] => {
+  if (!tags) return [];
 
   return tags
     .split(",")
@@ -25,6 +26,5 @@ export const formatTags = (tags: string): string => {
         })
         .join(" ");
     })
-    .slice(0, 5) // Limit to first 5 tags to avoid UI overflow
-    .join(", ");
+    .slice(0, 3); // Limit to first 5 tags to avoid UI overflow
 };
