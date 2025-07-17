@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "wik-app",
+    "name": "Where is Kevin?",
     "slug": "wik-app",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
