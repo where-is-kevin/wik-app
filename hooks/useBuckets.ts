@@ -5,8 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import Constants from "expo-constants";
-import { firstValueFrom } from "rxjs";
-import { ajax } from "rxjs/ajax";
+import { createTimedAjax } from "@/utilities/apiUtils";
 
 // Match API output for Bucket and Content
 type Content = {
@@ -75,7 +74,7 @@ export const fetchBuckets = async (
 
     const url = `${API_URL}/buckets?${params.toString()}`;
 
-    const observable$ = ajax<PaginatedResponse<Bucket>>({
+    return await createTimedAjax<PaginatedResponse<Bucket>>({
       url,
       method: "GET",
       headers: {
@@ -84,9 +83,6 @@ export const fetchBuckets = async (
       },
       responseType: "json",
     });
-
-    const response = await firstValueFrom(observable$);
-    return response.response;
   } catch (error) {
     console.error("Error fetching buckets:", error);
     throw error;
@@ -106,7 +102,7 @@ const fetchBucketById = async (
       url += `?${params.toString()}`;
     }
 
-    const observable$ = ajax<Bucket>({
+    return await createTimedAjax<Bucket>({
       url,
       method: "GET",
       headers: {
@@ -115,9 +111,6 @@ const fetchBucketById = async (
       },
       responseType: "json",
     });
-
-    const response = await firstValueFrom(observable$);
-    return response.response;
   } catch (error) {
     console.error("Error fetching bucket by ID:", error);
     throw error;
@@ -132,7 +125,7 @@ type AddBucketInput = {
 };
 
 const addBucket = async (input: AddBucketInput, jwt: string): Promise<void> => {
-  const observable$ = ajax<void>({
+  await createTimedAjax<void>({
     url: `${API_URL}/buckets/add`,
     method: "POST",
     headers: {
@@ -143,8 +136,6 @@ const addBucket = async (input: AddBucketInput, jwt: string): Promise<void> => {
     body: JSON.stringify(input),
     responseType: "json",
   });
-
-  await firstValueFrom(observable$);
 };
 
 // Create bucket function (POST /buckets/create)
@@ -157,7 +148,7 @@ const createBucket = async (
   input: CreateBucketInput,
   jwt: string
 ): Promise<void> => {
-  const observable$ = ajax<void>({
+  await createTimedAjax<void>({
     url: `${API_URL}/buckets/create`,
     method: "POST",
     headers: {
@@ -168,8 +159,6 @@ const createBucket = async (
     body: JSON.stringify(input),
     responseType: "json",
   });
-
-  await firstValueFrom(observable$);
 };
 
 // Custom hook for fetching buckets with infinite pagination

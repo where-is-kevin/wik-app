@@ -3,8 +3,7 @@ import {
   useInfiniteQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { firstValueFrom } from "rxjs";
-import { ajax } from "rxjs/ajax";
+import { createTimedAjax } from "@/utilities/apiUtils";
 import Constants from "expo-constants";
 
 type Content = {
@@ -78,15 +77,12 @@ const fetchContent = async (
     url += `?${queryString}`;
   }
 
-  const observable$ = ajax<Content[]>({
+  return await createTimedAjax<Content[]>({
     url,
     method: "GET",
     headers,
     responseType: "json",
   });
-
-  const response = await firstValueFrom(observable$);
-  return response.response;
 };
 
 // Fetch content by ID function - JWT optional
@@ -104,15 +100,12 @@ const fetchContentById = async (
       headers["Authorization"] = `Bearer ${jwt}`;
     }
 
-    const observable$ = ajax<Content>({
+    return await createTimedAjax<Content>({
       url: `${API_URL}/content/${contentId}`,
       method: "GET",
       headers,
       responseType: "json",
     });
-
-    const response = await firstValueFrom(observable$);
-    return response.response;
   } catch (error) {
     console.error("Error fetching content by ID:", error);
     throw error;
@@ -160,15 +153,12 @@ const fetchContentWithParams = async (
   // Construct query string from params
   const queryString = new URLSearchParams(cleanParams).toString();
 
-  const observable$ = ajax<PaginatedResponse>({
+  return await createTimedAjax<PaginatedResponse>({
     url: `${API_URL}/content/selection/ask-kevin?${queryString}`,
     method: "GET",
     headers,
     responseType: "json",
   });
-
-  const response = await firstValueFrom(observable$);
-  return response.response;
 };
 
 // New interface for infinite content params

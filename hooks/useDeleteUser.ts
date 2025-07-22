@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { firstValueFrom } from "rxjs";
-import { ajax } from "rxjs/ajax";
+import { createTimedAjax } from "@/utilities/apiUtils";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -8,7 +7,7 @@ const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
 
 const deleteUser = async (jwt: string): Promise<void> => {
   try {
-    const observable$ = ajax<void>({
+    await createTimedAjax<void>({
       url: `${API_URL}/oauth2/user`,
       method: "DELETE",
       headers: {
@@ -18,8 +17,6 @@ const deleteUser = async (jwt: string): Promise<void> => {
       },
       responseType: "json",
     });
-
-    await firstValueFrom(observable$);
   } catch (error: any) {
     console.error("Error deleting user:", error);
     if (error?.response) {

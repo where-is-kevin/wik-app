@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet } from "react-native";
+import { StyleSheet, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { OnboardingOption } from "@/components/Onboarding/OnboardingOption";
 import { OnboardingProgressBar } from "@/components/Onboarding/OnboardingProgressBar";
@@ -40,6 +40,7 @@ import { useContent } from "@/hooks/useContent";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { Linking } from "react-native";
 import { CardData, SwipeCards } from "@/components/SwipeCards/SwipeCards";
+import { getErrorMessage } from "@/utilities/errorUtils";
 
 const OnboardingScreen = () => {
   const router = useRouter();
@@ -341,7 +342,54 @@ const OnboardingScreen = () => {
           },
           onError: (err: any) => {
             console.error("Signup failed", err?.message || "Unknown error");
-            router.push("/(auth)");
+            
+            // Handle specific error cases
+            if (err?.status === 400) {
+              const errorMessage = err?.detail || err?.message || err?.response?.detail || err?.response?.message || "Bad request";
+              
+              // Check for duplicate email error
+              if (errorMessage.toLowerCase().includes("email") && 
+                  (errorMessage.toLowerCase().includes("exists") || 
+                   errorMessage.toLowerCase().includes("taken") || 
+                   errorMessage.toLowerCase().includes("already"))) {
+                Alert.alert(
+                  "Email Already Registered",
+                  "This email is already registered. Please use a different email or go back to sign in.",
+                  [
+                    {
+                      text: "Try Different Email",
+                      style: "default"
+                    },
+                    {
+                      text: "Sign In Instead", 
+                      onPress: () => router.push("/(auth)"),
+                      style: "default"
+                    }
+                  ]
+                );
+                return; // Don't navigate, let user fix the issue
+              }
+              
+              // Handle other 400 errors
+              Alert.alert("Registration Error", errorMessage, [
+                { text: "OK", style: "default" }
+              ]);
+              return;
+            }
+            
+            // Handle other error types using the global error utility
+            const { title, message } = getErrorMessage(err);
+            Alert.alert(title, message, [
+              { 
+                text: "Try Again",
+                style: "default"
+              },
+              {
+                text: "Sign In Instead",
+                onPress: () => router.push("/(auth)"),
+                style: "cancel"
+              }
+            ]);
           },
         });
       } catch (error) {

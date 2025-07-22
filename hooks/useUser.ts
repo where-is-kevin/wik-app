@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
-import { firstValueFrom } from "rxjs";
-import { ajax } from "rxjs/ajax";
+import { createTimedAjax } from "@/utilities/apiUtils";
 
 type User = {
   id: string;
@@ -20,7 +19,7 @@ const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
 
 const fetchUser = async (jwt: string): Promise<User> => {
   try {
-    const observable$ = ajax<User>({
+    return await createTimedAjax<User>({
       url: `${API_URL}/oauth2/user`,
       method: "GET",
       headers: {
@@ -29,9 +28,6 @@ const fetchUser = async (jwt: string): Promise<User> => {
       },
       responseType: "json",
     });
-
-    const response = await firstValueFrom(observable$);
-    return response.response;
   } catch (error: any) {
     console.error("Error fetching user:", error);
     if (error?.response) {
@@ -58,7 +54,7 @@ export type CreateUserInput = {
 
 const createUser = async (input: CreateUserInput): Promise<User> => {
   try {
-    const observable$ = ajax<User>({
+    return await createTimedAjax<User>({
       url: `${API_URL}/oauth2/user`,
       method: "POST",
       headers: {
@@ -68,9 +64,6 @@ const createUser = async (input: CreateUserInput): Promise<User> => {
       body: JSON.stringify(input),
       responseType: "json",
     });
-
-    const response = await firstValueFrom(observable$);
-    return response.response;
   } catch (error: any) {
     if (error?.response) {
       // Throw the actual API response so it can be accessed in the component
@@ -82,7 +75,7 @@ const createUser = async (input: CreateUserInput): Promise<User> => {
 
 const updateUser = async (jwt: string, updated: any): Promise<User> => {
   try {
-    const observable$ = ajax<User>({
+    return await createTimedAjax<User>({
       url: `${API_URL}/oauth2/user`,
       method: "PUT",
       headers: {
@@ -93,9 +86,6 @@ const updateUser = async (jwt: string, updated: any): Promise<User> => {
       body: JSON.stringify(updated),
       responseType: "json",
     });
-
-    const response = await firstValueFrom(observable$);
-    return response.response;
   } catch (error: any) {
     console.error("Error updating user:", error);
     if (error?.response) {

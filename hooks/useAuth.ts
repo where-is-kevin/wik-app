@@ -1,7 +1,6 @@
 // hooks/useAuth.ts - Single source of truth for auth
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { firstValueFrom } from "rxjs";
-import { ajax } from "rxjs/ajax";
+import { createTimedAjax } from "@/utilities/apiUtils";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
@@ -93,7 +92,7 @@ const loginApi = async (data: LoginData): Promise<AuthResponse> => {
   params.append("client_secret", "string");
 
   try {
-    const observable$ = ajax({
+    return await createTimedAjax<AuthResponse>({
       url: `${API_URL}/oauth2/login`,
       method: "POST",
       headers: {
@@ -103,9 +102,6 @@ const loginApi = async (data: LoginData): Promise<AuthResponse> => {
       body: params.toString(),
       responseType: "json",
     });
-
-    const response = await firstValueFrom(observable$);
-    return response.response as AuthResponse;
   } catch (error: any) {
     if (error?.response) {
       throw error.response;

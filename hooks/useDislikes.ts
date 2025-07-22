@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Constants from 'expo-constants';
-import { firstValueFrom } from 'rxjs';
-import { ajax } from 'rxjs/ajax';
+import { createTimedAjax } from '@/utilities/apiUtils';
 
 type Dislike = {
   id: string;
@@ -20,7 +19,7 @@ const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
 // Fetch dislikes function
 const fetchDislikes = async (jwt: string): Promise<Dislike[]> => {
   try {
-    const observable$ = ajax<Dislike[]>({
+    return await createTimedAjax<Dislike[]>({
       url: `${API_URL}/dislikes`,
       method: 'GET',
       headers: {
@@ -29,9 +28,6 @@ const fetchDislikes = async (jwt: string): Promise<Dislike[]> => {
       },
       responseType: 'json',
     });
-
-    const response = await firstValueFrom(observable$);
-    return response.response;
   } catch (error) {
     console.error("Error fetching dislikes:", error);
     throw error;
@@ -44,7 +40,7 @@ type AddDislikeInput = {
 };
 
 const addDislike = async (input: AddDislikeInput, jwt: string): Promise<void> => {
-  const observable$ = ajax<void>({
+  await createTimedAjax<void>({
     url: `${API_URL}/dislikes/add`,
     method: 'POST',
     headers: {
@@ -55,8 +51,6 @@ const addDislike = async (input: AddDislikeInput, jwt: string): Promise<void> =>
     body: JSON.stringify(input),
     responseType: 'json',
   });
-
-  await firstValueFrom(observable$);
 };
 
 // Custom hook for fetching dislikes

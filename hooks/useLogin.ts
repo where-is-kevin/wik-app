@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { firstValueFrom } from "rxjs";
-import { ajax } from "rxjs/ajax";
+import { createTimedAjax } from "@/utilities/apiUtils";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 
@@ -35,7 +34,8 @@ const login = async (data: LoginData): Promise<AuthResponse> => {
   params.append("client_secret", "string");
 
   try {
-    const observable$ = ajax({
+    // Convert Observable to Promise for React Query
+    return await createTimedAjax<AuthResponse>({
       url: `${API_URL}/oauth2/login`,
       method: "POST",
       headers: {
@@ -45,10 +45,6 @@ const login = async (data: LoginData): Promise<AuthResponse> => {
       body: params.toString(),
       responseType: "json",
     });
-
-    // Convert Observable to Promise for React Query
-    const response = await firstValueFrom(observable$);
-    return response.response as AuthResponse;
   } catch (error: any) {
     if (error?.response) {
       // Throw the actual API response so it can be accessed in the component

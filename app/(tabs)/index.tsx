@@ -1,19 +1,10 @@
 import { useContent } from "@/hooks/useContent";
 import React, { useState, useCallback, useEffect } from "react";
 import { useAddLike } from "@/hooks/useLikes";
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  Linking,
-} from "react-native";
+import { getErrorMessage } from "@/utilities/errorUtils";
+import { StyleSheet, TouchableOpacity, Linking } from "react-native";
 import CustomView from "@/components/CustomView";
-import {
-  horizontalScale,
-  scaleFontSize,
-  verticalScale,
-} from "@/utilities/scaling";
+import { horizontalScale, verticalScale } from "@/utilities/scaling";
 import {
   BucketBottomSheet,
   BucketItem,
@@ -269,15 +260,11 @@ const SwipeableCards = () => {
   };
 
   if (error) {
+    const errorMessage = getErrorMessage(error);
     return (
       <CustomView style={styles.errorContainer}>
-        <CustomText style={styles.errorTitle}>
-          {`We are coming to your\narea soon! 🚀`}
-        </CustomText>
-        <CustomText style={styles.errorText}>
-          We don't have any content at your location currently, but we are
-          working hard to bring amazing experiences to you soon!
-        </CustomText>
+        <CustomText style={styles.errorTitle}>{errorMessage.title}</CustomText>
+        <CustomText style={styles.errorText}>{errorMessage.message}</CustomText>
         <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
           <CustomText style={styles.retryButtonText}>Check Again</CustomText>
         </TouchableOpacity>

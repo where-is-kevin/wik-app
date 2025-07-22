@@ -15,7 +15,17 @@ import { PortalProvider } from "@gorhom/portal";
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const queryClient = new QueryClient();
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: 1,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+      },
+      mutations: {
+        retry: 1,
+      },
+    },
+  });
 
   // Load custom fonts
   const [loaded] = useFonts({

@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { firstValueFrom } from "rxjs";
-import { ajax } from "rxjs/ajax";
+import { createTimedAjax } from "@/utilities/apiUtils";
 import Constants from "expo-constants";
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
@@ -16,7 +15,7 @@ const changePassword = async (
   jwt: string
 ): Promise<void> => {
   try {
-    const observable$ = ajax<void>({
+    await createTimedAjax<void>({
       url: `${API_URL}/oauth2/update-password`,
       method: "POST",
       headers: {
@@ -31,8 +30,6 @@ const changePassword = async (
       }),
       responseType: "json",
     });
-
-    await firstValueFrom(observable$);
   } catch (error: any) {
     console.error("Error changing password:", error);
     if (error?.response) {

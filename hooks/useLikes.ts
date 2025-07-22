@@ -4,8 +4,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import Constants from "expo-constants";
-import { firstValueFrom } from "rxjs";
-import { ajax } from "rxjs/ajax";
+import { createTimedAjax } from "@/utilities/apiUtils";
 
 type Content = {
   id: string;
@@ -63,7 +62,7 @@ const fetchLikes = async (
 
     const url = `${API_URL}/likes?${params.toString()}`;
 
-    const observable$ = ajax<PaginatedResponse<Content>>({
+    return await createTimedAjax<PaginatedResponse<Content>>({
       url,
       method: "GET",
       headers: {
@@ -72,9 +71,6 @@ const fetchLikes = async (
       },
       responseType: "json",
     });
-
-    const response = await firstValueFrom(observable$);
-    return response.response;
   } catch (error) {
     console.error("Error fetching likes:", error);
     throw error;
@@ -87,7 +83,7 @@ type AddLikeInput = {
 };
 
 const addLike = async (input: AddLikeInput, jwt: string): Promise<void> => {
-  const observable$ = ajax<void>({
+  await createTimedAjax<void>({
     url: `${API_URL}/likes/add`,
     method: "POST",
     headers: {
@@ -98,8 +94,6 @@ const addLike = async (input: AddLikeInput, jwt: string): Promise<void> => {
     body: JSON.stringify(input),
     responseType: "json",
   });
-
-  await firstValueFrom(observable$);
 };
 
 // Custom hook for fetching likes with infinite pagination
