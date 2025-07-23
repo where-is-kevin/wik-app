@@ -31,6 +31,8 @@ type Content = {
   updatedAt: string;
   contentShareUrl?: string;
   image?: string; // fallback image property
+  distance?: number; // optional distance for sorting
+  similarity?: number; // similarity score for sorting
 };
 
 // Paginated response structure
