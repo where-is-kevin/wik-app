@@ -31,7 +31,7 @@ const LocationContext = createContext<LocationContextType | undefined>(
 );
 
 const LOCATION_STORAGE_KEY = "user_location";
-const LOCATION_EXPIRY_TIME = 5 * 60 * 1000; // 5 minutes
+const LOCATION_EXPIRY_TIME = 2 * 60 * 1000; // 2 minutes
 
 export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -68,7 +68,14 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({
       const cachedLocation = await AsyncStorage.getItem(LOCATION_STORAGE_KEY);
       if (cachedLocation) {
         const parsedLocation = JSON.parse(cachedLocation);
-        setLocation(parsedLocation);
+        
+        // Only use cached location if it's not stale
+        if (Date.now() - parsedLocation.timestamp <= LOCATION_EXPIRY_TIME) {
+          setLocation(parsedLocation);
+        } else {
+          // If stale, trigger immediate refresh
+          refreshLocation();
+        }
       }
     } catch (error) {
       console.error("Error loading cached location:", error);
@@ -116,9 +123,9 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({
         setError(null);
 
         const locationResult = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-          timeInterval: 1000,
-          distanceInterval: 10,
+          accuracy: Location.Accuracy.High,
+          timeInterval: 500,
+          distanceInterval: 5,
         });
 
         const newLocation: LocationData = {

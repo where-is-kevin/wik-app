@@ -26,6 +26,7 @@ import CustomView from "@/components/CustomView";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { bucketsHaveContent } from "@/utilities/hasContent";
 import EmptyData from "@/components/EmptyData";
+import FloatingMapButton from "@/components/FloatingMapButton";
 
 // Enhanced custom hook for debounced search with reset capability
 const useDebounce = (value: string, delay: number) => {
@@ -199,6 +200,11 @@ const BucketDetailsScreen = () => {
     setSearchQuery(query);
   };
 
+  // Map navigation handler
+  const handleOpenMap = () => {
+    router.push(`/map-screen?source=bucket-single&bucketId=${bucketId}&query=${encodeURIComponent(debouncedSearchQuery)}`);
+  };
+
   // Loading state
   if (isBucketLoading && !bucket) {
     return (
@@ -303,6 +309,11 @@ const BucketDetailsScreen = () => {
         onClose={handleCloseCreateBucketBottomSheet}
         onCreateBucket={handleCreateBucket}
       />
+
+      {/* Floating Map Button */}
+      {hasBucketContent && hasFilteredResults && (
+        <FloatingMapButton onPress={handleOpenMap} />
+      )}
     </SafeAreaView>
   );
 };

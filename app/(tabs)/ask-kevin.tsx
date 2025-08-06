@@ -17,6 +17,7 @@ import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBo
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import { useInfiniteContent } from "@/hooks/useContent";
 import { StatusBar } from "expo-status-bar";
+import FloatingMapButton from "@/components/FloatingMapButton";
 
 const PaginatedContentList = () => {
   const { query } = useLocalSearchParams();
@@ -201,6 +202,11 @@ const PaginatedContentList = () => {
     [selectedLikeItemId, createBucketMutation]
   );
 
+  // Map navigation handler
+  const handleOpenMap = useCallback(() => {
+    router.push(`/map-screen?source=content&query=${encodeURIComponent(searchQuery)}`);
+  }, [router, searchQuery]);
+
   const handleItemPress = useCallback(
     (item: LikeItem) => {
       router.push(`/event-details/${item.id}`);
@@ -305,6 +311,11 @@ const PaginatedContentList = () => {
           onClose={handleCloseCreateBucketBottomSheet}
           onCreateBucket={handleCreateBucket}
         />
+        
+        {/* Floating Map Button */}
+        {allItems.length > 0 && (
+          <FloatingMapButton onPress={handleOpenMap} />
+        )}
       </CustomView>
     </>
   );
