@@ -4,7 +4,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomText from "@/components/CustomText";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
-import { verticalScale, horizontalScale, scaleFontSize } from "@/utilities/scaling";
+import {
+  verticalScale,
+  horizontalScale,
+  scaleFontSize,
+} from "@/utilities/scaling";
 
 interface MapLoadingStateProps {
   onBack: () => void;
@@ -20,7 +24,8 @@ const MapLoadingState: React.FC<MapLoadingStateProps> = ({
   locationError,
 }) => {
   const insets = useSafeAreaInsets();
-  const topPosition = insets.top < 30 ? insets.top + verticalScale(10) : insets.top;
+  const topPosition =
+    insets.top < 30 ? insets.top + verticalScale(10) : insets.top;
 
   const getLoadingMessage = () => {
     if (source === "content" && locationLoading) {
@@ -38,22 +43,12 @@ const MapLoadingState: React.FC<MapLoadingStateProps> = ({
       >
         <Ionicons name="arrow-back" size={28} color="#222" />
       </TouchableOpacity>
-      
+
       <View style={styles.contentContainer}>
         <AnimatedLoader />
-        
-        <CustomText 
-          style={styles.loadingText}
-          fontFamily="Inter-Medium"
-        >
-          {getLoadingMessage()}
-        </CustomText>
-        
+
         {source === "content" && locationError && (
-          <CustomText
-            style={styles.errorText}
-            fontFamily="Inter-Regular"
-          >
+          <CustomText style={styles.errorText} fontFamily="Inter-Regular">
             Using default location
           </CustomText>
         )}

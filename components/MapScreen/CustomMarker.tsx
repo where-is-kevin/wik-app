@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, Platform } from "react-native";
 import CustomText from "@/components/CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
 import { scaleFontSize } from "@/utilities/scaling";
@@ -61,11 +61,17 @@ export default CustomMarker;
 
 const styles = StyleSheet.create({
   shadow: {
-    shadowColor: "#131314",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#131314",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
     borderRadius: 50,
     alignSelf: "flex-start",
   },

@@ -17,6 +17,7 @@ interface CustomMapViewProps {
     latitude: number;
     longitude: number;
   } | null;
+  onRegionChange?: (region: any) => void;
 }
 
 interface ClusterItem {
@@ -37,16 +38,17 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
   onMarkerPress,
   hasLocation,
   userLocation,
+  onRegionChange,
 }) => {
   // Dynamic clustering algorithm that adapts to zoom level
   const clusteredData = useMemo(() => {
     const validItems = data.filter(hasLocation);
-    
+
     // Dynamic clustering distance based on zoom level
     // More zoomed out = larger cluster distance
     const zoomFactor = Math.max(0.001, region.latitudeDelta);
     const shouldCluster = zoomFactor > 0.02; // Start clustering when zoomed out enough
-    
+
     if (!shouldCluster) {
       // Return individual markers when zoomed in
       return validItems.map((item, index) => ({
@@ -59,79 +61,90 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
         originalIndex: index,
       }));
     }
-    
+
     // Dynamic cluster distance - scales with zoom level
     const baseClusterDistance = 0.005;
     const clusterDistance = baseClusterDistance * (zoomFactor / 0.02);
-    
+
     // Precise clustering algorithm that considers cluster density
     let clusters: ClusterItem[] = [];
     const clustered = new Set();
-    
+
     validItems.forEach((item, index) => {
       if (clustered.has(index)) return;
-      
+
       // Find nearby items within cluster distance
       const nearbyItems: { index: number; item: any; distance: number }[] = [];
-      
+
       validItems.forEach((otherItem, otherIndex) => {
         if (clustered.has(otherIndex) || index === otherIndex) return;
-        
+
         const distance = Math.sqrt(
           Math.pow(item.latitude - otherItem.latitude, 2) +
-          Math.pow(item.longitude - otherItem.longitude, 2)
+            Math.pow(item.longitude - otherItem.longitude, 2)
         );
-        
+
         if (distance < clusterDistance) {
           nearbyItems.push({ index: otherIndex, item: otherItem, distance });
         }
       });
-      
+
       if (nearbyItems.length > 0) {
         // Sort by distance to get closest items first
         nearbyItems.sort((a, b) => a.distance - b.distance);
-        
+
         // Build cluster incrementally, checking if each new item fits well
         const clusterItems = [{ index, item, distance: 0 }];
         const clusterCenter = { lat: item.latitude, lng: item.longitude };
-        
+
         for (const nearby of nearbyItems) {
           // Check if this item would fit well in the current cluster
           // Calculate average distance from this item to all current cluster items
-          const avgDistanceToCluster = clusterItems.reduce((sum, clusterItem) => {
-            const dist = Math.sqrt(
-              Math.pow(nearby.item.latitude - clusterItem.item.latitude, 2) +
-              Math.pow(nearby.item.longitude - clusterItem.item.longitude, 2)
-            );
-            return sum + dist;
-          }, 0) / clusterItems.length;
-          
+          const avgDistanceToCluster =
+            clusterItems.reduce((sum, clusterItem) => {
+              const dist = Math.sqrt(
+                Math.pow(nearby.item.latitude - clusterItem.item.latitude, 2) +
+                  Math.pow(
+                    nearby.item.longitude - clusterItem.item.longitude,
+                    2
+                  )
+              );
+              return sum + dist;
+            }, 0) / clusterItems.length;
+
           // Only add to cluster if it's reasonably close to all existing items
           // Use a stricter threshold for cluster cohesion
           const maxAvgDistance = clusterDistance * 0.7; // 70% of max cluster distance
-          
+
           if (avgDistanceToCluster < maxAvgDistance) {
             clusterItems.push(nearby);
             // Update cluster center
-            const totalLat = clusterItems.reduce((sum, ci) => sum + ci.item.latitude, 0);
-            const totalLng = clusterItems.reduce((sum, ci) => sum + ci.item.longitude, 0);
+            const totalLat = clusterItems.reduce(
+              (sum, ci) => sum + ci.item.latitude,
+              0
+            );
+            const totalLng = clusterItems.reduce(
+              (sum, ci) => sum + ci.item.longitude,
+              0
+            );
             clusterCenter.lat = totalLat / clusterItems.length;
             clusterCenter.lng = totalLng / clusterItems.length;
           }
         }
-        
-        if (clusterItems.length >= 2) { // Only create cluster if we have at least 2 items
+
+        if (clusterItems.length >= 2) {
+          // Only create cluster if we have at least 2 items
           clusters.push({
             id: `cluster_${clusters.length}_${clusterItems.length}`,
             latitude: clusterCenter.lat,
             longitude: clusterCenter.lng,
             count: clusterItems.length,
-            items: clusterItems.map(ci => ci.item),
+            items: clusterItems.map((ci) => ci.item),
             isCluster: true,
           });
-          
+
           // Mark all items as clustered
-          clusterItems.forEach(ci => clustered.add(ci.index));
+          clusterItems.forEach((ci) => clustered.add(ci.index));
         } else {
           // Not enough items for a good cluster, treat as individual
           clusters.push({
@@ -159,7 +172,7 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
         clustered.add(index);
       }
     });
-    
+
     return clusters;
   }, [data, region.latitudeDelta, hasLocation]);
 
@@ -184,6 +197,7 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
       ref={mapRef}
       style={styles.mapContainer}
       region={region}
+      onRegionChangeComplete={onRegionChange}
       zoomEnabled={true}
       scrollEnabled={true}
       rotateEnabled={false}
@@ -191,7 +205,6 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
     >
       {clusteredData.map((cluster) => {
         if (cluster.isCluster) {
-          // Render cluster marker
           return (
             <Marker
               key={cluster.id}
@@ -202,29 +215,27 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
               onPress={() => handleClusterPress(cluster)}
               tracksViewChanges={false}
             >
-              <ClusterMarker 
-                count={cluster.count} 
+              <ClusterMarker
+                count={cluster.count}
                 onPress={() => handleClusterPress(cluster)}
               />
-              <Callout tooltip>
-                <View style={styles.hiddenCallout} />
-              </Callout>
             </Marker>
           );
         } else {
-          // Render individual marker
           const item = cluster.items[0];
           const color = getMarkerColor(item.category);
           const IconComponent = getMarkerIcon(item.category);
-          const isSelected = cluster.originalIndex === selectedIndex;
-          const similarity =
-            "similarity" in item && item.similarity
-              ? Math.round(parseFloat(item.similarity as string) * 100)
-              : 98;
+          const isSelected =
+            cluster.originalIndex === selectedIndex ||
+            cluster.items[0].id === data[selectedIndex]?.id;
+
+          const similarity = 98;
 
           return (
             <Marker
-              key={cluster.id}
+              key={`marker-${cluster.items[0].id}-${
+                isSelected ? "selected" : "unselected"
+              }`}
               coordinate={{
                 latitude: cluster.latitude,
                 longitude: cluster.longitude,
@@ -238,30 +249,33 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
                 icon={IconComponent}
                 color={color}
               />
-              <Callout tooltip>
-                <View style={styles.hiddenCallout} />
-              </Callout>
             </Marker>
           );
         }
       })}
-      
+
       {/* User Location Marker */}
-      {userLocation && (
-        <Marker
-          coordinate={{
-            latitude: userLocation.latitude,
-            longitude: userLocation.longitude,
-          }}
-          tracksViewChanges={false}
-          zIndex={1000} // Ensure user location is always on top
-        >
-          <UserLocationMarker />
-          <Callout tooltip>
-            <View style={styles.hiddenCallout} />
-          </Callout>
-        </Marker>
-      )}
+      {userLocation &&
+        typeof userLocation.latitude === "number" &&
+        typeof userLocation.longitude === "number" &&
+        !isNaN(userLocation.latitude) &&
+        !isNaN(userLocation.longitude) && (
+          <Marker
+            coordinate={{
+              latitude: userLocation.latitude,
+              longitude: userLocation.longitude,
+            }}
+            tracksViewChanges={false}
+            zIndex={10} // Lower zIndex for Android compatibility
+            anchor={{ x: 0.5, y: 0.5 }} // Explicit anchor for Android
+            centerOffset={{ x: 0, y: 0 }} // Prevent offset issues
+          >
+            <UserLocationMarker />
+            <Callout tooltip>
+              <View style={styles.hiddenCallout} />
+            </Callout>
+          </Marker>
+        )}
     </MapView>
   );
 };

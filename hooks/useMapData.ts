@@ -50,7 +50,11 @@ export const hasLocation = (
     "latitude" in item &&
     "longitude" in item &&
     typeof item.latitude === "number" &&
-    typeof item.longitude === "number"
+    typeof item.longitude === "number" &&
+    !isNaN(item.latitude) &&
+    !isNaN(item.longitude) &&
+    Math.abs(item.latitude) <= 90 &&
+    Math.abs(item.longitude) <= 180
   );
 };
 

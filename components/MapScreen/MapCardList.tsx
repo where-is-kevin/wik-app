@@ -26,7 +26,7 @@ const MapCardList: React.FC<MapCardListProps> = ({
   const CARD_SPACING = 12;
   const SNAP_INTERVAL = CARD_WIDTH + CARD_SPACING;
 
-  const renderEventCard = ({ item, index }: { item: any; index: number }) => {
+  const renderEventCard = React.useCallback(({ item, index }: { item: any; index: number }) => {
     const isSelected = index === selectedIndex;
 
     return (
@@ -38,7 +38,18 @@ const MapCardList: React.FC<MapCardListProps> = ({
         onBucketPress={onBucketPress}
       />
     );
-  };
+  }, [selectedIndex, onCardPress, onBucketPress, CARD_WIDTH]);
+
+  const getItemLayout = React.useCallback(
+    (data: any, index: number) => ({
+      length: SNAP_INTERVAL,
+      offset: SNAP_INTERVAL * index,
+      index,
+    }),
+    [SNAP_INTERVAL]
+  );
+
+  const keyExtractor = React.useCallback((item: any) => item.id.toString(), []);
 
   return (
     <View style={[styles.container, { bottom: insets.bottom + 20 }]}>
@@ -46,7 +57,8 @@ const MapCardList: React.FC<MapCardListProps> = ({
         ref={flatListRef}
         data={data}
         renderItem={renderEventCard}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={keyExtractor}
+        getItemLayout={getItemLayout}
         horizontal
         pagingEnabled={false}
         showsHorizontalScrollIndicator={false}
@@ -54,6 +66,10 @@ const MapCardList: React.FC<MapCardListProps> = ({
         snapToAlignment="start"
         decelerationRate="fast"
         onMomentumScrollEnd={onScrollEnd}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={3}
+        initialNumToRender={3}
+        windowSize={5}
         contentContainerStyle={{
           paddingLeft: (Dimensions.get("window").width - CARD_WIDTH) / 2,
           paddingRight: (Dimensions.get("window").width - CARD_WIDTH) / 2,

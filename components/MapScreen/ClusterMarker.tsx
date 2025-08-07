@@ -67,4 +67,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ClusterMarker;
+export default React.memo(ClusterMarker);

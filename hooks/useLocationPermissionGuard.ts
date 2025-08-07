@@ -42,7 +42,7 @@ export const useLocationPermissionGuard = (options: UseLocationPermissionGuardOp
       return 'undetermined'; // For 'undetermined' and other states
     } catch (error) {
       console.error('Error checking current permission:', error);
-      return 'denied';
+      return 'undetermined'; // Default to undetermined to show permission screen
     }
   };
 
@@ -72,13 +72,16 @@ export const useLocationPermissionGuard = (options: UseLocationPermissionGuardOp
         if (redirectToTabs) {
           router.replace('/(tabs)');
         }
+      } else if (currentStatus === 'undetermined' && !wasAskedBefore) {
+        // First time user or fresh install - always show permission screen
+        router.replace('/(auth)/location-permission');
       } else if (wasAskedBefore) {
         // User was asked before (and denied/undetermined), don't ask again
         if (redirectToTabs) {
           router.replace('/(tabs)');
         }
       } else {
-        // Never asked before, show permission screen
+        // Fallback - show permission screen for safety
         router.replace('/(auth)/location-permission');
       }
     } catch (error) {

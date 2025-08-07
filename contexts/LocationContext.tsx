@@ -49,10 +49,15 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Handle app state changes
   useEffect(() => {
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (nextAppState === "active" && hasLocationPermission) {
-        // Refresh location when app becomes active
-        refreshLocationIfStale();
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      if (nextAppState === "active") {
+        // Check permission status when app becomes active (user might have changed it in settings)
+        await checkLocationPermission();
+        
+        if (hasLocationPermission) {
+          // Refresh location when app becomes active
+          refreshLocationIfStale();
+        }
       }
     };
 

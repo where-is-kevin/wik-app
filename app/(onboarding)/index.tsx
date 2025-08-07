@@ -37,8 +37,8 @@ import { useCreateUser } from "@/hooks/useUser";
 import type { CreateUserInput } from "@/hooks/useUser";
 import { useAuth } from "@/hooks/useAuth";
 import { useContent } from "@/hooks/useContent";
+import { useLocationPermissionGuard } from "@/hooks/useLocationPermissionGuard";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
-import { Linking } from "react-native";
 import { CardData, SwipeCards } from "@/components/SwipeCards/SwipeCards";
 import { getErrorMessage } from "@/utilities/errorUtils";
 
@@ -70,6 +70,10 @@ const OnboardingScreen = () => {
     error: contentError,
     refetch,
   } = useContent({});
+
+  const { checkAndNavigate } = useLocationPermissionGuard({
+    redirectToTabs: true,
+  });
 
   const stepData = filteredSteps[currentStepIndex];
   const currentSelection = stepData ? selections[stepData.key] : undefined;
@@ -326,8 +330,9 @@ const OnboardingScreen = () => {
                   password: userInput.password,
                 },
                 {
-                  onSuccess: () => {
-                    router.push("/(tabs)");
+                  onSuccess: async () => {
+                    // Navigate through location permission check instead of directly to tabs
+                    await checkAndNavigate();
                   },
                   onError: (loginErr: any) => {
                     console.error("Login failed after signup", loginErr);
@@ -342,53 +347,60 @@ const OnboardingScreen = () => {
           },
           onError: (err: any) => {
             console.error("Signup failed", err?.message || "Unknown error");
-            
+
             // Handle specific error cases
             if (err?.status === 400) {
-              const errorMessage = err?.detail || err?.message || err?.response?.detail || err?.response?.message || "Bad request";
-              
+              const errorMessage =
+                err?.detail ||
+                err?.message ||
+                err?.response?.detail ||
+                err?.response?.message ||
+                "Bad request";
+
               // Check for duplicate email error
-              if (errorMessage.toLowerCase().includes("email") && 
-                  (errorMessage.toLowerCase().includes("exists") || 
-                   errorMessage.toLowerCase().includes("taken") || 
-                   errorMessage.toLowerCase().includes("already"))) {
+              if (
+                errorMessage.toLowerCase().includes("email") &&
+                (errorMessage.toLowerCase().includes("exists") ||
+                  errorMessage.toLowerCase().includes("taken") ||
+                  errorMessage.toLowerCase().includes("already"))
+              ) {
                 Alert.alert(
                   "Email Already Registered",
                   "This email is already registered. Please use a different email or go back to sign in.",
                   [
                     {
                       text: "Try Different Email",
-                      style: "default"
+                      style: "default",
                     },
                     {
-                      text: "Sign In Instead", 
+                      text: "Sign In Instead",
                       onPress: () => router.push("/(auth)"),
-                      style: "default"
-                    }
+                      style: "default",
+                    },
                   ]
                 );
                 return; // Don't navigate, let user fix the issue
               }
-              
+
               // Handle other 400 errors
               Alert.alert("Registration Error", errorMessage, [
-                { text: "OK", style: "default" }
+                { text: "OK", style: "default" },
               ]);
               return;
             }
-            
+
             // Handle other error types using the global error utility
             const { title, message } = getErrorMessage(err);
             Alert.alert(title, message, [
-              { 
+              {
                 text: "Try Again",
-                style: "default"
+                style: "default",
               },
               {
                 text: "Sign In Instead",
                 onPress: () => router.push("/(auth)"),
-                style: "cancel"
-              }
+                style: "cancel",
+              },
             ]);
           },
         });
@@ -706,15 +718,17 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: horizontalScale(24),
+    paddingHorizontal: horizontalScale(20),
     alignItems: "center",
     paddingTop: verticalScale(16),
+    paddingBottom: verticalScale(20),
   },
   logoContent: {
     flex: 1,
-    paddingHorizontal: horizontalScale(24),
+    paddingHorizontal: horizontalScale(20),
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: verticalScale(20),
   },
   contentEnd: {
     flex: 1,
@@ -746,7 +760,7 @@ const styles = StyleSheet.create({
   },
   optionsSubtitle: {
     fontSize: scaleFontSize(18),
-    height: 58,
+    minHeight: 58,
     marginBottom: verticalScale(23),
     textAlign: "center",
   },

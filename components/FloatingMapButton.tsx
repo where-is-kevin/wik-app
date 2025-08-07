@@ -1,5 +1,5 @@
-import React from "react";
-import { TouchableOpacity, StyleSheet } from "react-native";
+import React, { useState, useEffect } from "react";
+import { TouchableOpacity, StyleSheet, Keyboard, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomText from "@/components/CustomText";
@@ -18,6 +18,24 @@ interface FloatingMapButtonProps {
 const FloatingMapButton: React.FC<FloatingMapButtonProps> = ({ onPress }) => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      () => setKeyboardVisible(true)
+    );
+
+    const keyboardDidHideListener = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide", 
+      () => setKeyboardVisible(false)
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   return (
     <CustomTouchable
@@ -29,6 +47,8 @@ const FloatingMapButton: React.FC<FloatingMapButtonProps> = ({ onPress }) => {
             insets.bottom > 0
               ? insets.bottom + verticalScale(20)
               : verticalScale(20),
+          zIndex: keyboardVisible ? -1 : 1000,
+          opacity: keyboardVisible ? 0.3 : 1,
         },
       ]}
       onPress={onPress}

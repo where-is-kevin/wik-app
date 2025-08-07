@@ -1,7 +1,7 @@
 import React from "react";
-import { View, Dimensions, FlatList, StyleSheet } from "react-native";
+import { View, Dimensions, FlatList, StyleSheet, Platform } from "react-native";
 import MapView from "react-native-maps";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import MapHeader from "@/components/MapScreen/MapHeader";
 import MapLoadingState from "@/components/MapScreen/MapLoadingState";
 import MapErrorState from "@/components/MapScreen/MapErrorState";
@@ -13,7 +13,6 @@ import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBo
 import { useMapData, hasLocation } from "@/hooks/useMapData";
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 
-
 const MapScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -24,21 +23,30 @@ const MapScreen = () => {
   const bucketId = params.bucketId as string;
 
   // Use custom hook for data management
-  const { data, isLoading, isError, locationLoading, locationError, userLocation } = useMapData(
-    source,
-    searchQuery,
-    bucketId
-  );
+  const {
+    data,
+    isLoading,
+    isError,
+    locationLoading,
+    locationError,
+    userLocation,
+  } = useMapData(source, searchQuery, bucketId);
 
   const mapRef = React.useRef<MapView>(null);
   const flatListRef = React.useRef<FlatList>(null);
   const [selectedIndex, setSelectedIndex] = React.useState(0);
-  const preserveZoomRef = React.useRef(false);
+  const [mapReloadKey, setMapReloadKey] = React.useState(0);
 
   // Bucket functionality state
-  const [selectedLikeItemId, setSelectedLikeItemId] = React.useState<string | null>(null);
-  const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] = React.useState(false);
-  const [isCreateBucketBottomSheetVisible, setIsCreateBucketBottomSheetVisible] = React.useState(false);
+  const [selectedLikeItemId, setSelectedLikeItemId] = React.useState<
+    string | null
+  >(null);
+  const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] =
+    React.useState(false);
+  const [
+    isCreateBucketBottomSheetVisible,
+    setIsCreateBucketBottomSheetVisible,
+  ] = React.useState(false);
 
   // Bucket mutations
   const addBucketMutation = useAddBucket();
@@ -50,6 +58,19 @@ const MapScreen = () => {
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   });
+
+  const handleRegionChange = React.useCallback((newRegion: any) => {
+    // Just a simple callback for now
+  }, []);
+
+  // Force map reload on focus (Android fix only)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (Platform.OS === "android") {
+        setMapReloadKey((prev) => prev + 1);
+      }
+    }, [])
+  );
 
   // Initialize region when data is loaded
   React.useEffect(() => {
@@ -75,15 +96,13 @@ const MapScreen = () => {
         const newRegion = {
           latitude: selectedItem.latitude,
           longitude: selectedItem.longitude,
-          latitudeDelta: preserveZoomRef.current ? region.latitudeDelta : 0.01,
-          longitudeDelta: preserveZoomRef.current ? region.longitudeDelta : 0.01,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
         };
         setRegion(newRegion);
         if (mapRef.current) {
           mapRef.current.animateToRegion(newRegion, 1500);
         }
-        // Reset the preserve zoom flag after use
-        preserveZoomRef.current = false;
       }
     }
   }, [selectedIndex, data]);
@@ -101,7 +120,6 @@ const MapScreen = () => {
   };
 
   const onMarkerPress = (index: number) => {
-    preserveZoomRef.current = true; // Set flag to preserve zoom when marker is pressed
     setSelectedIndex(index);
     if (flatListRef.current) {
       flatListRef.current.scrollToOffset({
@@ -142,12 +160,15 @@ const MapScreen = () => {
   );
 
   // Bucket functionality handlers
-  const handleShowBucketBottomSheet = React.useCallback((likeItemId?: string) => {
-    if (likeItemId) {
-      setSelectedLikeItemId(likeItemId);
-    }
-    setIsBucketBottomSheetVisible(true);
-  }, []);
+  const handleShowBucketBottomSheet = React.useCallback(
+    (likeItemId?: string) => {
+      if (likeItemId) {
+        setSelectedLikeItemId(likeItemId);
+      }
+      setIsBucketBottomSheetVisible(true);
+    },
+    []
+  );
 
   const handleCloseBucketBottomSheet = React.useCallback(() => {
     setIsBucketBottomSheetVisible(false);
@@ -230,6 +251,7 @@ const MapScreen = () => {
       />
 
       <CustomMapView
+        key={mapReloadKey}
         mapRef={mapRef}
         region={region}
         data={data}
@@ -237,6 +259,7 @@ const MapScreen = () => {
         onMarkerPress={onMarkerPress}
         hasLocation={hasLocation}
         userLocation={userLocation}
+        onRegionChange={handleRegionChange}
       />
 
       <MapCardList
@@ -265,7 +288,6 @@ const MapScreen = () => {
     </View>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {

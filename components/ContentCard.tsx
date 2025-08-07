@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, TouchableOpacity } from "react-native";
+import { View, StyleSheet, TouchableOpacity, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import CustomText from "@/components/CustomText";
 import CustomTouchable from "./CustomTouchableOpacity";
@@ -12,6 +12,7 @@ import {
   horizontalScale,
   verticalScale,
 } from "@/utilities/scaling";
+import { formatDistance } from "@/utilities/formatDistance";
 
 interface ContentCardProps {
   item: any;
@@ -114,16 +115,32 @@ const ContentCard: React.FC<ContentCardProps> = ({
           </CustomText>
         )} */}
         <View style={styles.cardDetails}>
-          <View style={styles.ratingContainer}>
-            <Ionicons name="star" size={11} color="#4A4A4F" />
-            <CustomText style={styles.rating}>4.5 (1023)</CustomText>
-          </View>
-          <CustomText style={styles.separator}>•</CustomText>
-          <CustomText style={styles.distance}>€25-50</CustomText>
-          <CustomText style={styles.separator}>•</CustomText>
-          <CustomText style={styles.distance}>0.3 km</CustomText>
-          <CustomText style={styles.separator}>•</CustomText>
-          <CustomText style={styles.status}>Open</CustomText>
+          {item.rating && (
+            <>
+              <View style={styles.ratingContainer}>
+                <Ionicons name="star" size={11} color="#666" />
+                <CustomText style={styles.distance}>{item.rating}</CustomText>
+              </View>
+              {(item.price || item.distance) && (
+                <CustomText style={styles.separator}>•</CustomText>
+              )}
+            </>
+          )}
+          
+          {item.price && (
+            <>
+              <CustomText style={styles.distance}>{item.price}</CustomText>
+              {item.distance && (
+                <CustomText style={styles.separator}>•</CustomText>
+              )}
+            </>
+          )}
+          
+          {item.distance && (
+            <CustomText style={styles.distance}>
+              {formatDistance(item.distance)}
+            </CustomText>
+          )}
         </View>
       </View>
     </CustomTouchable>
@@ -136,11 +153,17 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   selectedCard: {
-    shadowColor: "rgba(19, 19, 20, 0.25)",
-    shadowOffset: { width: 1, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: "rgba(19, 19, 20, 0.25)",
+        shadowOffset: { width: 1, height: 4 },
+        shadowOpacity: 1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   imageContainer: {
     position: "relative",
@@ -175,7 +198,7 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     marginBottom: 8,
   },
   cardTitle: {
@@ -224,4 +247,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ContentCard;
+export default React.memo(ContentCard);
