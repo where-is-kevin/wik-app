@@ -7,6 +7,7 @@ import {
   Linking,
   FlatList,
   TouchableOpacity,
+  Platform,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
@@ -562,7 +563,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                       { color: colors.gray_regular },
                     ]}
                   >
-                    📍 View on Map
+                    📍 {Platform.OS === 'ios' ? 'Open in Apple Maps' : 'Open in Google Maps'}
                   </CustomText>
                 </CustomTouchable>
               )}

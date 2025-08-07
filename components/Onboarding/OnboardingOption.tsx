@@ -46,7 +46,7 @@ export const OnboardingOption: React.FC<OnboardingOptionProps> = ({
               ? { color: colors.onboarding_option_white }
               : { color: colors.label_dark },
           ]}
-          numberOfLines={2}
+          numberOfLines={3}
           ellipsizeMode="tail"
         >
           {text}
@@ -67,7 +67,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    minHeight: 60, // Changed from height to minHeight
+    minHeight: 60,
+    paddingVertical: verticalScale(12), // Added vertical padding
     paddingHorizontal: horizontalScale(20),
     borderRadius: 31,
     marginBottom: verticalScale(12),

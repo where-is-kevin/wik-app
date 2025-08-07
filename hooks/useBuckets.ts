@@ -195,7 +195,7 @@ export function useBuckets(
   });
 }
 
-export function useBucketById(bucketId: string, searchQuery?: string) {
+export function useBucketById(bucketId: string, searchQuery?: string, enabled: boolean = true) {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken;
@@ -208,7 +208,7 @@ export function useBucketById(bucketId: string, searchQuery?: string) {
       if (!jwt) throw new Error("No JWT found");
       return fetchBucketById(bucketId, jwt, normalizedSearchQuery || undefined);
     },
-    enabled: !!jwt && !!bucketId,
+    enabled: !!jwt && !!bucketId && enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });

@@ -31,6 +31,8 @@ import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { bucketsHaveContent, likesHaveContent } from "@/utilities/hasContent";
 import EmptyData from "@/components/EmptyData";
 import { useLikes } from "@/hooks/useLikes";
+import { Ionicons } from "@expo/vector-icons";
+import FloatingMapButton from "@/components/FloatingMapButton";
 
 interface LocalBucketItem {
   id: string;
@@ -177,6 +179,14 @@ const ProfileListsScreen = () => {
   const hasLikesContent = likesHaveContent(likes);
 
   // Event handlers
+  const handleOpenLikesMap = () => {
+    router.push(
+      `/map-screen?source=${activeTab}&query=${encodeURIComponent(
+        debouncedSearchQuery
+      )}`
+    );
+  };
+
   const handleTabChange = useCallback(
     (tab: "buckets" | "likes") => {
       setActiveTab(tab);
@@ -369,14 +379,25 @@ const ProfileListsScreen = () => {
       </CustomView>
 
       {/* Search Bar */}
-      <SearchBar
-        placeholder={
-          activeTab === "buckets" ? "Search your buckets" : "Search your likes"
-        }
-        value={searchQuery}
-        onChangeText={handleSearchChange}
-        containerStyle={styles.searchBarContainer}
-      />
+      <CustomView
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          marginBottom: verticalScale(16),
+          height: 48,
+        }}
+      >
+        <SearchBar
+          placeholder={
+            activeTab === "buckets"
+              ? "Search your buckets"
+              : "Search your likes"
+          }
+          value={searchQuery}
+          onChangeText={handleSearchChange}
+          containerStyle={{ ...styles.searchBarContainer, flex: 1, height: 48 }}
+        />
+      </CustomView>
 
       {/* Content */}
       <CustomView style={{ flex: 1 }}>
@@ -446,6 +467,11 @@ const ProfileListsScreen = () => {
         onClose={handleCloseCreateBucketBottomSheet}
         onCreateBucket={handleCreateBucket}
       />
+      
+      {/* Floating Map Button */}
+      {(hasLikesContent || hasBucketsContent) && (
+        <FloatingMapButton onPress={handleOpenLikesMap} />
+      )}
     </SafeAreaView>
   );
 };

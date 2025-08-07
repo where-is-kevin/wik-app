@@ -1,14 +1,13 @@
 // hooks/useLocationPermissionGuard.ts
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { router } from 'expo-router';
-import { useLocation } from '@/contexts/LocationContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 
 const LOCATION_PERMISSION_KEY = '@location_permission_status';
 const LOCATION_PERMISSION_ASKED_KEY = '@location_permission_asked';
 
-export type LocationPermissionStatus = 'granted' | 'denied' | 'not-asked';
+export type LocationPermissionStatus = 'granted' | 'denied' | 'not-asked' | 'undetermined';
 
 interface UseLocationPermissionGuardOptions {
   redirectToTabs?: boolean;
@@ -17,7 +16,6 @@ interface UseLocationPermissionGuardOptions {
 
 export const useLocationPermissionGuard = (options: UseLocationPermissionGuardOptions = {}) => {
   const { redirectToTabs = true, skipLocationCheck = false } = options;
-  const { hasLocationPermission } = useLocation();
   const [permissionStatus, setPermissionStatus] = useState<LocationPermissionStatus>('not-asked');
   const [isLoading, setIsLoading] = useState(true);
   const [hasAskedBefore, setHasAskedBefore] = useState(false);
@@ -34,32 +32,17 @@ export const useLocationPermissionGuard = (options: UseLocationPermissionGuardOp
     }
   };
 
-  // Load permission status from AsyncStorage
-  const loadPermissionStatus = async (): Promise<LocationPermissionStatus> => {
-    try {
-      const savedStatus = await AsyncStorage.getItem(LOCATION_PERMISSION_KEY);
-      const hasAsked = await AsyncStorage.getItem(LOCATION_PERMISSION_ASKED_KEY);
-      
-      setHasAskedBefore(hasAsked === 'true');
-      
-      if (savedStatus) {
-        return savedStatus as LocationPermissionStatus;
-      }
-      return 'not-asked';
-    } catch (error) {
-      console.error('Error loading permission status:', error);
-      return 'not-asked';
-    }
-  };
 
   // Check current device permission status
   const checkCurrentPermissionStatus = async (): Promise<LocationPermissionStatus> => {
     try {
       const { status } = await Location.getForegroundPermissionsAsync();
-      return status === 'granted' ? 'granted' : 'denied';
+      if (status === 'granted') return 'granted';
+      if (status === 'denied') return 'denied';
+      return 'undetermined'; // For 'undetermined' and other states
     } catch (error) {
       console.error('Error checking current permission:', error);
-      return 'denied';
+      return 'undetermined'; // Default to undetermined to show permission screen
     }
   };
 
@@ -89,13 +72,16 @@ export const useLocationPermissionGuard = (options: UseLocationPermissionGuardOp
         if (redirectToTabs) {
           router.replace('/(tabs)');
         }
+      } else if (currentStatus === 'undetermined' && !wasAskedBefore) {
+        // First time user or fresh install - always show permission screen
+        router.replace('/(auth)/location-permission');
       } else if (wasAskedBefore) {
-        // User was asked before (and denied), don't ask again
+        // User was asked before (and denied/undetermined), don't ask again
         if (redirectToTabs) {
           router.replace('/(tabs)');
         }
       } else {
-        // Never asked before, show permission screen
+        // Fallback - show permission screen for safety
         router.replace('/(auth)/location-permission');
       }
     } catch (error) {
