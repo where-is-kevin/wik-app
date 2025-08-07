@@ -54,7 +54,7 @@ export default function RootLayout() {
           <ThemeProvider>
             <LocationProvider>
               <PortalProvider>
-                <StatusBar style="auto" />
+                <StatusBar style="dark" />
                 <Stack>
                   {/* Root index handles auth routing */}
                   <Stack.Screen name="index" options={{ headerShown: false }} />
