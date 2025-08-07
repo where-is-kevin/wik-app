@@ -284,14 +284,40 @@ const SwipeableCards = () => {
   // Show empty state when no data is available
   if (!transformedData.length) {
     return (
-      <CustomView style={styles.errorContainer}>
-        <CustomText style={styles.errorTitle}>
-          You're on the edge of something amazing.
-        </CustomText>
-        <CustomText style={styles.errorText}>
-          {`We're not live in your area just yet, but as soon as we reach 5000 signed up nearby we'll launch. To help us reach our goal, tell your friends so you can all be part of launching something amazing in your area.`}
-        </CustomText>
-      </CustomView>
+      <>
+        <CustomView style={styles.content}>
+          <CustomTouchable
+            style={[styles.filterSvgButton, { marginTop: insets.top }]}
+            onPress={() => setIsFilterModalVisible(true)}
+          >
+            <CustomView style={styles.filterSvgContainer}>
+              <FilterSvg />
+              {selectedFilters.length < 3 && (
+                <CustomView
+                  bgColor={colors.light_blue}
+                  style={styles.filterIndicatorDot}
+                />
+              )}
+            </CustomView>
+          </CustomTouchable>
+
+          <CustomView style={styles.errorContainer}>
+            <CustomText style={styles.errorTitle}>
+              You're on the edge of something amazing.
+            </CustomText>
+            <CustomText style={styles.errorText}>
+              {`We're not live in your area just yet, but as soon as we reach 5000 signed up nearby we'll launch. To help us reach our goal, tell your friends so you can all be part of launching something amazing in your area.`}
+            </CustomText>
+          </CustomView>
+        </CustomView>
+
+        <FilterModal
+          isVisible={isFilterModalVisible}
+          onClose={() => setIsFilterModalVisible(false)}
+          onApply={handleFilterApply}
+          selectedFilters={selectedFilters}
+        />
+      </>
     );
   }
 
@@ -374,8 +400,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
-    backgroundColor: "#f5f5f5",
   },
   errorTitle: {
     fontSize: 24,
