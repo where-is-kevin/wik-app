@@ -229,7 +229,9 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
             cluster.originalIndex === selectedIndex ||
             cluster.items[0].id === data[selectedIndex]?.id;
 
-          const similarity = 98;
+          const similarity = item.similarity
+            ? Math.round(item.similarity * 100)
+            : 0;
 
           return (
             <Marker
