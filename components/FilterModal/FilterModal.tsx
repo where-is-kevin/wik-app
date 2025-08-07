@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { StyleSheet, TouchableOpacity, Modal, Dimensions } from "react-native";
+import {
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  Dimensions,
+  Platform,
+} from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
 import CustomText from "@/components/CustomText";
 import CustomView from "@/components/CustomView";
@@ -83,6 +89,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
       transparent={true}
       animationType="fade"
       onRequestClose={handleClose}
+      statusBarTranslucent={Platform.OS === "android"}
     >
       {/* Overlay */}
       <CustomView style={styles.overlay}>
@@ -172,7 +179,6 @@ const styles = StyleSheet.create({
   modalContainer: {
     backgroundColor: "white",
     borderRadius: 20,
-    maxHeight: verticalScale(231),
     position: "absolute",
     bottom: verticalScale(25),
     left: horizontalScale(12),
