@@ -1,196 +1,140 @@
 // contexts/LocationContext.tsx
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useMemo,
-  useCallback,
-} from "react";
+import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import * as Location from "expo-location";
-import { AppState, AppStateStatus } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AppState, Platform } from "react-native";
 
 interface LocationData {
-  latitude: number;
-  longitude: number;
-  timestamp: number;
+  lat: number;
+  lon: number;
 }
 
 interface LocationContextType {
   location: LocationData | null;
-  isLoading: boolean;
-  error: string | null;
-  requestLocationPermission: () => Promise<boolean>;
-  refreshLocation: () => Promise<void>;
-  hasLocationPermission: boolean;
+  hasPermission: boolean;
+  permissionStatus: Location.PermissionStatus | null;
+  getCurrentLocation: () => Promise<LocationData | null>;
+  requestPermission: () => Promise<boolean>;
 }
 
-const LocationContext = createContext<LocationContextType | undefined>(
-  undefined
-);
+const LocationContext = createContext<LocationContextType | undefined>(undefined);
 
-const LOCATION_STORAGE_KEY = "user_location";
-const LOCATION_EXPIRY_TIME = 2 * 60 * 1000; // 2 minutes
+const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
-export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [location, setLocation] = useState<LocationData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [hasLocationPermission, setHasLocationPermission] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Use the proper Expo hook for foreground permissions
+  const [foregroundStatus, requestForegroundPermission] = Location.useForegroundPermissions();
 
-  // Load cached location on mount
-  useEffect(() => {
-    loadCachedLocation();
-    checkLocationPermission();
-  }, []);
+  const getCurrentLocation = async (): Promise<LocationData | null> => {
+    try {
+      // Check if we have permission using the hook status
+      if (foregroundStatus?.status !== Location.PermissionStatus.GRANTED) {
+        console.log("No location permission, status:", foregroundStatus?.status);
+        return null;
+      }
 
-  // Handle app state changes
+      // Get location - on Android, this will fail if "Allow Once" expired
+      const result = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        mayShowUserSettingsDialog: false,
+      });
+
+      const newLocation = {
+        lat: result.coords.latitude,
+        lon: result.coords.longitude,
+      };
+
+      setLocation(newLocation);
+      return newLocation;
+    } catch (error: any) {
+      console.error("Failed to get location:", error.message);
+      
+      // On Android, "Allow Once" expiration shows as permission error even though status is "granted"
+      if (Platform.OS === 'android' && error.message?.includes('permission')) {
+        console.log("Android: Location permission likely expired (Allow Once)");
+        // This will trigger the permission hook to re-check
+        setLocation(null);
+      }
+      
+      return null;
+    }
+  };
+
+  const requestPermission = async (): Promise<boolean> => {
+    try {
+      const result = await requestForegroundPermission();
+      return result.status === Location.PermissionStatus.GRANTED;
+    } catch (error) {
+      console.error("Failed to request permission:", error);
+      return false;
+    }
+  };
+
+  // Get location when permission is granted and on app focus for Android "Allow Once"
   useEffect(() => {
-    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-      if (nextAppState === "active") {
-        // Check permission status when app becomes active (user might have changed it in settings)
-        await checkLocationPermission();
-        
-        if (hasLocationPermission) {
-          // Refresh location when app becomes active
-          refreshLocationIfStale();
+    if (foregroundStatus?.status === Location.PermissionStatus.GRANTED) {
+      getCurrentLocation();
+    }
+  }, [foregroundStatus?.status]);
+
+  // Handle app state changes - according to Expo docs, this is when "Allow Once" expires
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === 'active') {
+        // When app becomes active, try to get location again
+        // On Android with "Allow Once", this is when we'll detect the permission expired
+        if (foregroundStatus?.status === Location.PermissionStatus.GRANTED) {
+          getCurrentLocation();
         }
       }
     };
 
-    const subscription = AppState.addEventListener(
-      "change",
-      handleAppStateChange
-    );
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, [foregroundStatus?.status]);
+
+  // Set up periodic refresh
+  useEffect(() => {
+    if (foregroundStatus?.status === Location.PermissionStatus.GRANTED) {
+      intervalRef.current = setInterval(getCurrentLocation, REFRESH_INTERVAL);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [foregroundStatus?.status]);
+
+  // Refresh when app becomes active
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === "active" && foregroundStatus?.status === Location.PermissionStatus.GRANTED) {
+        getCurrentLocation();
+      }
+    };
+
+    const subscription = AppState.addEventListener("change", handleAppStateChange);
     return () => subscription?.remove();
-  }, [hasLocationPermission]);
-
-  const loadCachedLocation = async () => {
-    try {
-      const cachedLocation = await AsyncStorage.getItem(LOCATION_STORAGE_KEY);
-      if (cachedLocation) {
-        const parsedLocation = JSON.parse(cachedLocation);
-        
-        // Only use cached location if it's not stale
-        if (Date.now() - parsedLocation.timestamp <= LOCATION_EXPIRY_TIME) {
-          setLocation(parsedLocation);
-        } else {
-          // If stale, trigger immediate refresh
-          refreshLocation();
-        }
-      }
-    } catch (error) {
-      console.error("Error loading cached location:", error);
-    }
-  };
-
-  const checkLocationPermission = async () => {
-    try {
-      const { status } = await Location.getForegroundPermissionsAsync();
-      setHasLocationPermission(status === "granted");
-    } catch (error) {
-      console.error("Error checking location permission:", error);
-    }
-  };
-
-  const requestLocationPermission = useCallback(async (): Promise<boolean> => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const { status } = await Location.requestForegroundPermissionsAsync();
-
-      if (status !== "granted") {
-        setError("Location permission denied");
-        setHasLocationPermission(false);
-        return false;
-      }
-
-      setHasLocationPermission(true);
-      await getCurrentLocation();
-      return true;
-    } catch (error) {
-      setError("Failed to request location permission");
-      console.error("Location permission error:", error);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const getCurrentLocation =
-    useCallback(async (): Promise<LocationData | null> => {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const locationResult = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.High,
-          timeInterval: 500,
-          distanceInterval: 5,
-        });
-
-        const newLocation: LocationData = {
-          latitude: locationResult.coords.latitude,
-          longitude: locationResult.coords.longitude,
-          timestamp: Date.now(),
-        };
-
-        setLocation(newLocation);
-        await AsyncStorage.setItem(
-          LOCATION_STORAGE_KEY,
-          JSON.stringify(newLocation)
-        );
-
-        return newLocation;
-      } catch (error) {
-        setError("Failed to get current location");
-        console.error("Get location error:", error);
-        return null;
-      } finally {
-        setIsLoading(false);
-      }
-    }, []);
-
-  const refreshLocation = useCallback(async (): Promise<void> => {
-    if (!hasLocationPermission) {
-      setError("Location permission not granted");
-      return;
-    }
-    await getCurrentLocation();
-  }, [hasLocationPermission, getCurrentLocation]);
-
-  const refreshLocationIfStale = useCallback(async () => {
-    if (!location || Date.now() - location.timestamp > LOCATION_EXPIRY_TIME) {
-      await refreshLocation();
-    }
-  }, [location, refreshLocation]);
-
-  // Memoize the context value to prevent unnecessary re-renders
-  const value = useMemo<LocationContextType>(
-    () => ({
-      location,
-      isLoading,
-      error,
-      requestLocationPermission,
-      refreshLocation,
-      hasLocationPermission,
-    }),
-    [
-      location,
-      isLoading,
-      error,
-      requestLocationPermission,
-      refreshLocation,
-      hasLocationPermission,
-    ]
-  );
+  }, [foregroundStatus?.status]);
 
   return (
-    <LocationContext.Provider value={value}>
+    <LocationContext.Provider 
+      value={{ 
+        location, 
+        hasPermission: foregroundStatus?.status === Location.PermissionStatus.GRANTED,
+        permissionStatus: foregroundStatus?.status || null,
+        getCurrentLocation,
+        requestPermission
+      }}
+    >
       {children}
     </LocationContext.Provider>
   );
@@ -202,37 +146,4 @@ export const useLocation = (): LocationContextType => {
     throw new Error("useLocation must be used within a LocationProvider");
   }
   return context;
-};
-
-// Custom hook for API calls that need location
-export const useLocationForAPI = () => {
-  const { location, refreshLocation, hasLocationPermission } = useLocation();
-
-  // 🔥 This is the key fix - memoize the function
-  const getLocationForAPI = useCallback(async (): Promise<{
-    lat: number;
-    lon: number;
-  } | null> => {
-    if (!hasLocationPermission) {
-      return null;
-    }
-
-    // Check if location is stale (older than 5 minutes)
-    if (!location || Date.now() - location.timestamp > LOCATION_EXPIRY_TIME) {
-      await refreshLocation();
-    }
-
-    return location
-      ? { lat: location.latitude, lon: location.longitude }
-      : null;
-  }, [hasLocationPermission, location, refreshLocation]);
-
-  // Also memoize the return object
-  return useMemo(
-    () => ({
-      getLocationForAPI,
-      hasLocationPermission,
-    }),
-    [getLocationForAPI, hasLocationPermission]
-  );
 };

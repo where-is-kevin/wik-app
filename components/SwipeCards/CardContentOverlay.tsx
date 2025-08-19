@@ -43,7 +43,12 @@ interface CardContentOverlayProps {
 }
 
 export const CardContentOverlay = React.memo<CardContentOverlayProps>(
-  ({ item, colors, onBucketPress, hideBucketsButton }) => {
+  function CardContentOverlay({
+    item,
+    colors,
+    onBucketPress,
+    hideBucketsButton,
+  }) {
     const handleBucketPress = useCallback(() => {
       onBucketPress?.(item.id);
     }, [onBucketPress, item.id]);
@@ -52,29 +57,6 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
       () => formatTags(item.tags || ""),
       [item.tags]
     );
-
-    const renderPriceOrRating = () => {
-      if (item?.price) {
-        return (
-          <>
-            {item.price}
-            <CustomText
-              fontFamily="Inter-SemiBold"
-              style={[styles.perPersonText, { color: colors.lime }]}
-            >
-              {" "}
-              /person
-            </CustomText>
-          </>
-        );
-      }
-
-      if (item?.rating) {
-        return `${item.rating}★`;
-      }
-
-      return "No rating";
-    };
 
     const renderTagBubbles = () => {
       if (!formattedTags || formattedTags.length === 0) return null;
@@ -98,7 +80,7 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
     const renderCardContent = () => (
       <View style={styles.cardContent}>
         {item.isSponsored && (
-          <CustomView bgColor={colors.bakground} style={styles.sponsoredCard}>
+          <CustomView bgColor={colors.background} style={styles.sponsoredCard}>
             <SponsoredKevinSvg />
             <CustomText
               fontFamily="Inter-SemiBold"
@@ -151,18 +133,17 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
             </View>
           )}
 
-          {item.price && (
+          {!!item.price && (
             <CustomText style={[styles.infoText, { color: colors.background }]}>
               {item.price}
             </CustomText>
           )}
-          {(item.rating || item.price) &&
-            item.distance && (
-              <View style={styles.dotSeparator}>
-                <View style={styles.whiteDot} />
-              </View>
-            )}
-          {item.distance && (
+          {(!!item.rating || !!item.price) && !!item.distance && (
+            <View style={styles.dotSeparator}>
+              <View style={styles.whiteDot} />
+            </View>
+          )}
+          {!!item.distance && (
             <CustomText style={[styles.infoText, { color: colors.background }]}>
               {formatDistance(item.distance)}
             </CustomText>

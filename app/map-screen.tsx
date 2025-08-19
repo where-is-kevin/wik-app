@@ -35,7 +35,6 @@ const MapScreen = () => {
   const mapRef = React.useRef<MapView>(null);
   const flatListRef = React.useRef<FlatList>(null);
   const [selectedIndex, setSelectedIndex] = React.useState(0);
-  const [mapReloadKey, setMapReloadKey] = React.useState(0);
 
   // Bucket functionality state
   const [selectedLikeItemId, setSelectedLikeItemId] = React.useState<
@@ -52,60 +51,97 @@ const MapScreen = () => {
   const addBucketMutation = useAddBucket();
   const createBucketMutation = useCreateBucket();
 
-  const [region, setRegion] = React.useState({
-    latitude: 37.78825,
-    longitude: -122.4324,
-    latitudeDelta: 0.01,
-    longitudeDelta: 0.01,
-  });
-
-  const handleRegionChange = React.useCallback((newRegion: any) => {
-    // Just a simple callback for now
-  }, []);
-
-  // Force map reload on focus (Android fix only)
-  useFocusEffect(
-    React.useCallback(() => {
-      if (Platform.OS === "android") {
-        setMapReloadKey((prev) => prev + 1);
-      }
-    }, [])
-  );
-
-  // Initialize region when data is loaded
-  React.useEffect(() => {
-    if (data.length > 0) {
+  // Simple region management - initialize based on data or user location
+  const getMapRegion = () => {
+    if (data && data.length > 0) {
       const firstItemWithLocation = data.find(hasLocation);
       if (firstItemWithLocation) {
-        const newRegion = {
+        return {
           latitude: firstItemWithLocation.latitude,
           longitude: firstItemWithLocation.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
+          latitudeDelta: 0.008,
+          longitudeDelta: 0.008,
         };
-        setRegion(newRegion);
+      }
+    }
+
+    if (userLocation?.latitude && userLocation?.longitude) {
+      return {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      };
+    }
+
+    // Default to Lisbon
+    return {
+      latitude: 38.7223,
+      longitude: -9.1393,
+      latitudeDelta: 0.1,
+      longitudeDelta: 0.1,
+    };
+  };
+
+  const [currentRegion, setCurrentRegion] = React.useState(getMapRegion());
+  const [mapKey, setMapKey] = React.useState(0);
+  const [isNavigating, setIsNavigating] = React.useState(false);
+
+  // Update region when data changes to ensure proper initial zoom
+  React.useEffect(() => {
+    if (data && data.length > 0) {
+      const firstItemWithLocation = data.find(hasLocation);
+      if (firstItemWithLocation) {
+        setCurrentRegion({
+          latitude: firstItemWithLocation.latitude,
+          longitude: firstItemWithLocation.longitude,
+          latitudeDelta: 0.008,
+          longitudeDelta: 0.008,
+        });
       }
     }
   }, [data]);
 
-  // Update region when selected index changes
+  const handleRegionChange = React.useCallback((newRegion: any) => {
+    setCurrentRegion(newRegion);
+  }, []);
+
+  // Android-only: Force map remount when returning from event details (Expo 52 bug fix)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (isNavigating && Platform.OS === "android") {
+        setMapKey((prev) => prev + 1);
+      }
+      if (isNavigating) {
+        setIsNavigating(false);
+      }
+    }, [isNavigating])
+  );
+
+  // Animate to selected item when index changes
   React.useEffect(() => {
-    if (data.length > 0 && selectedIndex < data.length) {
+    if (
+      data &&
+      data.length > 0 &&
+      selectedIndex < data.length &&
+      mapRef.current
+    ) {
       const selectedItem = data[selectedIndex];
       if (hasLocation(selectedItem)) {
-        const newRegion = {
-          latitude: selectedItem.latitude,
-          longitude: selectedItem.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        };
-        setRegion(newRegion);
-        if (mapRef.current) {
-          mapRef.current.animateToRegion(newRegion, 1500);
+        try {
+          const newRegion = {
+            latitude: selectedItem.latitude,
+            longitude: selectedItem.longitude,
+            latitudeDelta: Math.min(currentRegion.latitudeDelta, 0.008),
+            longitudeDelta: Math.min(currentRegion.longitudeDelta, 0.008),
+          };
+          mapRef.current.animateToRegion(newRegion, 1000);
+        } catch (error) {
+          console.warn("Failed to animate to selected item:", error);
         }
       }
     }
-  }, [selectedIndex, data]);
+  }, [selectedIndex, currentRegion.latitudeDelta, currentRegion.longitudeDelta]);
 
   const CARD_WIDTH = Dimensions.get("window").width * 0.85; // 85% of screen width
   const CARD_SPACING = 12;
@@ -129,31 +165,10 @@ const MapScreen = () => {
     }
   };
 
-  const handleZoom = (zoomIn: boolean) => {
-    setRegion((prev) => {
-      const factor = zoomIn ? 0.5 : 2;
-      const newRegion = {
-        ...prev,
-        latitudeDelta: Math.max(
-          0.001,
-          Math.min(180, prev.latitudeDelta * factor)
-        ),
-        longitudeDelta: Math.max(
-          0.001,
-          Math.min(180, prev.longitudeDelta * factor)
-        ),
-      };
-
-      if (mapRef.current) {
-        mapRef.current.animateToRegion(newRegion, 1000);
-      }
-
-      return newRegion;
-    });
-  };
 
   const handleCardPress = React.useCallback(
     (item: any) => {
+      setIsNavigating(true);
       router.push(`/event-details/${item.id}`);
     },
     [router]
@@ -246,14 +261,12 @@ const MapScreen = () => {
     <View style={styles.container}>
       <MapHeader
         onBack={() => router.back()}
-        onZoomIn={() => handleZoom(true)}
-        onZoomOut={() => handleZoom(false)}
       />
 
       <CustomMapView
-        key={mapReloadKey}
+        key={Platform.OS === "android" ? `map-${mapKey}` : "map-ios"}
         mapRef={mapRef}
-        region={region}
+        region={currentRegion}
         data={data}
         selectedIndex={selectedIndex}
         onMarkerPress={onMarkerPress}

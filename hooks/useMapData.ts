@@ -2,7 +2,7 @@ import React from "react";
 import { useLikes } from "@/hooks/useLikes";
 import { useBuckets, useBucketById } from "@/hooks/useBuckets";
 import { useInfiniteContent } from "@/hooks/useContent";
-import { useLocationForAPI } from "@/contexts/LocationContext";
+import { useLocation } from "@/contexts/LocationContext";
 
 // Type definitions for different data sources
 export type LikesContent = {
@@ -59,33 +59,7 @@ export const hasLocation = (
 };
 
 export const useMapData = (source: string, searchQuery: string, bucketId?: string) => {
-  const { getLocationForAPI } = useLocationForAPI();
-
-  // Initialize location for content hook
-  const [location, setLocation] = React.useState<{
-    lat: number;
-    lon: number;
-  } | null>(null);
-  const [locationLoading, setLocationLoading] = React.useState(false);
-  const [locationError, setLocationError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (source === "content") {
-      setLocationLoading(true);
-      setLocationError(null);
-      getLocationForAPI()
-        .then(setLocation)
-        .catch((error) => {
-          console.error("Location error:", error);
-          setLocationError(error.message || "Failed to get location");
-          // Set a default location (San Francisco) if location fails
-          setLocation({ lat: 37.7749, lon: -122.4194 });
-        })
-        .finally(() => {
-          setLocationLoading(false);
-        });
-    }
-  }, [source, getLocationForAPI]);
+  const { location } = useLocation();
 
   // Use appropriate data hook based on source
   const likesQuery = useLikes(searchQuery, source === "likes");
@@ -97,7 +71,7 @@ export const useMapData = (source: string, searchQuery: string, bucketId?: strin
   );
   const contentQuery = useInfiniteContent({
     query: searchQuery,
-    enabled: source === "content" && location !== null && !locationLoading,
+    enabled: source === "content",
     latitude: location?.lat,
     longitude: location?.lon,
   });
@@ -170,7 +144,7 @@ export const useMapData = (source: string, searchQuery: string, bucketId?: strin
       case "buckets":
         return bucketsQuery.isLoading;
       case "content":
-        return locationLoading || (location !== null && contentQuery.isLoading);
+        return contentQuery.isLoading;
       case "likes":
       default:
         return likesQuery.isLoading;
@@ -181,8 +155,6 @@ export const useMapData = (source: string, searchQuery: string, bucketId?: strin
     bucketsQuery.isLoading,
     singleBucketQuery.isLoading,
     contentQuery.isLoading,
-    locationLoading,
-    location,
   ]);
 
   const isError = React.useMemo(() => {
@@ -205,12 +177,16 @@ export const useMapData = (source: string, searchQuery: string, bucketId?: strin
     contentQuery.isError,
   ]);
 
+  const userLocation = React.useMemo(() => {
+    return location ? { latitude: location.lat, longitude: location.lon } : null;
+  }, [location]);
+
   return {
     data,
     isLoading,
     isError,
-    locationLoading,
-    locationError,
-    userLocation: location ? { latitude: location.lat, longitude: location.lon } : null,
+    locationLoading: false, // Location context doesn't expose loading state
+    locationError: null, // Location context doesn't expose error state
+    userLocation,
   };
 };

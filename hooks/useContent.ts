@@ -211,15 +211,32 @@ export function useInfiniteContent({
 }
 
 // For basic content (SwipeableCards) - JWT optional
-export function useContent(params?: BasicContentParams) {
+export function useContent(params?: BasicContentParams, locationPermissionStatus?: 'granted' | 'denied' | 'undetermined' | null) {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken || null;
 
+  // Determine if we should fetch based on permission status and location data
+  const shouldFetch = () => {
+    // If no permission status provided, fetch immediately (old behavior)
+    if (!locationPermissionStatus) return true;
+    
+    // If permission is denied, fetch without waiting for coordinates
+    if (locationPermissionStatus === 'denied') return true;
+    
+    // If permission is granted, wait until we have coordinates
+    if (locationPermissionStatus === 'granted') {
+      return params?.latitude !== undefined && params?.longitude !== undefined;
+    }
+    
+    // If undetermined, don't fetch yet
+    return false;
+  };
+
   return useQuery<Content[], Error>({
     queryKey: ["content", "basic", params, !!jwt], // Include JWT status in query key
     queryFn: () => fetchContent(params, jwt),
-    enabled: !!API_URL, // Removed params check - let it work without params
+    enabled: !!API_URL && shouldFetch(),
   });
 }
 
@@ -243,7 +260,6 @@ export function useContentById(contentId: string) {
   const queryClient = useQueryClient();
 
   return useQuery<Content, Error>({
-    // Don't include JWT in query key - let React Query handle auth changes differently
     queryKey: ["content", "byId", contentId],
     queryFn: () => {
       // Always get fresh JWT when query executes

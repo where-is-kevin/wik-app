@@ -150,8 +150,10 @@ export function useAuth() {
   const logout = async () => {
     try {
       await authStorage.clearAuth();
-      queryClient.setQueryData(["auth"], null);
-      queryClient.removeQueries({ queryKey: ["auth"] });
+      
+      // Clear all cached data when logging out
+      queryClient.clear();
+      
       router.replace("/(auth)");
     } catch (error) {
       console.error("Logout failed:", error);

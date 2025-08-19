@@ -468,9 +468,9 @@ const ProfileListsScreen = () => {
         onCreateBucket={handleCreateBucket}
       />
       
-      {/* Floating Map Button */}
-      {(hasLikesContent || hasBucketsContent) && (
-        <FloatingMapButton onPress={handleOpenLikesMap} />
+      {/* Floating Map Button - Only show for likes tab */}
+      {activeTab === "likes" && hasLikesContent && (
+        <FloatingMapButton onPress={handleOpenLikesMap} hasTabBar={false} />
       )}
     </SafeAreaView>
   );
