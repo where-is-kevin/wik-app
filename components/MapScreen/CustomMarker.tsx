@@ -40,8 +40,8 @@ const CustomMarker: React.FC<CustomMarkerProps> = ({
           ]}
         >
           <IconComponent
-            width={15}
-            height={15}
+            width={17}
+            height={17}
             stroke={isSelected ? colors[color] : "#FFFFFF"}
             fill={isSelected ? colors[color] : "#FFFFFF"}
           />
@@ -64,12 +64,13 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#131314",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 1, height: 4 },
         shadowOpacity: 0.25,
-        shadowRadius: 4,
+        shadowRadius: 8,
       },
       android: {
-        elevation: 5,
+        elevation: 6,
+        shadowColor: "#131314",
       },
     }),
     borderRadius: 50,
@@ -78,16 +79,16 @@ const styles = StyleSheet.create({
   markerContainer: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 5,
-    paddingRight: 10,
-    paddingLeft: 5,
+    paddingVertical: 6,
+    paddingRight: 12,
+    paddingLeft: 6,
     borderRadius: 50,
-    borderWidth: 1,
-    gap: 5,
+    borderWidth: 1.5,
+    gap: 6,
   },
   iconWrapper: {
-    width: 20,
-    height: 20,
+    width: 24,
+    height: 24,
     borderRadius: 66.506,
     justifyContent: "center",
     alignItems: "center",

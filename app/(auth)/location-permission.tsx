@@ -1,8 +1,9 @@
 // components/LocationPermissionScreen.tsx
-import React from "react";
-import { View, Text, StyleSheet, Alert, Linking } from "react-native";
+import React, { useState } from "react";
+import { StyleSheet } from "react-native";
 import { useLocation } from "@/contexts/LocationContext";
 import { useLocationPermissionGuard } from "@/hooks/useLocationPermissionGuard";
+import * as Location from "expo-location";
 import { router } from "expo-router";
 import CustomText from "@/components/CustomText";
 import CustomView from "@/components/CustomView";
@@ -25,25 +26,35 @@ const LocationPermissionScreen: React.FC<LocationPermissionScreenProps> = ({
   onSkip,
   showSkipOption = true,
 }) => {
-  const { requestLocationPermission, isLoading } = useLocation();
+  const { requestPermission, permissionStatus } = useLocation();
   const { colors } = useTheme();
+  const [isLoading, setIsLoading] = useState(false);
   const { savePermissionStatus } = useLocationPermissionGuard({
     redirectToTabs: false,
-    skipLocationCheck: true, // Don't auto-check here
+    skipLocationCheck: true,
   });
 
   const handleContinue = async () => {
-    // Always proceed to the system permission request
-    const granted = await requestLocationPermission();
-
-    if (granted) {
-      onPermissionGranted?.();
-      await savePermissionStatus("granted");
+    setIsLoading(true);
+    
+    try {
+      // Use the proper permission request from context
+      const granted = await requestPermission();
+      
+      if (granted) {
+        await savePermissionStatus("granted");
+        onPermissionGranted?.();
+      } else {
+        await savePermissionStatus("denied");
+      }
+      
+      // Always proceed to tabs
       router.replace("/(tabs)");
-    } else {
-      // User denied the permission request - handle gracefully
-      await savePermissionStatus("denied");
+    } catch (error) {
+      console.error("Location permission error:", error);
       router.replace("/(tabs)");
+    } finally {
+      setIsLoading(false);
     }
   };
 

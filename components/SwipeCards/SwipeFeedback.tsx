@@ -23,7 +23,7 @@ const getFeedbackImageSource = (direction: "left" | "right" | "up" | null) => {
 };
 
 export const SwipeFeedback = React.memo<SwipeFeedbackProps>(
-  ({ direction, opacity, scale }) => {
+  function SwipeFeedback({ direction, opacity, scale }) {
     if (!direction) return null;
 
     const imageSource = getFeedbackImageSource(direction);

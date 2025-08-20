@@ -18,7 +18,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { useAddDislike } from "@/hooks/useDislikes";
-import { useLocationForAPI } from "@/contexts/LocationContext";
+import { useLocation } from "@/contexts/LocationContext";
 import CustomText from "@/components/CustomText";
 import { CardData, SwipeCards } from "@/components/SwipeCards/SwipeCards";
 import FilterModal, { FilterType } from "@/components/FilterModal/FilterModal";
@@ -26,40 +26,43 @@ import FilterSvg from "@/components/SvgComponents/FilterSvg";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 
 const SwipeableCards = () => {
-  const { getLocationForAPI, hasLocationPermission } = useLocationForAPI();
-  const [locationParams, setLocationParams] = useState<{
-    latitude?: number;
-    longitude?: number;
-    category_filter?: string;
-  }>({
-    category_filter: "event;venue;experience",
-  });
+  const { location, hasPermission, permissionStatus } = useLocation();
+  const [selectedFilters, setSelectedFilters] = useState<FilterType[]>([
+    "events",
+    "venues",
+    "experiences",
+  ]);
 
-  // Get location data and update params
-  useEffect(() => {
-    const updateLocationParams = async () => {
-      if (hasLocationPermission) {
-        const locationData = await getLocationForAPI();
-        if (locationData) {
-          setLocationParams((prev) => ({
-            ...prev,
-            latitude: locationData.lat,
-            longitude: locationData.lon,
-          }));
-          // console.log("Location updated for SwipeableCards:", locationData);
-        }
-      }
-    };
+  // Simple params - just use current location from context
+  const locationParams = {
+    latitude: location?.lat,
+    longitude: location?.lon,
+    category_filter:
+      selectedFilters.length > 0
+        ? selectedFilters
+            .map((filter) => {
+              if (filter === "events") return "event";
+              if (filter === "venues") return "venue";
+              if (filter === "experiences") return "experience";
+              return filter;
+            })
+            .join(";")
+        : "event;venue;experience",
+  };
 
-    updateLocationParams();
-  }, [hasLocationPermission]);
+  // Convert permission status to the format expected by useContent
+  const getPermissionStatus = () => {
+    if (permissionStatus === 'granted') return 'granted';
+    if (permissionStatus === 'denied') return 'denied';
+    return 'undetermined';
+  };
 
   const {
     data: content,
     isLoading,
     error,
     refetch,
-  } = useContent(locationParams);
+  } = useContent(locationParams, getPermissionStatus());
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -71,11 +74,6 @@ const SwipeableCards = () => {
     setIsCreateBucketBottomSheetVisible,
   ] = useState(false);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
-  const [selectedFilters, setSelectedFilters] = useState<FilterType[]>([
-    "events",
-    "venues",
-    "experiences",
-  ]);
 
   // Mutation hooks
   const addBucketMutation = useAddBucket();
@@ -94,8 +92,8 @@ const SwipeableCards = () => {
           item.internalImageUrls && item.internalImageUrls.length > 0
             ? item.internalImageUrls[0]
             : item.googlePlacesImageUrl,
-        price: item.price?.toString(),
-        rating: item?.rating?.toString(),
+        price: item.price ? item.price.toString() : undefined,
+        rating: item?.rating ? item.rating.toString() : undefined,
         category: item.category,
         websiteUrl: item.websiteUrl || "",
         address: item.address || "",
@@ -237,26 +235,7 @@ const SwipeableCards = () => {
 
   const handleFilterApply = (filters: FilterType[]) => {
     setSelectedFilters(filters);
-
-    // Convert filters to API format: semi-colon separated list
-    // Map "events" -> "event", "venues" -> "venue", "experiences" -> "experience"
-    const categoryFilter =
-      filters.length > 0
-        ? filters
-            .map((filter) => {
-              if (filter === "events") return "event";
-              if (filter === "venues") return "venue";
-              if (filter === "experiences") return "experience";
-              return filter;
-            })
-            .join(";")
-        : undefined;
-
-    // Update location params with new category filter
-    setLocationParams((prev) => ({
-      ...prev,
-      category_filter: categoryFilter,
-    }));
+    // The locationParams will automatically update due to the dependency on selectedFilters
   };
 
   if (error) {
@@ -272,8 +251,12 @@ const SwipeableCards = () => {
     );
   }
 
+  // Check if we're still waiting for location decision
+  const waitingForLocation = getPermissionStatus() === 'undetermined' || 
+    (getPermissionStatus() === 'granted' && !location?.lat && !location?.lon);
+
   // Show loading state
-  if (isLoading) {
+  if (isLoading || waitingForLocation) {
     return (
       <SafeAreaView style={{ backgroundColor: "#fff", flex: 1 }}>
         <AnimatedLoader />
@@ -281,7 +264,7 @@ const SwipeableCards = () => {
     );
   }
 
-  // Show empty state when no data is available
+  // Show empty state when no data is available AND we're not loading
   if (!transformedData.length) {
     return (
       <>
@@ -302,12 +285,25 @@ const SwipeableCards = () => {
           </CustomTouchable>
 
           <CustomView style={styles.errorContainer}>
-            <CustomText style={styles.errorTitle}>
-              You're on the edge of something amazing.
-            </CustomText>
-            <CustomText style={styles.errorText}>
-              {`We're not live in your area just yet, but as soon as we reach 5000 signed up nearby we'll launch. To help us reach our goal, tell your friends so you can all be part of launching something amazing in your area.`}
-            </CustomText>
+            {selectedFilters.length < 3 ? (
+              <>
+                <CustomText style={styles.errorTitle}>
+                  No results for your filters
+                </CustomText>
+                <CustomText style={styles.errorText}>
+                  Try changing your filters to see more content in your area.
+                </CustomText>
+              </>
+            ) : (
+              <>
+                <CustomText style={styles.errorTitle}>
+                  You're on the edge of something amazing.
+                </CustomText>
+                <CustomText style={styles.errorText}>
+                  {`We're not live in your area just yet, but as soon as we reach 5000 signed up nearby we'll launch. To help us reach our goal, tell your friends so you can all be part of launching something amazing in your area.`}
+                </CustomText>
+              </>
+            )}
           </CustomView>
         </CustomView>
 

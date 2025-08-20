@@ -115,28 +115,28 @@ const ContentCard: React.FC<ContentCardProps> = ({
           </CustomText>
         )} */}
         <View style={styles.cardDetails}>
-          {item.rating && (
+          {!!item.rating && (
             <>
               <View style={styles.ratingContainer}>
                 <Ionicons name="star" size={11} color="#666" />
                 <CustomText style={styles.distance}>{item.rating}</CustomText>
               </View>
-              {(item.price || item.distance) && (
+              {(!!item.price || !!item.distance) && (
                 <CustomText style={styles.separator}>•</CustomText>
               )}
             </>
           )}
           
-          {item.price && (
+          {!!item.price && (
             <>
               <CustomText style={styles.distance}>{item.price}</CustomText>
-              {item.distance && (
+              {!!item.distance && (
                 <CustomText style={styles.separator}>•</CustomText>
               )}
             </>
           )}
           
-          {item.distance && (
+          {!!item.distance && (
             <CustomText style={styles.distance}>
               {formatDistance(item.distance)}
             </CustomText>
@@ -151,6 +151,18 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 10,
     overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#131314",
+        shadowOffset: { width: 1, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+        shadowColor: "#131314",
+      },
+    }),
   },
   selectedCard: {
     ...Platform.select({

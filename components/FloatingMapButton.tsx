@@ -13,9 +13,13 @@ import CustomTouchable from "./CustomTouchableOpacity";
 
 interface FloatingMapButtonProps {
   onPress: () => void;
+  hasTabBar?: boolean;
 }
 
-const FloatingMapButton: React.FC<FloatingMapButtonProps> = ({ onPress }) => {
+const FloatingMapButton: React.FC<FloatingMapButtonProps> = ({
+  onPress,
+  hasTabBar = true,
+}) => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -27,7 +31,7 @@ const FloatingMapButton: React.FC<FloatingMapButtonProps> = ({ onPress }) => {
     );
 
     const keyboardDidHideListener = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide", 
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
       () => setKeyboardVisible(false)
     );
 
@@ -43,10 +47,13 @@ const FloatingMapButton: React.FC<FloatingMapButtonProps> = ({ onPress }) => {
       style={[
         styles.floatingButton,
         {
-          bottom:
-            insets.bottom > 0
-              ? insets.bottom + verticalScale(20)
-              : verticalScale(20),
+          bottom: hasTabBar
+            ? insets.bottom > 0
+              ? insets.bottom + 0
+              : verticalScale(24) // With tab bar: close to tab bar
+            : insets.bottom > 0
+            ? insets.bottom + verticalScale(32)
+            : verticalScale(40), // Without tab bar: more space from edge
           zIndex: keyboardVisible ? -1 : 1000,
           opacity: keyboardVisible ? 0.3 : 1,
         },
@@ -75,12 +82,24 @@ const styles = StyleSheet.create({
     paddingVertical: verticalScale(5),
     paddingHorizontal: horizontalScale(15),
     borderRadius: 50,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#131314",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.75,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 6,
+        shadowColor: "#131314",
+      },
+    }),
   },
   icon: {
     marginLeft: 6,
   },
   buttonText: {
-    fontSize: scaleFontSize(12),
+    fontSize: scaleFontSize(16),
   },
 });
 

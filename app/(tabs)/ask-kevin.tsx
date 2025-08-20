@@ -4,11 +4,11 @@ import AskKevinSection from "@/components/Section/AskKevinSection";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, TouchableOpacity } from "react-native";
 import MasonryGrid, { LikeItem } from "@/components/MansoryGrid";
 import { horizontalScale, verticalScale } from "@/utilities/scaling";
 import CustomText from "@/components/CustomText";
-import { useLocationForAPI } from "@/contexts/LocationContext";
+import { useLocation } from "@/contexts/LocationContext";
 import {
   BucketBottomSheet,
   BucketItem,
@@ -23,7 +23,7 @@ const PaginatedContentList = () => {
   const { query } = useLocalSearchParams();
   const { colors } = useTheme();
   const router = useRouter();
-  const { getLocationForAPI, hasLocationPermission } = useLocationForAPI();
+  const { location: contextLocation } = useLocation();
 
   // Handle string | string[] type from useLocalSearchParams
   const normalizeQuery = (query: string | string[] | undefined): string => {
@@ -35,10 +35,6 @@ const PaginatedContentList = () => {
 
   // State management
   const [searchQuery, setSearchQuery] = useState(normalizeQuery(query));
-  const [location, setLocation] = useState<{ lat: number; lon: number } | null>(
-    null
-  );
-  const [locationInitialized, setLocationInitialized] = useState(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Bucket functionality state
@@ -56,24 +52,6 @@ const PaginatedContentList = () => {
   const addBucketMutation = useAddBucket();
   const createBucketMutation = useCreateBucket();
 
-  // Initialize location
-  useEffect(() => {
-    const initLocation = async () => {
-      if (hasLocationPermission) {
-        try {
-          const locationData = await getLocationForAPI();
-          if (locationData) {
-            setLocation(locationData);
-          }
-        } catch (error) {
-          console.log("Failed to get location, proceeding without it");
-        }
-      }
-      setLocationInitialized(true);
-    };
-    initLocation();
-  }, [hasLocationPermission, getLocationForAPI]);
-
   // Use infinite query - works with or without location
   const {
     data,
@@ -86,10 +64,10 @@ const PaginatedContentList = () => {
     refetch,
   } = useInfiniteContent({
     query: searchQuery,
-    latitude: location?.lat,
-    longitude: location?.lon,
+    latitude: contextLocation?.lat,
+    longitude: contextLocation?.lon,
     limit: 20,
-    enabled: locationInitialized,
+    enabled: true,
   });
 
   // Flatten all pages into single array
@@ -224,8 +202,7 @@ const PaginatedContentList = () => {
   }, []);
 
   // Loading state
-  const isInitialLoading =
-    !locationInitialized || (isLoading && allItems.length === 0);
+  const isInitialLoading = isLoading && allItems.length === 0;
   const isRefreshing = isLoading && !!data;
 
   if (isInitialLoading) {
@@ -257,6 +234,9 @@ const PaginatedContentList = () => {
           <CustomText style={styles.errorSubtext}>
             {error?.message || "Please try again"}
           </CustomText>
+          <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+            <CustomText style={styles.retryButtonText}>Try Again</CustomText>
+          </TouchableOpacity>
         </CustomView>
       </CustomView>
     );
@@ -351,6 +331,20 @@ const styles = StyleSheet.create({
   errorSubtext: {
     fontSize: 16,
     color: "#999",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: "#6C63FF",
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  retryButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
     textAlign: "center",
   },
 });
