@@ -285,12 +285,25 @@ const SwipeableCards = () => {
           </CustomTouchable>
 
           <CustomView style={styles.errorContainer}>
-            <CustomText style={styles.errorTitle}>
-              You're on the edge of something amazing.
-            </CustomText>
-            <CustomText style={styles.errorText}>
-              {`We're not live in your area just yet, but as soon as we reach 5000 signed up nearby we'll launch. To help us reach our goal, tell your friends so you can all be part of launching something amazing in your area.`}
-            </CustomText>
+            {selectedFilters.length < 3 ? (
+              <>
+                <CustomText style={styles.errorTitle}>
+                  No results for your filters
+                </CustomText>
+                <CustomText style={styles.errorText}>
+                  Try changing your filters to see more content in your area.
+                </CustomText>
+              </>
+            ) : (
+              <>
+                <CustomText style={styles.errorTitle}>
+                  You're on the edge of something amazing.
+                </CustomText>
+                <CustomText style={styles.errorText}>
+                  {`We're not live in your area just yet, but as soon as we reach 5000 signed up nearby we'll launch. To help us reach our goal, tell your friends so you can all be part of launching something amazing in your area.`}
+                </CustomText>
+              </>
+            )}
           </CustomView>
         </CustomView>
 
