@@ -8,6 +8,8 @@ import {
   StatusBar,
   Platform,
   FlatList,
+  Modal,
+  Pressable,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -18,7 +20,6 @@ import {
   scaleFontSize,
   verticalScale,
 } from "@/utilities/scaling";
-import { CustomBottomSheet } from "./CustomBottomSheet";
 import CustomTouchable from "../CustomTouchableOpacity";
 import CreateBucketPlus from "../SvgComponents/CreateBucketPlus";
 import { useBuckets } from "@/hooks/useBuckets";
@@ -363,61 +364,109 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
   }
 
   return (
-    <CustomBottomSheet
-      isVisible={isVisible}
-      onClose={onClose}
-      snapPoints={[snapPointHeight]}
-      enablePanDownToClose={true}
+    <Modal
+      visible={isVisible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+      statusBarTranslucent={true}
     >
-      <CustomView style={styles.container}>
-        <CustomView style={styles.header}>
-          <CustomText
-            fontFamily="Inter-SemiBold"
-            style={[styles.title, { color: colors.label_dark || "#000" }]}
-          >
-            Add to bucket
-          </CustomText>
-        </CustomView>
+      <View style={styles.modalContainer}>
+        {/* Overlay */}
+        <Pressable style={styles.overlay} onPress={onClose} />
 
-        {renderContent()}
-
-        {/* Fixed bottom section for Create New Button */}
+        {/* Bottom Sheet Content */}
         <CustomView
           style={[
-            styles.bottomSection,
-            { borderTopColor: colors.onboarding_gray || "#E0E0E0" },
+            styles.bottomSheetContainer,
+            {
+              backgroundColor: colors.background,
+              height:
+                (parseFloat(snapPointHeight.replace("%", "")) *
+                  Dimensions.get("window").height) /
+                100,
+            },
           ]}
         >
-          <TouchableOpacity
-            style={styles.createNewButton}
-            onPress={() => {
-              onCreateNew();
-            }}
-            activeOpacity={0.7}
-          >
-            <CustomView
-              bgColor={colors.light_blue || "#E3F2FD"}
-              style={styles.createNewIconContainer}
-            >
-              <CreateBucketPlus />
+          {/* Handle Indicator */}
+          <View
+            style={[
+              styles.handleIndicator,
+              { backgroundColor: colors.indicator_gray || "#F2F2F7" },
+            ]}
+          />
+
+          <CustomView style={styles.container}>
+            <CustomView style={styles.header}>
+              <CustomText
+                fontFamily="Inter-SemiBold"
+                style={[styles.title, { color: colors.label_dark || "#000" }]}
+              >
+                Add to bucket
+              </CustomText>
             </CustomView>
-            <CustomText
-              fontFamily="Inter-SemiBold"
+
+            {renderContent()}
+
+            {/* Fixed bottom section for Create New Button */}
+            <CustomView
               style={[
-                styles.createNewText,
-                { color: colors.label_dark || "#000" },
+                styles.bottomSection,
+                { borderTopColor: colors.onboarding_gray || "#E0E0E0" },
               ]}
             >
-              Create new bucket
-            </CustomText>
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.createNewButton}
+                onPress={() => {
+                  onCreateNew();
+                }}
+                activeOpacity={0.7}
+              >
+                <CustomView
+                  bgColor={colors.light_blue || "#E3F2FD"}
+                  style={styles.createNewIconContainer}
+                >
+                  <CreateBucketPlus />
+                </CustomView>
+                <CustomText
+                  fontFamily="Inter-SemiBold"
+                  style={[
+                    styles.createNewText,
+                    { color: colors.label_dark || "#000" },
+                  ]}
+                >
+                  Create new bucket
+                </CustomText>
+              </TouchableOpacity>
+            </CustomView>
+          </CustomView>
         </CustomView>
-      </CustomView>
-    </CustomBottomSheet>
+      </View>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  bottomSheetContainer: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 8,
+  },
+  handleIndicator: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 8,
+  },
   container: {
     flex: 1,
     paddingBottom: 8,

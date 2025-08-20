@@ -7,6 +7,13 @@ import {
 import { useRouter } from "expo-router";
 import { StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSpring, 
+  withDelay,
+  runOnJS 
+} from "react-native-reanimated";
 import CustomText from "../CustomText";
 import CustomTouchable from "../CustomTouchableOpacity";
 import CustomView from "../CustomView";
@@ -14,6 +21,7 @@ import EditSvg from "../SvgComponents/EditSvg";
 import HomeSvg from "../SvgComponents/HomeSvg";
 import LocationSvg from "../SvgComponents/LocationSvg";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
+import React from "react";
 
 type ProfileSectionProps = {
   user?: {
@@ -31,6 +39,14 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors } = useTheme();
+
+  // Animation values
+  const profileImageY = useSharedValue(-100);
+  const profileImageOpacity = useSharedValue(0);
+  const nameY = useSharedValue(-50);
+  const nameOpacity = useSharedValue(0);
+  const locationY = useSharedValue(-30);
+  const locationOpacity = useSharedValue(0);
 
   // Default fallback image for profile
   const DEFAULT_PROFILE_IMAGE =
@@ -52,6 +68,42 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
   const validProfileImageUrl =
     getValidImageUrl(user?.profileImageUrl) || DEFAULT_PROFILE_IMAGE;
 
+  // Start animations when user data is available
+  React.useEffect(() => {
+    if (user) {
+      // Profile image animation
+      profileImageY.value = withSpring(0, { damping: 15, stiffness: 100 });
+      profileImageOpacity.value = withSpring(1, { damping: 15, stiffness: 100 });
+      
+      // Name animation (delayed)
+      nameY.value = withDelay(150, withSpring(0, { damping: 15, stiffness: 100 }));
+      nameOpacity.value = withDelay(150, withSpring(1, { damping: 15, stiffness: 100 }));
+      
+      // Location tags animation (more delayed)
+      locationY.value = withDelay(300, withSpring(0, { damping: 15, stiffness: 100 }));
+      locationOpacity.value = withDelay(300, withSpring(1, { damping: 15, stiffness: 100 }));
+    }
+  }, [user]);
+
+  // Animated styles
+  const profileImageStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: profileImageY.value }],
+    opacity: profileImageOpacity.value,
+  }));
+
+  const nameStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: nameY.value }],
+    opacity: nameOpacity.value,
+    alignItems: 'center',
+    width: '100%',
+  }));
+
+  const locationStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: locationY.value }],
+    opacity: locationOpacity.value,
+    width: '100%',
+  }));
+
   return (
     <CustomView
       bgColor={colors.onboarding_gray}
@@ -61,69 +113,75 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
       ]}
     >
       {/* Profile Image */}
-      <OptimizedImage
-        source={{ uri: validProfileImageUrl }}
-        style={styles.profileImage}
-        resizeMode="cover"
-        priority="high"
-        showLoader={false} // Avatar usually doesn't need loader as it's small
-        fallbackSource={DEFAULT_PROFILE_IMAGE}
-      />
+      <Animated.View style={profileImageStyle}>
+        <OptimizedImage
+          source={{ uri: validProfileImageUrl }}
+          style={styles.profileImage}
+          resizeMode="cover"
+          priority="high"
+          showLoader={false} // Avatar usually doesn't need loader as it's small
+          fallbackSource={DEFAULT_PROFILE_IMAGE}
+        />
+      </Animated.View>
 
       {/* Name and Edit Icon */}
-      <CustomView bgColor={colors.onboarding_gray} style={styles.nameContainer}>
-        <CustomText
-          fontFamily="Inter-Bold"
-          style={[styles.profileName, { color: colors.profile_name_black }]}
-        >
-          {user?.firstName || "Placeholder Name"}
-        </CustomText>
-        <CustomTouchable onPress={onEditPress} bgColor={colors.onboarding_gray}>
-          <EditSvg />
-        </CustomTouchable>
-      </CustomView>
-      {user?.personalSummary && (
-        <CustomText
-          style={[styles.profileBio, { color: colors.profile_name_black }]}
-        >
-          {user?.personalSummary || ""}
-        </CustomText>
-      )}
+      <Animated.View style={nameStyle}>
+        <CustomView bgColor={colors.onboarding_gray} style={styles.nameContainer}>
+          <CustomText
+            fontFamily="Inter-Bold"
+            style={[styles.profileName, { color: colors.profile_name_black }]}
+          >
+            {user?.firstName || "Placeholder Name"}
+          </CustomText>
+          <CustomTouchable onPress={onEditPress} bgColor={colors.onboarding_gray}>
+            <EditSvg />
+          </CustomTouchable>
+        </CustomView>
+        {user?.personalSummary && (
+          <CustomText
+            style={[styles.profileBio, { color: colors.profile_name_black }]}
+          >
+            {user?.personalSummary || ""}
+          </CustomText>
+        )}
+      </Animated.View>
 
       {/* Location Tags */}
-      <CustomView
-        bgColor={colors.onboarding_gray}
-        style={[
-          styles.locationContainer,
-          !user?.personalSummary && { marginTop: verticalScale(10) },
-        ]}
-      >
+      <Animated.View style={locationStyle}>
         <CustomView
-          bgColor={colors.profile_name_black}
-          style={styles.locationTag}
+          bgColor={colors.onboarding_gray}
+          style={[
+            styles.locationContainer,
+            !user?.personalSummary && { marginTop: verticalScale(10) },
+          ]}
         >
-          <LocationSvg />
-          <CustomText
-            fontFamily="Inter-Medium"
-            style={[styles.locationText, { color: colors.text_white }]}
+          <CustomView
+            bgColor={colors.profile_name_black}
+            style={styles.locationTag}
           >
-            {user?.location || "No location"}
-          </CustomText>
-        </CustomView>
+            <LocationSvg />
+            <CustomText
+              fontFamily="Inter-Medium"
+              style={[styles.locationText, { color: colors.text_white }]}
+            >
+              {user?.location || "No location"}
+            </CustomText>
+          </CustomView>
 
-        <CustomView
-          bgColor={colors.opacity_lime}
-          style={styles.secondaryLocationTag}
-        >
-          <HomeSvg />
-          <CustomText
-            fontFamily="Inter-Medium"
-            style={[styles.locationText, { color: colors.profile_name_black }]}
+          <CustomView
+            bgColor={colors.opacity_lime}
+            style={styles.secondaryLocationTag}
           >
-            {user?.home || "No location"}
-          </CustomText>
+            <HomeSvg />
+            <CustomText
+              fontFamily="Inter-Medium"
+              style={[styles.locationText, { color: colors.profile_name_black }]}
+            >
+              {user?.home || "No location"}
+            </CustomText>
+          </CustomView>
         </CustomView>
-      </CustomView>
+      </Animated.View>
     </CustomView>
   );
 };
