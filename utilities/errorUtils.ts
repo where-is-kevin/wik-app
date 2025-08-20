@@ -5,7 +5,7 @@ export interface ErrorMessage {
 
 export const getErrorMessage = (error: any): ErrorMessage => {
   // Handle timeout errors
-  if (error?.message?.includes("timed out")) {
+  if (error?.message?.includes("timed out") || error?.name === "TimeoutError") {
     return {
       title: "Connection Timeout",
       message:
@@ -13,12 +13,17 @@ export const getErrorMessage = (error: any): ErrorMessage => {
     };
   }
 
-  // Handle network errors
-  if (error?.name === "NetworkError" || error?.message?.includes("network")) {
+  // Handle network errors - enhanced detection
+  if (error?.name === "NetworkError" || 
+      error?.message?.includes("network") ||
+      error?.message?.includes("No internet connection") ||
+      error?.message?.includes("Failed to fetch") ||
+      error?.message?.includes("net::") ||
+      error?.status === 0) {
     return {
-      title: "Connection Error",
+      title: "No Internet Connection",
       message:
-        "Unable to connect to our servers. Please check your internet connection.",
+        "Please check your internet connection and try again.",
     };
   }
 

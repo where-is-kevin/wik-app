@@ -4,7 +4,7 @@ import AskKevinSection from "@/components/Section/AskKevinSection";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, TouchableOpacity } from "react-native";
 import MasonryGrid, { LikeItem } from "@/components/MansoryGrid";
 import { horizontalScale, verticalScale } from "@/utilities/scaling";
 import CustomText from "@/components/CustomText";
@@ -234,6 +234,9 @@ const PaginatedContentList = () => {
           <CustomText style={styles.errorSubtext}>
             {error?.message || "Please try again"}
           </CustomText>
+          <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+            <CustomText style={styles.retryButtonText}>Try Again</CustomText>
+          </TouchableOpacity>
         </CustomView>
       </CustomView>
     );
@@ -328,6 +331,20 @@ const styles = StyleSheet.create({
   errorSubtext: {
     fontSize: 16,
     color: "#999",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: "#6C63FF",
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  retryButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
     textAlign: "center",
   },
 });
