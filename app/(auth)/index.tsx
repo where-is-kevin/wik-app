@@ -146,7 +146,7 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
                 fontFamily="Inter-SemiBold"
                 style={[styles.signInButtonText, { color: colors.label_dark }]}
               >
-                {isPending ? "Signing in..." : "Sign in"}
+                Test OTP →
               </CustomText>
             </CustomTouchable>
 

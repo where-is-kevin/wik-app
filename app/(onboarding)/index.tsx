@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, Alert } from "react-native";
+import { StyleSheet, Alert, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
 import { OnboardingOption } from "@/components/Onboarding/OnboardingOption";
 import { OnboardingProgressBar } from "@/components/Onboarding/OnboardingProgressBar";
+import { OnboardingTag } from "@/components/Onboarding/OnboardingTag";
 import {
   OnboardingSelections,
   OnboardingStep,
   onboardingSteps,
 } from "@/constants/onboardingSlides";
-import {
-  getTotalStepsForPath,
-  MAX_PATH_STEPS,
-} from "@/utilities/onboardingHelpers";
 import CustomView from "@/components/CustomView";
 import CustomText from "@/components/CustomText";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
@@ -50,7 +47,6 @@ const OnboardingScreen = () => {
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [selections, setSelections] = useState<OnboardingSelections>({});
   const [filteredSteps, setFilteredSteps] = useState<OnboardingStep[]>([]);
-  const [totalSteps, setTotalSteps] = useState<number>(MAX_PATH_STEPS);
   const [personalFormData, setPersonalFormData] = useState<PersonalFormData>({
     firstName: "",
     lastName: "",
@@ -141,14 +137,6 @@ const OnboardingScreen = () => {
     });
 
     setFilteredSteps(newFilteredSteps);
-
-    if (selections.userType !== undefined) {
-      const userTypeSelection = Array.isArray(selections.userType)
-        ? selections.userType[0]
-        : (selections.userType as number);
-      const path = userTypeSelection === 0 ? "business" : "personal";
-      setTotalSteps(getTotalStepsForPath(path));
-    }
   }, [selections]);
 
   const handleFormChange = (formData: PersonalFormData) => {
@@ -426,13 +414,6 @@ const OnboardingScreen = () => {
     return (
       <CustomView style={styles.logoContent}>
         <CustomView>
-          <LottieView
-            source={OnboardingAnimationStart}
-            autoPlay
-            loop
-            style={styles.logo}
-          />
-
           <CustomText
             fontFamily="Inter-SemiBold"
             style={[styles.title, { color: colors.label_dark }]}
@@ -442,18 +423,28 @@ const OnboardingScreen = () => {
           <CustomText style={[styles.subtitle, { color: colors.gray_regular }]}>
             {stepData.subtitle}
           </CustomText>
+          <LottieView
+            source={OnboardingAnimationStart}
+            autoPlay
+            loop
+            style={styles.logo}
+          />
         </CustomView>
 
-        <CustomView style={styles.optionsContainer}>
+        <CustomView style={styles.travelOptionContainer}>
           {stepData.options.map((option, index) => (
             <CustomTouchable
               key={index}
               style={[
                 styles.selectionButton,
-                selectedIndices.includes(index) ? styles.selectedButton : {},
                 styles.businessButton,
+                selectedIndices.includes(index) ? styles.selectedButton : {},
               ]}
-              bgColor={colors.onboarding_gray}
+              bgColor={
+                selectedIndices.includes(index)
+                  ? "#DAE1FF"
+                  : colors.onboarding_gray
+              }
               onPress={() => handleLogoSelection(index)}
             >
               <CustomText
@@ -476,9 +467,14 @@ const OnboardingScreen = () => {
 
     return (
       <CustomView style={styles.content}>
-        <CustomText style={styles.optionsTitle}>{stepData.subtitle}</CustomText>
-        <CustomText fontFamily="Inter-SemiBold" style={styles.optionsSubtitle}>
+        <CustomText
+          fontFamily="Inter-SemiBold"
+          style={[styles.title, { color: colors.label_dark }]}
+        >
           {stepData.title}
+        </CustomText>
+        <CustomText style={[styles.subtitle, { color: colors.gray_regular }]}>
+          {stepData.subtitle}
         </CustomText>
 
         <CustomView style={styles.optionsContainer}>
@@ -601,6 +597,99 @@ const OnboardingScreen = () => {
     );
   };
 
+  const renderTagSelection = () => {
+    if (!stepData || !stepData.tags) return null;
+
+    // Group tags by category
+    const groupedTags = stepData.tags.reduce((acc, tag) => {
+      if (!acc[tag.category]) {
+        acc[tag.category] = [];
+      }
+      acc[tag.category].push(tag);
+      return acc;
+    }, {} as Record<string, typeof stepData.tags>);
+
+    return (
+      <CustomView style={styles.tagContent}>
+        <CustomText
+          fontFamily="Inter-SemiBold"
+          style={[
+            styles.title,
+            { color: colors.label_dark, marginHorizontal: horizontalScale(24) },
+          ]}
+        >
+          {stepData.title}
+        </CustomText>
+        <CustomText
+          style={[
+            styles.subtitle,
+            {
+              color: colors.gray_regular,
+              marginHorizontal: horizontalScale(24),
+            },
+          ]}
+        >
+          {stepData.subtitle}
+        </CustomText>
+
+        <ScrollView
+          style={styles.tagScrollContainer}
+          contentContainerStyle={styles.tagContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          {Object.entries(groupedTags).map(([category, tags]) => (
+            <CustomView key={category} style={styles.categoryContainer}>
+              <CustomText
+                fontFamily="Inter-SemiBold"
+                style={[
+                  styles.categoryTitle,
+                  {
+                    color: colors.label_dark,
+                    marginLeft: horizontalScale(24),
+                  },
+                ]}
+              >
+                {category}
+              </CustomText>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalTagsContainer}
+              >
+                <CustomView style={styles.twoRowContainer}>
+                  <CustomView style={styles.tagRow}>
+                    {tags.slice(0, Math.ceil(tags.length / 2)).map((tag) => (
+                      <OnboardingTag
+                        key={tag.number}
+                        number={tag.number}
+                        text={tag.text}
+                        icon={tag.icon}
+                        selected={selectedIndices.includes(tag.number - 1)}
+                        onPress={() => handleSelection(tag.number - 1)}
+                      />
+                    ))}
+                  </CustomView>
+                  <CustomView style={styles.tagRow}>
+                    {tags.slice(Math.ceil(tags.length / 2)).map((tag) => (
+                      <OnboardingTag
+                        key={tag.number}
+                        number={tag.number}
+                        text={tag.text}
+                        icon={tag.icon}
+                        selected={selectedIndices.includes(tag.number - 1)}
+                        onPress={() => handleSelection(tag.number - 1)}
+                      />
+                    ))}
+                  </CustomView>
+                </CustomView>
+              </ScrollView>
+            </CustomView>
+          ))}
+        </ScrollView>
+      </CustomView>
+    );
+  };
+
   const renderFinalSlide = () => {
     if (!stepData) return null;
 
@@ -639,6 +728,8 @@ const OnboardingScreen = () => {
         return renderPersonalForm();
       case "card-swipe":
         return renderCardSwipe();
+      case "tag-selection":
+        return renderTagSelection();
       case "final-slide":
         return renderFinalSlide();
       default:
@@ -670,6 +761,36 @@ const OnboardingScreen = () => {
         </CustomTouchable>
       )}
 
+      {(stepData?.type === "option-list" ||
+        stepData?.type === "tag-list" ||
+        stepData?.type === "budget-selection" ||
+        stepData?.type === "tag-selection") && (
+        <CustomView style={styles.progressContainer}>
+          <OnboardingProgressBar
+            steps={
+              filteredSteps.filter(
+                (step) =>
+                  step.type === "option-list" ||
+                  step.type === "tag-list" ||
+                  step.type === "budget-selection" ||
+                  step.type === "tag-selection"
+              ).length
+            }
+            currentStep={
+              filteredSteps
+                .slice(0, currentStepIndex + 1)
+                .filter(
+                  (step) =>
+                    step.type === "option-list" ||
+                    step.type === "tag-list" ||
+                    step.type === "budget-selection" ||
+                    step.type === "tag-selection"
+                ).length - 1
+            }
+          />
+        </CustomView>
+      )}
+
       {renderStepContent()}
 
       <CustomView style={styles.footer}>
@@ -690,17 +811,11 @@ const OnboardingScreen = () => {
                   ? "Finalizing..."
                   : currentStepIndex === filteredSteps.length - 1
                   ? "Finish"
-                  : "Next"
+                  : "Continue"
               }
               disabled={isNextButtonDisabled() || isPending}
             />
           )}
-        <CustomView style={styles.progressContainer}>
-          <OnboardingProgressBar
-            steps={totalSteps}
-            currentStep={currentStepIndex}
-          />
-        </CustomView>
       </CustomView>
     </SafeAreaView>
   );
@@ -713,19 +828,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: horizontalScale(16),
-    paddingVertical: verticalScale(12),
+    paddingHorizontal: horizontalScale(26),
+    paddingVertical: verticalScale(10),
   },
   content: {
     flex: 1,
-    paddingHorizontal: horizontalScale(20),
+    paddingHorizontal: horizontalScale(24),
+    alignItems: "center",
+    paddingTop: verticalScale(16),
+    paddingBottom: verticalScale(20),
+  },
+  tagContent: {
+    flex: 1,
     alignItems: "center",
     paddingTop: verticalScale(16),
     paddingBottom: verticalScale(20),
   },
   logoContent: {
     flex: 1,
-    paddingHorizontal: horizontalScale(20),
+    paddingHorizontal: horizontalScale(24),
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: verticalScale(20),
@@ -737,28 +858,31 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   logo: {
-    width: 273,
-    height: 273,
+    width: 240,
+    height: 240,
+    marginTop: verticalScale(30),
+    marginBottom: verticalScale(50),
+    alignSelf: "center",
   },
   logoEnd: {
-    width: 327,
-    height: 327,
+    width: 240,
+    height: 240,
   },
   title: {
     fontSize: scaleFontSize(18),
-    marginBottom: verticalScale(8),
+    marginBottom: verticalScale(4),
     textAlign: "center",
   },
   subtitle: {
     fontSize: scaleFontSize(14),
     textAlign: "center",
   },
-  optionsTitle: {
+  optionsSubtitle: {
     fontSize: scaleFontSize(15),
     textAlign: "center",
     marginBottom: verticalScale(8),
   },
-  optionsSubtitle: {
+  optionsTitle: {
     fontSize: scaleFontSize(18),
     minHeight: 58,
     marginBottom: verticalScale(23),
@@ -783,15 +907,22 @@ const styles = StyleSheet.create({
     fontSize: scaleFontSize(14),
     textAlign: "center",
   },
+  travelOptionContainer: {
+    width: "100%",
+    flex: 1,
+  },
   optionsContainer: {
     width: "100%",
     justifyContent: "center",
     flex: 1,
   },
   selectionButton: {
+    paddingVertical: 10,
+    height: 60,
+    alignSelf: "center",
     width: "100%",
-    paddingVertical: verticalScale(12),
-    paddingHorizontal: horizontalScale(20),
+    justifyContent: "center",
+    paddingHorizontal: 28,
     borderRadius: 31,
     marginBottom: verticalScale(12),
   },
@@ -800,7 +931,8 @@ const styles = StyleSheet.create({
     borderColor: "#D6D6D9",
   },
   selectedButton: {
-    borderColor: "#000",
+    borderColor: "#3C62FA",
+    borderWidth: 2,
   },
   selectionButtonText: {
     fontSize: scaleFontSize(16),
@@ -814,6 +946,7 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     alignItems: "center",
+    paddingHorizontal: horizontalScale(24),
   },
   swipeContainer: {
     flex: 1,
@@ -841,5 +974,31 @@ const styles = StyleSheet.create({
     fontSize: scaleFontSize(14),
     color: "#fff",
     textAlign: "center",
+  },
+  tagScrollContainer: {
+    flex: 1,
+    width: "100%",
+  },
+  tagContainer: {
+    width: "100%",
+    paddingTop: verticalScale(20),
+  },
+  categoryContainer: {
+    marginBottom: verticalScale(20),
+  },
+  categoryTitle: {
+    fontSize: scaleFontSize(16),
+    marginBottom: verticalScale(10),
+  },
+  horizontalTagsContainer: {
+    paddingHorizontal: horizontalScale(24),
+  },
+  twoRowContainer: {
+    flexDirection: "column",
+  },
+  tagRow: {
+    flexDirection: "row",
+    marginBottom: verticalScale(8),
+    gap: horizontalScale(8),
   },
 });
