@@ -1,29 +1,42 @@
 import React, { useState, useEffect, useRef } from "react";
-import { StyleSheet, TextInput, ScrollView, TouchableWithoutFeedback, Keyboard } from "react-native";
+import {
+  StyleSheet,
+  ScrollView,
+  TouchableWithoutFeedback,
+  Keyboard,
+} from "react-native";
 import CustomView from "../CustomView";
 import CustomText from "../CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
-import { horizontalScale, scaleFontSize, verticalScale } from "@/utilities/scaling";
+import {
+  horizontalScale,
+  scaleFontSize,
+  verticalScale,
+} from "@/utilities/scaling";
 import { OnboardingStep } from "@/constants/onboardingSlides";
 import { commonOnboardingStyles } from "./OnboardingStyles";
 import { OnboardingLocationItem, LocationData } from "./OnboardingLocationItem";
 import { useLocationSearch } from "@/hooks/useLocationSearch";
+import { OnboardingSearch } from "./OnboardingSearch";
 
 interface OnboardingLocationSlideProps {
   stepData: OnboardingStep;
-  onLocationSelect: (location: LocationData) => void;
+  onLocationSelect: (location: LocationData | undefined) => void;
   selectedLocation?: LocationData;
 }
 
-
-export const OnboardingLocationSlide: React.FC<OnboardingLocationSlideProps> = ({
-  stepData,
-  onLocationSelect,
-  selectedLocation,
-}) => {
+export const OnboardingLocationSlide: React.FC<
+  OnboardingLocationSlideProps
+> = ({ stepData, onLocationSelect, selectedLocation }) => {
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
-  const { results: searchResults, loading, error, searchLocations, clearResults } = useLocationSearch();
+  const {
+    results: searchResults,
+    loading,
+    error,
+    searchLocations,
+    clearResults,
+  } = useLocationSearch();
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -35,7 +48,7 @@ export const OnboardingLocationSlide: React.FC<OnboardingLocationSlideProps> = (
       searchTimeoutRef.current = setTimeout(() => {
         const cleanup = searchLocations(searchQuery);
         return cleanup;
-      }, 300);
+      }, 400);
     } else {
       clearResults();
     }
@@ -49,7 +62,16 @@ export const OnboardingLocationSlide: React.FC<OnboardingLocationSlideProps> = (
 
   const handleLocationPress = (location: LocationData) => {
     onLocationSelect(location);
+    setSearchQuery(""); // Clear search query when location is selected
     Keyboard.dismiss();
+  };
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    // If user starts typing and there's a selected location, clear it
+    if (text.length > 0 && selectedLocation) {
+      onLocationSelect(undefined); // Clear the selected location
+    }
   };
 
   const handleScreenTap = () => {
@@ -59,126 +81,118 @@ export const OnboardingLocationSlide: React.FC<OnboardingLocationSlideProps> = (
   return (
     <TouchableWithoutFeedback onPress={handleScreenTap}>
       <CustomView style={commonOnboardingStyles.content}>
-      <CustomText
-        fontFamily="Inter-SemiBold"
-        style={[commonOnboardingStyles.title, { color: colors.label_dark }]}
-      >
-        {stepData.title}
-      </CustomText>
-      <CustomText 
-        style={[
-          commonOnboardingStyles.subtitle, 
-          { color: colors.gray_regular, marginBottom: verticalScale(32) }
-        ]}
-      >
-        {stepData.subtitle}
-      </CustomText>
+        <CustomText
+          fontFamily="Inter-SemiBold"
+          style={[commonOnboardingStyles.title, { color: colors.label_dark }]}
+        >
+          {stepData.title}
+        </CustomText>
+        <CustomText
+          style={[
+            commonOnboardingStyles.subtitle,
+            { color: colors.gray_regular, marginBottom: verticalScale(32) },
+          ]}
+        >
+          {stepData.subtitle}
+        </CustomText>
 
-      {/* Search Input */}
-      <CustomView style={[styles.searchContainer, { borderColor: colors.onboarding_gray }]}>
-        <TextInput
-          style={[styles.searchInput, { color: colors.label_dark }]}
-          placeholder="Search for a destination..."
-          placeholderTextColor={colors.gray_regular}
+        {/* Search Input */}
+        <OnboardingSearch
           value={searchQuery}
-          onChangeText={setSearchQuery}
+          onChangeText={handleSearchChange}
+          placeholder="Search for a destination..."
           autoFocus={false}
+          autoCorrect={false}
+          spellCheck={false}
+          showIcon={true}
         />
-        <CustomView style={styles.searchIconContainer}>
-          <CustomText style={[styles.searchIcon, { color: colors.light_blue }]}>🔍</CustomText>
-        </CustomView>
-      </CustomView>
 
-      {/* Selected Location Display */}
-      {selectedLocation && (
-        <CustomView style={styles.selectedLocationContainer}>
-          <CustomText style={[styles.selectedLabel, { color: colors.gray_regular }]}>
-            Selected:
-          </CustomText>
-          <OnboardingLocationItem
-            location={selectedLocation}
-            onPress={handleLocationPress}
-          />
-        </CustomView>
-      )}
-
-      {/* Location Results */}
-      <ScrollView 
-        style={styles.resultsContainer}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {loading ? (
-          <CustomView style={styles.loadingContainer}>
-            <CustomText style={[styles.loadingText, { color: colors.gray_regular }]}>
-              Searching...
+        {/* Selected Location Display */}
+        {selectedLocation && (
+          <CustomView style={styles.selectedLocationContainer}>
+            <CustomText
+              style={[styles.selectedLabel, { color: colors.gray_regular }]}
+            >
+              Selected:
             </CustomText>
-          </CustomView>
-        ) : error ? (
-          <CustomView style={styles.errorContainer}>
-            <CustomText style={[styles.errorText, { color: colors.gray_regular }]}>
-              {error}
-            </CustomText>
-          </CustomView>
-        ) : searchQuery.length > 1 ? (
-          searchResults.length > 0 ? (
-            searchResults.map((location) => (
-              <OnboardingLocationItem
-                key={location.id}
-                location={location}
-                onPress={handleLocationPress}
-              />
-            ))
-          ) : (
-            <CustomView style={styles.noResultsContainer}>
-              <CustomText style={[styles.noResultsText, { color: colors.gray_regular }]}>
-                No locations found for "{searchQuery}"
-              </CustomText>
-            </CustomView>
-          )
-        ) : (
-          <CustomView style={styles.instructionContainer}>
-            <CustomText style={[styles.instructionText, { color: colors.gray_regular }]}>
-              Start typing to search for destinations...
-            </CustomText>
+            <OnboardingLocationItem
+              location={selectedLocation}
+              onPress={handleLocationPress}
+            />
           </CustomView>
         )}
-      </ScrollView>
+
+        {/* Location Results - Only show if no location is selected */}
+        {!selectedLocation && (
+          <ScrollView
+            style={styles.resultsContainer}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {loading ? (
+              <CustomView style={styles.loadingContainer}>
+                <CustomText
+                  style={[styles.loadingText, { color: colors.gray_regular }]}
+                >
+                  Searching...
+                </CustomText>
+              </CustomView>
+            ) : error ? (
+              <CustomView style={styles.errorContainer}>
+                <CustomText
+                  style={[styles.errorText, { color: colors.gray_regular }]}
+                >
+                  {error}
+                </CustomText>
+              </CustomView>
+            ) : searchQuery.length > 1 ? (
+              searchResults.length > 0 ? (
+                searchResults.map((location) => (
+                  <OnboardingLocationItem
+                    key={location.id}
+                    location={location}
+                    onPress={handleLocationPress}
+                    searchTerm={searchQuery}
+                  />
+                ))
+              ) : (
+                <CustomView style={styles.noResultsContainer}>
+                  <CustomText
+                    style={[
+                      styles.noResultsText,
+                      { color: colors.gray_regular },
+                    ]}
+                  >
+                    No locations found for "{searchQuery}"
+                  </CustomText>
+                </CustomView>
+              )
+            ) : (
+              <CustomView style={styles.instructionContainer}>
+                <CustomText
+                  style={[
+                    styles.instructionText,
+                    { color: colors.gray_regular },
+                  ]}
+                >
+                  Start typing to search for destinations...
+                </CustomText>
+              </CustomView>
+            )}
+          </ScrollView>
+        )}
       </CustomView>
     </TouchableWithoutFeedback>
   );
 };
 
 const styles = StyleSheet.create({
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: horizontalScale(16),
-    paddingVertical: verticalScale(12),
-    marginHorizontal: horizontalScale(24),
-    marginBottom: verticalScale(24),
-    backgroundColor: "#FFFFFF",
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: scaleFontSize(16),
-    paddingRight: horizontalScale(8),
-  },
-  searchIconContainer: {
-    padding: horizontalScale(4),
-  },
-  searchIcon: {
-    fontSize: scaleFontSize(16),
-  },
   selectedLocationContainer: {
     marginBottom: verticalScale(16),
   },
   selectedLabel: {
     fontSize: scaleFontSize(14),
-    marginLeft: horizontalScale(24),
-    marginBottom: verticalScale(8),
+    marginTop: 20,
   },
   resultsContainer: {
     flex: 1,
@@ -187,19 +201,19 @@ const styles = StyleSheet.create({
   noResultsContainer: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: verticalScale(32),
+    paddingVertical: verticalScale(20),
   },
   noResultsText: {
-    fontSize: scaleFontSize(16),
+    fontSize: scaleFontSize(14),
     textAlign: "center",
   },
   instructionContainer: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: verticalScale(32),
+    paddingVertical: verticalScale(20),
   },
   instructionText: {
-    fontSize: scaleFontSize(16),
+    fontSize: scaleFontSize(14),
     textAlign: "center",
   },
   loadingContainer: {
@@ -214,10 +228,10 @@ const styles = StyleSheet.create({
   errorContainer: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: verticalScale(32),
+    paddingVertical: verticalScale(20),
   },
   errorText: {
-    fontSize: scaleFontSize(16),
+    fontSize: scaleFontSize(14),
     textAlign: "center",
     paddingHorizontal: horizontalScale(24),
   },

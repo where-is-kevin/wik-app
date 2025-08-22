@@ -4,13 +4,19 @@ import CustomView from "../CustomView";
 import CustomText from "../CustomText";
 import CustomTouchable from "../CustomTouchableOpacity";
 import { useTheme } from "@/contexts/ThemeContext";
-import { horizontalScale, scaleFontSize, verticalScale } from "@/utilities/scaling";
+import {
+  horizontalScale,
+  scaleFontSize,
+  verticalScale,
+} from "@/utilities/scaling";
 import { SwipeCards, CardData } from "../SwipeCards/SwipeCards";
 import SwipeCardTooltips from "../Tooltips/SwipeCardTooltips";
 import AnimatedLoader from "../Loader/AnimatedLoader";
 import { commonOnboardingStyles } from "./OnboardingStyles";
+import { OnboardingStep } from "@/constants/onboardingSlides";
 
 interface OnboardingCardSwipeSlideProps {
+  stepData: OnboardingStep;
   isLoading: boolean;
   error: any;
   cardData: CardData[];
@@ -24,7 +30,10 @@ interface OnboardingCardSwipeSlideProps {
   onRetry: () => void;
 }
 
-export const OnboardingCardSwipeSlide: React.FC<OnboardingCardSwipeSlideProps> = ({
+export const OnboardingCardSwipeSlide: React.FC<
+  OnboardingCardSwipeSlideProps
+> = ({
+  stepData,
   isLoading,
   error,
   cardData,
@@ -95,7 +104,27 @@ export const OnboardingCardSwipeSlide: React.FC<OnboardingCardSwipeSlideProps> =
   }
 
   return (
-    <CustomView style={commonOnboardingStyles.content}>
+    <CustomView
+      style={[
+        commonOnboardingStyles.content,
+        { paddingTop: 0, paddingBottom: 0 },
+      ]}
+    >
+      <CustomText
+        fontFamily="Inter-SemiBold"
+        style={[commonOnboardingStyles.title, { color: colors.label_dark }]}
+      >
+        {stepData.title}
+      </CustomText>
+      <CustomText
+        style={[
+          commonOnboardingStyles.subtitle,
+          { color: colors.gray_regular },
+        ]}
+      >
+        {stepData.subtitle}
+      </CustomText>
+
       <CustomView style={styles.swipeContainer}>
         <SwipeCards
           data={cardData}
@@ -121,7 +150,7 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
-    paddingBottom: verticalScale(30),
+    marginTop: verticalScale(12),
   },
   errorText: {
     fontSize: scaleFontSize(16),

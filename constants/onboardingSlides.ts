@@ -1,5 +1,10 @@
 export interface OnboardingSelections {
-  [key: string]: number | number[] | { min: number; max: number } | { id: string; name: string; country: string; fullName: string } | undefined;
+  [key: string]:
+    | number
+    | number[]
+    | { min: number; max: number }
+    | { id: string; name: string; country: string; fullName: string }
+    | undefined;
 }
 export type Condition = {
   key: string;
@@ -18,7 +23,10 @@ export type OnboardingStep = {
     | "personal-form"
     | "card-swipe"
     | "final-slide"
-    | "tag-selection";
+    | "tag-selection"
+    | "travel-email"
+    | "travel-name"
+    | "code-slide";
   options: string[];
   condition?: Condition;
   allowMultipleSelections?: boolean;
@@ -167,7 +175,8 @@ export const onboardingSteps: OnboardingStep[] = [
   {
     key: "travelDestination",
     title: "Where are you planning to go?",
-    subtitle: "We'll show you recommendations for this location. Don't worry, you can always change it or add more spots later.",
+    subtitle:
+      "We'll show you recommendations for this location. Don't worry, you can always change it or add more spots later.",
     type: "location-selection",
     options: [],
     allowMultipleSelections: false,
@@ -215,47 +224,47 @@ export const onboardingSteps: OnboardingStep[] = [
   //   allowMultipleSelections: false,
   //   condition: { key: "userType", value: 0 },
   // },
-  {
-    key: "travelValues",
-    title: "What do you value the most when you travel?",
-    subtitle: "Pick up to 10 things you spend the most on",
-    type: "tag-selection",
-    options: [],
-    allowMultipleSelections: true,
-    tags: [
-      {
-        number: 1,
-        text: "Coffee shops",
-        icon: "☕️",
-        category: "Food and Drink",
-      },
-      {
-        number: 2,
-        text: "Restaurants",
-        icon: "🍽️",
-        category: "Food and Drink",
-      },
-      {
-        number: 3,
-        text: "Museums and galleries",
-        icon: "🖼️",
-        category: "Experiences and Culture",
-      },
-      {
-        number: 4,
-        text: "Events and festivals",
-        icon: "🎪",
-        category: "Experiences and Culture",
-      },
-      {
-        number: 5,
-        text: "Souvenirs and local craft",
-        icon: "🎁",
-        category: "Shopping",
-      },
-      { number: 6, text: "Fashion", icon: "👕", category: "Shopping" },
-    ],
-  },
+  // {
+  //   key: "travelValues",
+  //   title: "What do you value the most when you travel?",
+  //   subtitle: "Pick up to 10 things you spend the most on",
+  //   type: "tag-selection",
+  //   options: [],
+  //   allowMultipleSelections: true,
+  //   tags: [
+  //     {
+  //       number: 1,
+  //       text: "Coffee shops",
+  //       icon: "☕️",
+  //       category: "Food and Drink",
+  //     },
+  //     {
+  //       number: 2,
+  //       text: "Restaurants",
+  //       icon: "🍽️",
+  //       category: "Food and Drink",
+  //     },
+  //     {
+  //       number: 3,
+  //       text: "Museums and galleries",
+  //       icon: "🖼️",
+  //       category: "Experiences and Culture",
+  //     },
+  //     {
+  //       number: 4,
+  //       text: "Events and festivals",
+  //       icon: "🎪",
+  //       category: "Experiences and Culture",
+  //     },
+  //     {
+  //       number: 5,
+  //       text: "Souvenirs and local craft",
+  //       icon: "🎁",
+  //       category: "Shopping",
+  //     },
+  //     { number: 6, text: "Fashion", icon: "👕", category: "Shopping" },
+  //   ],
+  // },
   {
     key: "businessTravelTech",
     title: "How tech-savvy are you?",
@@ -270,30 +279,9 @@ export const onboardingSteps: OnboardingStep[] = [
     condition: { key: "userType", value: 0 },
   },
   {
-    key: "personalTravelTech",
-    title: "How tech-savvy are you?",
-    subtitle: "Tell us more about yourself",
-    type: "option-list",
-    options: [
-      "Very tech-savvy (I rely on apps for everything)",
-      "Moderately tech-savvy (I use apps but prefer simplicity)",
-      "Not very tech-savvy (I prefer human assistance)",
-    ],
-    allowMultipleSelections: false,
-    condition: { key: "userType", value: 1 },
-  },
-  {
-    key: "personalDetails",
-    title: "You will be able to change this info later",
-    subtitle: "Finalise setting up your profile",
-    type: "personal-form" as const,
-    options: [],
-    // condition: { key: "userType", value: 1 }, // Only for personal users
-  },
-  {
     key: "travelPreferences",
-    title: "Swipe on Your Travel Preferences",
-    subtitle: "Swipe right for places you'd like to visit",
+    title: "It all starts with a swipe!",
+    subtitle: "We’ll suggest more of what you swipe right on.",
     type: "card-swipe" as const,
     options: [], // Not used for card swipe
     cards: [
@@ -324,10 +312,52 @@ export const onboardingSteps: OnboardingStep[] = [
     ],
   },
   {
-    key: "finalSlide",
-    title: "You are all set!",
-    subtitle: "You can now start exploring",
+    key: "travelFinalSlide",
+    title: "You're all set! Your adventure is waiting",
+    subtitle: "Finish setting up your profile to unlock your favourites.",
     type: "final-slide" as const,
     options: [],
+    condition: { key: "userType", value: 1 },
+  },
+  {
+    key: "travelName",
+    title: "Firstly, what's your name?",
+    subtitle: "So we know what to call you",
+    type: "travel-name" as const,
+    options: [],
+    condition: { key: "userType", value: 1 },
+  },
+  {
+    key: "travelEmail",
+    title: "Welcome, !",
+    subtitle: "Add your email so we can verify your identity",
+    type: "travel-email" as const,
+    options: [],
+    condition: { key: "userType", value: 1 },
+  },
+  {
+    key: "travelCode",
+    title: "Enter verification code",
+    subtitle: "We've sent a code to your email address",
+    type: "code-slide" as const,
+    options: [],
+    condition: { key: "userType", value: 1 },
+  },
+  {
+    key: "businessFinalSlide",
+    title: "Let's finish setting up your business profile",
+    subtitle:
+      "To discover the right people and opportunities on your next trip",
+    type: "final-slide" as const,
+    options: [],
+    condition: { key: "userType", value: 0 },
+  },
+  {
+    key: "personalInfo",
+    title: "Tell us about yourself",
+    subtitle: "We need some basic information to create your profile",
+    type: "personal-form" as const,
+    options: [],
+    condition: { key: "userType", value: 0 },
   },
 ];

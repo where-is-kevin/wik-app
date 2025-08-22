@@ -11,14 +11,12 @@ interface OnboardingPersonalFormSlideProps {
   stepData: OnboardingStep;
   formData: PersonalFormData;
   onFormChange: (formData: PersonalFormData) => void;
-  onNext: () => void;
 }
 
 export const OnboardingPersonalFormSlide: React.FC<OnboardingPersonalFormSlideProps> = ({
   stepData,
   formData,
   onFormChange,
-  onNext,
 }) => {
   const { colors } = useTheme();
 
@@ -37,7 +35,6 @@ export const OnboardingPersonalFormSlide: React.FC<OnboardingPersonalFormSlidePr
       </CustomText>
 
       <OnboardingForm
-        onPressNext={onNext}
         formData={formData}
         onFormChange={onFormChange}
       />

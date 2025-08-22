@@ -11,6 +11,9 @@ import { OnboardingFinalSlide } from "@/components/Onboarding/OnboardingFinalSli
 import { OnboardingBudgetSlide } from "@/components/Onboarding/OnboardingBudgetSlide";
 import { OnboardingLocationSlide } from "@/components/Onboarding/OnboardingLocationSlide";
 import { LocationData } from "@/components/Onboarding/OnboardingLocationItem";
+import { OnboardingTravelEmailSlide } from "@/components/Onboarding/OnboardingTravelEmailSlide";
+import { OnboardingTravelNameSlide } from "@/components/Onboarding/OnboardingTravelNameSlide";
+import { OnboardingCodeSlide } from "@/components/Onboarding/OnboardingCodeSlide";
 import { commonOnboardingStyles } from "@/components/Onboarding/OnboardingStyles";
 import {
   OnboardingSelections,
@@ -32,6 +35,7 @@ import { useContent } from "@/hooks/useContent";
 import { useLocationPermissionGuard } from "@/hooks/useLocationPermissionGuard";
 import { CardData } from "@/components/SwipeCards/SwipeCards";
 import { getErrorMessage } from "@/utilities/errorUtils";
+import { verticalScale } from "@/utilities/scaling";
 
 const OnboardingScreen = () => {
   const router = useRouter();
@@ -57,7 +61,12 @@ const OnboardingScreen = () => {
     min: 50,
     max: 200,
   });
-  const [selectedLocation, setSelectedLocation] = useState<LocationData | undefined>();
+  const [selectedLocation, setSelectedLocation] = useState<
+    LocationData | undefined
+  >();
+  const [travelEmail, setTravelEmail] = useState<string>("");
+  const [travelName, setTravelName] = useState<string>("");
+  const [verificationCode, setVerificationCode] = useState<string>("");
 
   const {
     data: content,
@@ -285,7 +294,7 @@ const OnboardingScreen = () => {
     }));
   };
 
-  const handleLocationSelect = (location: LocationData) => {
+  const handleLocationSelect = (location: LocationData | undefined) => {
     if (!stepData) return;
 
     setSelectedLocation(location);
@@ -296,7 +305,11 @@ const OnboardingScreen = () => {
   };
 
   const handleNext = async () => {
-    if (currentStepIndex === filteredSteps.length - 1) {
+    // Check if we're at the final registration step (personal-form for business or code-slide for travel)
+    if (
+      currentStepIndex === filteredSteps.length - 1 &&
+      (stepData?.type === "personal-form" || stepData?.type === "code-slide")
+    ) {
       try {
         const getSelectedOptionsString = () => {
           return Object.entries(selections)
@@ -334,19 +347,35 @@ const OnboardingScreen = () => {
             .join(" | ");
         };
 
-        // Map personalFormData to CreateUserInput
-        const userInput: CreateUserInput = {
-          firstName: personalFormData.firstName,
-          lastName: personalFormData.lastName,
-          email: personalFormData.email,
-          home: personalFormData.home,
-          location: personalFormData.travelDestination,
-          password: personalFormData.password,
-          description: getSelectedOptionsString(),
-          personalSummary: personalFormData.personalSummary,
-          onboardingLikes: swipeLikes, // Array of liked content IDs
-          onboardingDislikes: swipeDislikes, // Array of disliked content IDs
-        };
+        // Map form data to CreateUserInput based on user type
+        const userInput: CreateUserInput =
+          stepData?.type === "code-slide"
+            ? {
+                // Travel user data
+                firstName: travelName.split(" ")[0] || travelName,
+                lastName: travelName.split(" ").slice(1).join(" ") || "",
+                email: travelEmail,
+                home: "",
+                location: personalFormData.travelDestination || "",
+                password: "temp123", // TODO: Handle password for travel users
+                description: getSelectedOptionsString(),
+                personalSummary: "",
+                onboardingLikes: swipeLikes,
+                onboardingDislikes: swipeDislikes,
+              }
+            : {
+                // Business user data
+                firstName: personalFormData.firstName,
+                lastName: personalFormData.lastName,
+                email: personalFormData.email,
+                home: personalFormData.home,
+                location: personalFormData.travelDestination,
+                password: personalFormData.password,
+                description: getSelectedOptionsString(),
+                personalSummary: personalFormData.personalSummary,
+                onboardingLikes: swipeLikes,
+                onboardingDislikes: swipeDislikes,
+              };
 
         createUser(userInput, {
           onSuccess: async () => {
@@ -477,7 +506,6 @@ const OnboardingScreen = () => {
         stepData={stepData}
         formData={personalFormData}
         onFormChange={handleFormChange}
-        onNext={handleNext}
       />
     );
   };
@@ -486,6 +514,7 @@ const OnboardingScreen = () => {
     if (!stepData) return null;
     return (
       <OnboardingCardSwipeSlide
+        stepData={stepData}
         isLoading={isContentLoading}
         error={contentError}
         cardData={transformedCardData}
@@ -539,6 +568,49 @@ const OnboardingScreen = () => {
     return <OnboardingFinalSlide stepData={stepData} />;
   };
 
+  const renderTravelEmailSlide = () => {
+    if (!stepData) return null;
+    
+    // Extract first name from travelName
+    const firstName = travelName ? travelName.split(" ")[0] : undefined;
+    
+    return (
+      <OnboardingTravelEmailSlide
+        stepData={stepData}
+        email={travelEmail}
+        onEmailChange={setTravelEmail}
+        firstName={firstName}
+      />
+    );
+  };
+
+  const renderTravelNameSlide = () => {
+    if (!stepData) return null;
+    return (
+      <OnboardingTravelNameSlide
+        stepData={stepData}
+        name={travelName}
+        onNameChange={setTravelName}
+      />
+    );
+  };
+
+  const renderCodeSlide = () => {
+    if (!stepData) return null;
+    return (
+      <OnboardingCodeSlide
+        stepData={stepData}
+        code={verificationCode}
+        onCodeChange={setVerificationCode}
+        email={travelEmail}
+        onResendCode={() => {
+          // TODO: Implement resend code logic
+          console.log("Resending verification code to:", travelEmail);
+        }}
+      />
+    );
+  };
+
   const renderStepContent = () => {
     if (!stepData) return null;
 
@@ -559,6 +631,12 @@ const OnboardingScreen = () => {
         return renderTagSelection();
       case "final-slide":
         return renderFinalSlide();
+      case "travel-email":
+        return renderTravelEmailSlide();
+      case "travel-name":
+        return renderTravelNameSlide();
+      case "code-slide":
+        return renderCodeSlide();
       default:
         return null;
     }
@@ -574,6 +652,22 @@ const OnboardingScreen = () => {
     // For location selection steps, require a location to be selected
     if (stepData?.type === "location-selection") {
       return !selectedLocation;
+    }
+
+    // For travel email step, require valid email
+    if (stepData?.type === "travel-email") {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return !travelEmail || !emailRegex.test(travelEmail);
+    }
+
+    // For travel name step, require name
+    if (stepData?.type === "travel-name") {
+      return !travelName.trim();
+    }
+
+    // For code verification step, require 6-digit code
+    if (stepData?.type === "code-slide") {
+      return verificationCode.length !== 6;
     }
 
     // For steps that allow multiple selections, require at least one selection
@@ -593,14 +687,12 @@ const OnboardingScreen = () => {
       ]}
     >
       <StatusBar style="dark" />
-      {stepData?.type !== "final-slide" && (
-        <CustomTouchable
-          style={commonOnboardingStyles.header}
-          onPress={handleBack}
-        >
-          <ArrowLeftSvg />
-        </CustomTouchable>
-      )}
+      <CustomTouchable
+        style={commonOnboardingStyles.header}
+        onPress={handleBack}
+      >
+        <ArrowLeftSvg />
+      </CustomTouchable>
 
       {(stepData?.type === "option-list" ||
         stepData?.type === "budget-selection" ||
@@ -634,11 +726,17 @@ const OnboardingScreen = () => {
 
       {renderStepContent()}
 
-      <CustomView style={commonOnboardingStyles.footer}>
+      <CustomView
+        style={[
+          commonOnboardingStyles.footer,
+          stepData?.type === "card-swipe"
+            ? { paddingBottom: verticalScale(24) }
+            : { paddingBottom: verticalScale(12) },
+        ]}
+      >
         {stepData &&
           stepData.type !== "logo-selection" &&
-          stepData.type !== "card-swipe" &&
-          stepData.type !== "personal-form" && (
+          stepData.type !== "card-swipe" && (
             <NextButton
               onPress={handleNext}
               customStyles={
@@ -650,8 +748,12 @@ const OnboardingScreen = () => {
               title={
                 isPending
                   ? "Finalizing..."
+                  : stepData?.type === "final-slide"
+                  ? "Let's Go!"
+                  : stepData?.type === "code-slide"
+                  ? "Create Account"
                   : currentStepIndex === filteredSteps.length - 1
-                  ? "Finish"
+                  ? "Create Account"
                   : "Continue"
               }
               disabled={isNextButtonDisabled() || isPending}
