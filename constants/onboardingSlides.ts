@@ -1,5 +1,5 @@
 export interface OnboardingSelections {
-  [key: string]: number | number[] | undefined;
+  [key: string]: number | number[] | { min: number; max: number } | { id: string; name: string; country: string; fullName: string } | undefined;
 }
 export type Condition = {
   key: string;
@@ -13,8 +13,8 @@ export type OnboardingStep = {
   type:
     | "logo-selection"
     | "option-list"
-    | "tag-list"
     | "budget-selection"
+    | "location-selection"
     | "personal-form"
     | "card-swipe"
     | "final-slide"
@@ -97,73 +97,124 @@ export const onboardingSteps: OnboardingStep[] = [
     allowMultipleSelections: true,
     condition: { key: "userType", value: 1 },
     tags: [
-      { number: 1, text: "Coffee shops", icon: "☕️", category: "Food and Drink" },
-      { number: 2, text: "Restaurants", icon: "🍽️", category: "Food and Drink" },
-      { number: 3, text: "Local street food", icon: "🥟", category: "Food and Drink" },
-      { number: 4, text: "Bars and nightlife", icon: "🍷", category: "Food and Drink" },
-      { number: 5, text: "Museums and galleries", icon: "🖼️", category: "Experiences and Culture" },
-      { number: 6, text: "Events and festivals", icon: "🎪", category: "Experiences and Culture" },
-      { number: 7, text: "Guided tours", icon: "🖊️", category: "Experiences and Culture" },
-      { number: 8, text: "Outdoor adventures", icon: "🏔️", category: "Experiences and Culture" },
-      { number: 9, text: "Souvenirs and local craft", icon: "💡", category: "Shopping" },
+      {
+        number: 1,
+        text: "Coffee shops",
+        icon: "☕️",
+        category: "Food and Drink",
+      },
+      {
+        number: 2,
+        text: "Restaurants",
+        icon: "🍽️",
+        category: "Food and Drink",
+      },
+      {
+        number: 3,
+        text: "Local street food",
+        icon: "🥟",
+        category: "Food and Drink",
+      },
+      {
+        number: 4,
+        text: "Bars and nightlife",
+        icon: "🍷",
+        category: "Food and Drink",
+      },
+      {
+        number: 5,
+        text: "Museums and galleries",
+        icon: "🖼️",
+        category: "Experiences and Culture",
+      },
+      {
+        number: 6,
+        text: "Events and festivals",
+        icon: "🎪",
+        category: "Experiences and Culture",
+      },
+      {
+        number: 7,
+        text: "Guided tours",
+        icon: "🖊️",
+        category: "Experiences and Culture",
+      },
+      {
+        number: 8,
+        text: "Outdoor adventures",
+        icon: "🏔️",
+        category: "Experiences and Culture",
+      },
+      {
+        number: 9,
+        text: "Souvenirs and local craft",
+        icon: "💡",
+        category: "Shopping",
+      },
       { number: 10, text: "Fashion", icon: "👕", category: "Shopping" },
     ],
   },
   {
-    key: "businessTravelAccommodations",
-    title: "What type of accommodations do you prefer?",
-    subtitle: "Tell us more about yourself",
-    type: "option-list",
-    options: [
-      "Luxury hotels or private villas",
-      "Mid-range business hotels",
-      "Budget-friendly options (e.g., Airbnb, hostels)",
-      "Co-living spaces or serviced apartments",
-    ],
-    allowMultipleSelections: true,
-    condition: { key: "userType", value: 0 },
-  },
-  {
-    key: "personalTravelAccommodations",
-    title: "What type of accommodations do you prefer?",
-    subtitle: "Tell us more about yourself",
-    type: "option-list",
-    options: [
-      "Luxury hotels or resorts",
-      "Mid-range hotels or vacation rentals",
-      "Budget-friendly options (e.g., hostels, Airbnb)",
-      "Eco-friendly or sustainable accommodations",
-    ],
-    allowMultipleSelections: true,
-    condition: { key: "userType", value: 1 },
-  },
-  {
-    key: "businessTravelBudget",
-    title: "What is your budget for travel?",
-    subtitle: "Tell us more about yourself",
-    type: "option-list",
-    options: [
-      "High (company-funded or premium experiences)",
-      "Moderate (company-funded with some flexibility)",
-      "Low (self-funded or budget-conscious)",
-      "Varies (depends on the trip)",
-    ],
-    allowMultipleSelections: false,
-    condition: { key: "userType", value: 0 },
-  },
-  {
     key: "personalTravelBudget",
-    title: "What is your budget for travel?",
-    subtitle: "Tell us more about yourself",
-    type: "option-list",
-    options: [
-      "High (I’m willing to splurge on experiences)",
-      "Moderate (I look for value but don’t mind spending)",
-      "Low (I’m budget-conscious and seek deals)",
-    ],
+    title: "What is your daily budget?",
+    subtitle:
+      "Please estimate a daily budget per person (excluding flights and accommodation).",
+    type: "budget-selection",
+    options: [],
     allowMultipleSelections: false,
     condition: { key: "userType", value: 1 },
   },
+  {
+    key: "travelDestination",
+    title: "Where are you planning to go?",
+    subtitle: "We'll show you recommendations for this location. Don't worry, you can always change it or add more spots later.",
+    type: "location-selection",
+    options: [],
+    allowMultipleSelections: false,
+    condition: { key: "userType", value: 1 },
+  },
+  // {
+  //   key: "businessTravelAccommodations",
+  //   title: "What type of accommodations do you prefer?",
+  //   subtitle: "Tell us more about yourself",
+  //   type: "option-list",
+  //   options: [
+  //     "Luxury hotels or private villas",
+  //     "Mid-range business hotels",
+  //     "Budget-friendly options (e.g., Airbnb, hostels)",
+  //     "Co-living spaces or serviced apartments",
+  //   ],
+  //   allowMultipleSelections: true,
+  //   condition: { key: "userType", value: 0 },
+  // },
+  // {
+  //   key: "personalTravelAccommodations",
+  //   title: "What type of accommodations do you prefer?",
+  //   subtitle: "Tell us more about yourself",
+  //   type: "option-list",
+  //   options: [
+  //     "Luxury hotels or resorts",
+  //     "Mid-range hotels or vacation rentals",
+  //     "Budget-friendly options (e.g., hostels, Airbnb)",
+  //     "Eco-friendly or sustainable accommodations",
+  //   ],
+  //   allowMultipleSelections: true,
+  //   condition: { key: "userType", value: 1 },
+  // },
+  // {
+  //   key: "businessTravelBudget",
+  //   title: "What is your budget for travel?",
+  //   subtitle: "Tell us more about yourself",
+  //   type: "option-list",
+  //   options: [
+  //     "High (company-funded or premium experiences)",
+  //     "Moderate (company-funded with some flexibility)",
+  //     "Low (self-funded or budget-conscious)",
+  //     "Varies (depends on the trip)",
+  //   ],
+  //   allowMultipleSelections: false,
+  //   condition: { key: "userType", value: 0 },
+  // },
   {
     key: "travelValues",
     title: "What do you value the most when you travel?",

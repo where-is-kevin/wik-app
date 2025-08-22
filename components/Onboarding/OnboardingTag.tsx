@@ -31,7 +31,9 @@ export const OnboardingTag: React.FC<OnboardingTagProps> = ({
       style={[
         styles.container,
         {
-          backgroundColor: selected ? colors.link_blue : colors.onboarding_gray,
+          backgroundColor: selected
+            ? colors.light_blue
+            : colors.onboarding_gray,
         },
       ]}
       onPress={onPress}
