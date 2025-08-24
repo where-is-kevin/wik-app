@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { OnboardingProgressBar } from "@/components/Onboarding/OnboardingProgressBar";
@@ -6,6 +6,7 @@ import { OnboardingLogoSlide } from "@/components/Onboarding/OnboardingLogoSlide
 import { OnboardingOptionSlide } from "@/components/Onboarding/OnboardingOptionSlide";
 import { OnboardingPersonalFormSlide } from "@/components/Onboarding/OnboardingPersonalFormSlide";
 import { OnboardingCardSwipeSlide } from "@/components/Onboarding/OnboardingCardSwipeSlide";
+import { OnboardingSwipeUpModal } from "@/components/Modals/OnboardingSwipeUpModal";
 import { OnboardingTagSlide } from "@/components/Onboarding/OnboardingTagSlide";
 import { OnboardingFinalSlide } from "@/components/Onboarding/OnboardingFinalSlide";
 import { OnboardingBudgetSlide } from "@/components/Onboarding/OnboardingBudgetSlide";
@@ -56,7 +57,9 @@ const OnboardingScreen = () => {
   });
   const [swipeLikes, setSwipeLikes] = useState<string[]>([]);
   const [swipeDislikes, setSwipeDislikes] = useState<string[]>([]);
-  const [showTutorial, setShowTutorial] = useState<boolean>(true);
+  const [showTutorial, setShowTutorial] = useState<boolean>(false);
+  const hasSwipedUpRef = useRef<boolean>(false);
+  const [showSwipeUpModal, setShowSwipeUpModal] = useState<boolean>(false);
   const [budgetRange, setBudgetRange] = useState<{ min: number; max: number }>({
     min: 50,
     max: 200,
@@ -147,6 +150,21 @@ const OnboardingScreen = () => {
     setFilteredSteps(newFilteredSteps);
   }, [selections]);
 
+  // Show tutorial only when content is loaded and we're on the card swipe slide
+  useEffect(() => {
+    const isCardSwipeSlide = stepData?.type === "card-swipe";
+    if (
+      isCardSwipeSlide &&
+      !isContentLoading &&
+      content &&
+      content.length > 0
+    ) {
+      setShowTutorial(true);
+    } else {
+      setShowTutorial(false);
+    }
+  }, [stepData, isContentLoading, content]);
+
   const handleFormChange = (formData: PersonalFormData) => {
     setPersonalFormData(formData);
 
@@ -204,9 +222,35 @@ const OnboardingScreen = () => {
   };
 
   const handleSwipeUp = (item: CardData) => {
-    if (!item) return;
-    // For onboarding, you might want to handle this differently
-    console.log("Swiped up on:", item.title);
+    if (!item || !item.id) {
+      return;
+    }
+
+    // Show modal on first swipe up during onboarding
+    if (!hasSwipedUpRef.current) {
+      hasSwipedUpRef.current = true;
+      setShowSwipeUpModal(true);
+    }
+
+    // During onboarding, swipe up performs the same action as swipe right
+    setSwipeLikes((prevLikes) => {
+      // Prevent duplicates
+      if (prevLikes.includes(item.id)) {
+        return prevLikes;
+      }
+
+      // Add new item to existing array
+      return [...prevLikes, item.id];
+    });
+
+    // Remove from dislikes if it was there
+    setSwipeDislikes((prevDislikes) =>
+      prevDislikes.filter((id) => id !== item.id)
+    );
+  };
+
+  const handleCloseSwipeUpModal = () => {
+    setShowSwipeUpModal(false);
   };
 
   const handleSwipeComplete = () => {
@@ -570,10 +614,10 @@ const OnboardingScreen = () => {
 
   const renderTravelEmailSlide = () => {
     if (!stepData) return null;
-    
+
     // Extract first name from travelName
     const firstName = travelName ? travelName.split(" ")[0] : undefined;
-    
+
     return (
       <OnboardingTravelEmailSlide
         stepData={stepData}
@@ -751,7 +795,7 @@ const OnboardingScreen = () => {
                   : stepData?.type === "final-slide"
                   ? "Let's Go!"
                   : stepData?.type === "code-slide"
-                  ? "Create Account"
+                  ? "Start exploring!"
                   : currentStepIndex === filteredSteps.length - 1
                   ? "Create Account"
                   : "Continue"
@@ -760,6 +804,12 @@ const OnboardingScreen = () => {
             />
           )}
       </CustomView>
+
+      {/* Modal for first swipe right */}
+      <OnboardingSwipeUpModal
+        visible={showSwipeUpModal}
+        onClose={handleCloseSwipeUpModal}
+      />
     </SafeAreaView>
   );
 };

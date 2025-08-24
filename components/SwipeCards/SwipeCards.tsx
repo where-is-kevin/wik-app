@@ -47,7 +47,7 @@ interface SwipeCardsProps {
   onComplete: () => void;
   onCardTap?: (item: CardData) => void;
   onBucketPress?: (value: string) => void;
-  hideBucketsButton?: boolean;
+  hideButtons?: boolean;
 }
 
 export const SwipeCards: React.FC<SwipeCardsProps> = ({
@@ -58,7 +58,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   onComplete,
   onCardTap,
   onBucketPress,
-  hideBucketsButton = false,
+  hideButtons = false,
 }) => {
   const { colors } = useTheme();
   const router = useRouter();
@@ -218,31 +218,25 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 
       currentGestureCard.current = null;
 
-      if (direction === "up") {
-        setTimeout(() => {
-          position.setValue({ x: 0, y: 0 });
-          hideAllFeedback();
-        }, 100);
-      } else {
-        setCardIndex((prevIndex) => {
-          const nextIndex = prevIndex + 1;
+      // All swipe directions should advance to the next card
+      setCardIndex((prevIndex) => {
+        const nextIndex = prevIndex + 1;
 
-          if (nextIndex >= data.length) {
-            setTimeout(() => {
-              position.setValue({ x: 0, y: 0 });
-              hideAllFeedback();
-              onComplete();
-            }, 300);
-          } else {
-            setTimeout(() => {
-              position.setValue({ x: 0, y: 0 });
-              hideAllFeedback();
-            }, 100);
-          }
+        if (nextIndex >= data.length) {
+          setTimeout(() => {
+            position.setValue({ x: 0, y: 0 });
+            hideAllFeedback();
+            onComplete();
+          }, 300);
+        } else {
+          setTimeout(() => {
+            position.setValue({ x: 0, y: 0 });
+            hideAllFeedback();
+          }, 100);
+        }
 
-          return nextIndex;
-        });
-      }
+        return nextIndex;
+      });
     },
     [
       data,
@@ -374,7 +368,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
               }}
               colors={colors}
               onBucketPress={onBucketPress}
-              hideBucketsButton={hideBucketsButton}
+              hideButtons={hideButtons}
               onImageLoad={handleImageLoad}
               onImageError={handleImageError}
               imageLoaded={isCurrentImageLoaded}
@@ -391,7 +385,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
               isNextCard={true}
               colors={colors}
               onBucketPress={onBucketPress}
-              hideBucketsButton={hideBucketsButton}
+              hideButtons={hideButtons}
               onImageLoad={handleImageLoad}
               onImageError={handleImageError}
               imageLoaded={imageLoaded[item.id] || false}

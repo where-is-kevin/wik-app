@@ -32,7 +32,7 @@ interface SwipeCardProps {
   animatedStyle?: any;
   colors: any;
   onBucketPress?: (value: string) => void;
-  hideBucketsButton?: boolean;
+  hideButtons?: boolean;
   onImageLoad: (itemId: string) => void;
   onImageError: (itemId: string) => void;
   imageLoaded: boolean;
@@ -47,7 +47,7 @@ export const SwipeCard = React.memo<SwipeCardProps>(
     animatedStyle,
     colors,
     onBucketPress,
-    hideBucketsButton,
+    hideButtons,
     onImageLoad,
     onImageError,
     imageLoaded,
@@ -91,7 +91,7 @@ export const SwipeCard = React.memo<SwipeCardProps>(
             item={item}
             colors={colors}
             onBucketPress={onBucketPress}
-            hideBucketsButton={hideBucketsButton}
+            hideButtons={hideButtons}
           />
         );
       }

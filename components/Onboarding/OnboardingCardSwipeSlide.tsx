@@ -133,10 +133,10 @@ export const OnboardingCardSwipeSlide: React.FC<
           onSwipeRight={onSwipeRight}
           onSwipeUp={onSwipeUp}
           onComplete={onComplete}
-          hideBucketsButton={true}
+          hideButtons={true}
         />
 
-        {showTutorial && !isLoading && (
+        {showTutorial && !isLoading && !error && cardData.length > 0 && (
           <SwipeCardTooltips onComplete={onTutorialComplete} />
         )}
       </CustomView>

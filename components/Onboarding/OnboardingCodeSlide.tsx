@@ -1,5 +1,15 @@
-import React, { useState, useRef } from "react";
-import { StyleSheet, TextInput } from "react-native";
+import React, { useState, useRef, useEffect } from "react";
+import {
+  StyleSheet,
+  TouchableWithoutFeedback,
+  Keyboard,
+} from "react-native";
+import {
+  CodeField,
+  Cursor,
+  useBlurOnFulfill,
+  useClearByFocusCell,
+} from "react-native-confirmation-code-field";
 import CustomView from "../CustomView";
 import CustomText from "../CustomText";
 import CustomTouchable from "../CustomTouchableOpacity";
@@ -28,115 +38,152 @@ export const OnboardingCodeSlide: React.FC<OnboardingCodeSlideProps> = ({
   email,
 }) => {
   const { colors } = useTheme();
-  const inputRefs = useRef<(TextInput | null)[]>([]);
-  
-  const codeDigits = code.split("").concat(Array(6 - code.length).fill(""));
+  const [timeLeft, setTimeLeft] = useState(59);
+  const [canResend, setCanResend] = useState(false);
+  const ref = useBlurOnFulfill({value: code, cellCount: 6});
+  const [props, getCellOnLayoutHandler] = useClearByFocusCell({
+    value: code,
+    setValue: onCodeChange,
+  });
 
-  const handleCodeChange = (digit: string, index: number) => {
-    if (digit.length > 1) return; // Prevent multiple characters
-    
-    const newCode = [...codeDigits];
-    newCode[index] = digit;
-    const finalCode = newCode.join("").substring(0, 6);
-    onCodeChange(finalCode);
+  useEffect(() => {
+    if (timeLeft > 0) {
+      const timer = setTimeout(() => {
+        setTimeLeft(timeLeft - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setCanResend(true);
+    }
+  }, [timeLeft]);
 
-    // Move to next input if digit entered
-    if (digit && index < 5) {
-      inputRefs.current[index + 1]?.focus();
+  const handleResendCode = () => {
+    if (canResend && onResendCode) {
+      onResendCode();
+      setTimeLeft(59);
+      setCanResend(false);
     }
   };
 
-  const handleKeyPress = (key: string, index: number) => {
-    if (key === "Backspace" && !codeDigits[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
   };
 
   return (
-    <CustomView style={commonOnboardingStyles.content}>
-      <CustomText
-        fontFamily="Inter-SemiBold"
-        style={[commonOnboardingStyles.title, { color: colors.label_dark }]}
-      >
-        {stepData.title}
-      </CustomText>
-      <CustomText
-        style={[
-          commonOnboardingStyles.subtitle,
-          { color: colors.gray_regular, marginBottom: verticalScale(8) },
-        ]}
-      >
-        {stepData.subtitle}
-      </CustomText>
-      
-      {email && (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <CustomView style={commonOnboardingStyles.content}>
         <CustomText
-          style={[styles.emailText, { color: colors.label_dark }]}
+          fontFamily="Inter-SemiBold"
+          style={[commonOnboardingStyles.title, { color: colors.label_dark }]}
         >
-          {email}
+          {stepData.title}
         </CustomText>
-      )}
+        <CustomText
+          style={[
+            commonOnboardingStyles.subtitle,
+            { color: colors.gray_regular, marginBottom: verticalScale(4) },
+          ]}
+        >
+          {stepData.subtitle}
+        </CustomText>
 
-      <CustomView style={styles.codeContainer}>
-        {[0, 1, 2, 3, 4, 5].map((index) => (
-          <TextInput
-            key={index}
-            ref={(ref) => (inputRefs.current[index] = ref)}
-            style={[
-              styles.codeInput,
-              {
-                borderColor: codeDigits[index] ? colors.lime : colors.input_border,
-                color: colors.label_dark,
-              },
-            ]}
-            value={codeDigits[index] || ""}
-            onChangeText={(text) => handleCodeChange(text, index)}
-            onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
-            keyboardType="numeric"
-            maxLength={1}
-            textAlign="center"
-            autoFocus={index === 0}
-          />
-        ))}
-      </CustomView>
-
-      {onResendCode && (
-        <CustomView style={styles.resendContainer}>
-          <CustomText style={[styles.resendText, { color: colors.gray_regular }]}>
-            Didn't receive the code?{" "}
+        {email && (
+          <CustomText
+            style={[styles.emailText, { color: colors.gray_regular }]}
+          >
+            {email}
           </CustomText>
-          <CustomTouchable onPress={onResendCode}>
-            <CustomText style={[styles.resendLink, { color: colors.lime }]}>
-              Resend
+        )}
+
+        <CodeField
+          ref={ref}
+          {...props}
+          value={code}
+          onChangeText={onCodeChange}
+          cellCount={6}
+          rootStyle={styles.codeContainer}
+          keyboardType="number-pad"
+          textContentType="oneTimeCode"
+          autoComplete="sms-otp"
+          autoFocus={true}
+          renderCell={({index, symbol, isFocused}) => (
+            <CustomText
+              key={index}
+              style={[
+                styles.codeInput,
+                {
+                  borderColor: isFocused 
+                    ? colors.light_blue 
+                    : symbol 
+                    ? colors.light_blue 
+                    : colors.input_border,
+                  color: colors.label_dark,
+                },
+              ]}
+              onLayout={getCellOnLayoutHandler(index)}
+            >
+              {symbol || (isFocused ? <Cursor /> : null)}
             </CustomText>
-          </CustomTouchable>
-        </CustomView>
-      )}
-    </CustomView>
+          )}
+        />
+
+        {onResendCode && (
+          <CustomView style={styles.resendContainer}>
+            {canResend ? (
+              <>
+                <CustomText
+                  style={[styles.resendText, { color: colors.gray_regular }]}
+                >
+                  Didn't receive the code?{" "}
+                </CustomText>
+                <CustomTouchable onPress={handleResendCode}>
+                  <CustomText
+                    style={[styles.resendLink, { color: colors.light_blue }]}
+                  >
+                    Resend
+                  </CustomText>
+                </CustomTouchable>
+              </>
+            ) : (
+              <CustomText
+                style={[styles.resendText, { color: colors.gray_regular }]}
+              >
+                Resend code in {formatTime(timeLeft)}
+              </CustomText>
+            )}
+          </CustomView>
+        )}
+      </CustomView>
+    </TouchableWithoutFeedback>
   );
 };
 
 const styles = StyleSheet.create({
   emailText: {
-    fontSize: scaleFontSize(16),
+    fontSize: scaleFontSize(14),
     textAlign: "center",
-    marginBottom: verticalScale(32),
-    fontWeight: "600",
+    marginBottom: verticalScale(24),
   },
   codeContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: verticalScale(32),
-    paddingHorizontal: horizontalScale(20),
+    width: "100%",
+    marginBottom: verticalScale(28),
+    paddingHorizontal: horizontalScale(6),
   },
   codeInput: {
-    width: horizontalScale(45),
-    height: verticalScale(55),
-    borderWidth: 2,
-    borderRadius: 8,
-    fontSize: scaleFontSize(24),
-    fontWeight: "600",
+    width: horizontalScale(35),
+    height: verticalScale(44),
+    borderWidth: 1,
+    borderRadius: horizontalScale(8),
+    fontSize: scaleFontSize(14),
     backgroundColor: "#FFFFFF",
+    textAlign: "center",
+    lineHeight: verticalScale(44),
   },
   resendContainer: {
     flexDirection: "row",

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { StyleSheet } from "react-native";
+import { StyleSheet, TouchableWithoutFeedback, Keyboard } from "react-native";
 import CustomView from "../CustomView";
 import CustomText from "../CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -57,7 +57,8 @@ export const OnboardingTravelEmailSlide: React.FC<
   }, [email, hasInteracted, validateEmail]);
 
   return (
-    <CustomView style={commonOnboardingStyles.content}>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <CustomView style={commonOnboardingStyles.content}>
       <CustomText
         fontFamily="Inter-SemiBold"
         style={[commonOnboardingStyles.title, { color: colors.label_dark }]}
@@ -81,11 +82,13 @@ export const OnboardingTravelEmailSlide: React.FC<
         keyboardType="email-address"
         autoCapitalize="none"
         autoCorrect={false}
+        autoFocus={true}
         showIcon={false}
         hasError={!!emailError}
         errorMessage={emailError}
       />
-    </CustomView>
+      </CustomView>
+    </TouchableWithoutFeedback>
   );
 };
 

@@ -105,6 +105,7 @@ export const OnboardingLocationSlide: React.FC<
           autoCorrect={false}
           spellCheck={false}
           showIcon={true}
+          customStyles={{ marginBottom: 0 }}
         />
 
         {/* Selected Location Display */}

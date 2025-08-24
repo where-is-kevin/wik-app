@@ -337,8 +337,8 @@ export const onboardingSteps: OnboardingStep[] = [
   },
   {
     key: "travelCode",
-    title: "Enter verification code",
-    subtitle: "We've sent a code to your email address",
+    title: "Verify your identity",
+    subtitle: "Enter the 6-digit code sent to ",
     type: "code-slide" as const,
     options: [],
     condition: { key: "userType", value: 1 },

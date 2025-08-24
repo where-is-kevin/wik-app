@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet } from "react-native";
+import { StyleSheet, TouchableWithoutFeedback, Keyboard } from "react-native";
 import CustomView from "../CustomView";
 import CustomText from "../CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -20,7 +20,8 @@ export const OnboardingTravelNameSlide: React.FC<
   const { colors } = useTheme();
 
   return (
-    <CustomView style={commonOnboardingStyles.content}>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <CustomView style={commonOnboardingStyles.content}>
       <CustomText
         fontFamily="Inter-SemiBold"
         style={[commonOnboardingStyles.title, { color: colors.label_dark }]}
@@ -42,9 +43,11 @@ export const OnboardingTravelNameSlide: React.FC<
         placeholder="Enter your full name"
         autoCapitalize="words"
         autoCorrect={false}
+        autoFocus={true}
         showIcon={false}
       />
-    </CustomView>
+      </CustomView>
+    </TouchableWithoutFeedback>
   );
 };
 

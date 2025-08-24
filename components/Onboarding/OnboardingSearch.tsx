@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, TextInput, KeyboardTypeOptions } from "react-native";
+import { StyleSheet, TextInput, KeyboardTypeOptions, ViewStyle } from "react-native";
 import CustomView from "../CustomView";
 import CustomText from "../CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -23,6 +23,7 @@ interface OnboardingSearchProps {
   onBlur?: () => void;
   hasError?: boolean;
   errorMessage?: string;
+  customStyles?: ViewStyle;
 }
 
 export const OnboardingSearch: React.FC<OnboardingSearchProps> = ({
@@ -38,16 +39,24 @@ export const OnboardingSearch: React.FC<OnboardingSearchProps> = ({
   onBlur,
   hasError = false,
   errorMessage,
+  customStyles,
 }) => {
   const { colors } = useTheme();
+  const [isFocused, setIsFocused] = React.useState(false);
 
   return (
-    <CustomView style={styles.container}>
+    <CustomView style={[styles.container, customStyles]}>
       <CustomView
         style={[
           styles.searchContainer,
           !showIcon && { paddingVertical: 15.5 },
-          { borderColor: hasError ? "#FF3B30" : colors.input_border },
+          { 
+            borderColor: hasError 
+              ? "#FF3B30" 
+              : isFocused 
+              ? "#3C62FA" 
+              : colors.input_border 
+          },
         ]}
       >
         <TextInput
@@ -56,7 +65,11 @@ export const OnboardingSearch: React.FC<OnboardingSearchProps> = ({
           placeholderTextColor={colors.gray_regular}
           value={value}
           onChangeText={onChangeText}
-          onBlur={onBlur}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => {
+            setIsFocused(false);
+            onBlur?.();
+          }}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           autoCorrect={autoCorrect}
