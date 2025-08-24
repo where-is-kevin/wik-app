@@ -46,8 +46,7 @@ export const OnboardingLocationSlide: React.FC<
 
     if (searchQuery.length > 1) {
       searchTimeoutRef.current = setTimeout(() => {
-        const cleanup = searchLocations(searchQuery);
-        return cleanup;
+        searchLocations(searchQuery);
       }, 400);
     } else {
       clearResults();

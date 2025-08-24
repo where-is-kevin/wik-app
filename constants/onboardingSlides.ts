@@ -45,18 +45,22 @@ export type OnboardingStep = {
     category: string;
   }[];
 };
-export const onboardingSteps: OnboardingStep[] = [
-  {
-    key: "userType",
-    title: "Let’s personalize your experience",
-    subtitle: "Are you travelling for business or leisure?",
-    type: "logo-selection",
-    options: ["💼 For business", "🏖️ For leisure"],
-    allowMultipleSelections: false,
-  },
+
+// Common initial step for both flows
+const initialStep: OnboardingStep = {
+  key: "userType",
+  title: "Let's personalize your experience",
+  subtitle: "Are you travelling for business or leisure?",
+  type: "logo-selection",
+  options: ["💼 For business", "🏖️ For leisure"],
+  allowMultipleSelections: false,
+};
+
+// Business travel onboarding steps
+const businessSteps: OnboardingStep[] = [
   {
     key: "businessTravelReason",
-    title: "What’s your goal for this trip?",
+    title: "What's your goal for this trip?",
     subtitle: "Select all that apply to tailor your trip.",
     type: "option-list",
     options: [
@@ -66,21 +70,6 @@ export const onboardingSteps: OnboardingStep[] = [
       "🌎 Build your network",
     ],
     allowMultipleSelections: true,
-    condition: { key: "userType", value: 0 },
-  },
-  {
-    key: "personalTravelReason",
-    title: "What’s your reason for traveling?",
-    subtitle: "Select all that apply to tailor your trip.",
-    type: "option-list",
-    options: [
-      "🏝️ Rest and relaxation",
-      "🧗‍♀️ Adventure and exploration",
-      "🏠 Visiting family and friends",
-      "💻 Remote work",
-    ],
-    allowMultipleSelections: true,
-    condition: { key: "userType", value: 1 },
   },
   {
     key: "businessTravelFrequency",
@@ -94,7 +83,50 @@ export const onboardingSteps: OnboardingStep[] = [
       "Rarely (only for special events)",
     ],
     allowMultipleSelections: false,
-    condition: { key: "userType", value: 0 },
+  },
+  {
+    key: "businessTravelTech",
+    title: "How tech-savvy are you?",
+    subtitle: "Tell us more about yourself",
+    type: "option-list",
+    options: [
+      "Very tech-savvy (I rely on apps for everything)",
+      "Moderately tech-savvy (I use apps but prefer simplicity)",
+      "Not very tech-savvy (I prefer human assistance)",
+    ],
+    allowMultipleSelections: false,
+  },
+  {
+    key: "businessFinalSlide",
+    title: "Let's finish setting up your business profile",
+    subtitle:
+      "To discover the right people and opportunities on your next trip",
+    type: "final-slide" as const,
+    options: [],
+  },
+  {
+    key: "personalInfo",
+    title: "Tell us about yourself",
+    subtitle: "We need some basic information to create your profile",
+    type: "personal-form" as const,
+    options: [],
+  },
+];
+
+// Leisure travel onboarding steps
+const leisureSteps: OnboardingStep[] = [
+  {
+    key: "personalTravelReason",
+    title: "What's your reason for traveling?",
+    subtitle: "Select all that apply to tailor your trip.",
+    type: "option-list",
+    options: [
+      "🏝️ Rest and relaxation",
+      "🧗‍♀️ Adventure and exploration",
+      "🏠 Visiting family and friends",
+      "💻 Remote work",
+    ],
+    allowMultipleSelections: true,
   },
   {
     key: "personalTravelFrequency",
@@ -103,7 +135,6 @@ export const onboardingSteps: OnboardingStep[] = [
     type: "tag-selection",
     options: [],
     allowMultipleSelections: true,
-    condition: { key: "userType", value: 1 },
     tags: [
       {
         number: 1,
@@ -170,7 +201,6 @@ export const onboardingSteps: OnboardingStep[] = [
     type: "budget-selection",
     options: [],
     allowMultipleSelections: false,
-    condition: { key: "userType", value: 1 },
   },
   {
     key: "travelDestination",
@@ -180,108 +210,11 @@ export const onboardingSteps: OnboardingStep[] = [
     type: "location-selection",
     options: [],
     allowMultipleSelections: false,
-    condition: { key: "userType", value: 1 },
-  },
-  // {
-  //   key: "businessTravelAccommodations",
-  //   title: "What type of accommodations do you prefer?",
-  //   subtitle: "Tell us more about yourself",
-  //   type: "option-list",
-  //   options: [
-  //     "Luxury hotels or private villas",
-  //     "Mid-range business hotels",
-  //     "Budget-friendly options (e.g., Airbnb, hostels)",
-  //     "Co-living spaces or serviced apartments",
-  //   ],
-  //   allowMultipleSelections: true,
-  //   condition: { key: "userType", value: 0 },
-  // },
-  // {
-  //   key: "personalTravelAccommodations",
-  //   title: "What type of accommodations do you prefer?",
-  //   subtitle: "Tell us more about yourself",
-  //   type: "option-list",
-  //   options: [
-  //     "Luxury hotels or resorts",
-  //     "Mid-range hotels or vacation rentals",
-  //     "Budget-friendly options (e.g., hostels, Airbnb)",
-  //     "Eco-friendly or sustainable accommodations",
-  //   ],
-  //   allowMultipleSelections: true,
-  //   condition: { key: "userType", value: 1 },
-  // },
-  // {
-  //   key: "businessTravelBudget",
-  //   title: "What is your budget for travel?",
-  //   subtitle: "Tell us more about yourself",
-  //   type: "option-list",
-  //   options: [
-  //     "High (company-funded or premium experiences)",
-  //     "Moderate (company-funded with some flexibility)",
-  //     "Low (self-funded or budget-conscious)",
-  //     "Varies (depends on the trip)",
-  //   ],
-  //   allowMultipleSelections: false,
-  //   condition: { key: "userType", value: 0 },
-  // },
-  // {
-  //   key: "travelValues",
-  //   title: "What do you value the most when you travel?",
-  //   subtitle: "Pick up to 10 things you spend the most on",
-  //   type: "tag-selection",
-  //   options: [],
-  //   allowMultipleSelections: true,
-  //   tags: [
-  //     {
-  //       number: 1,
-  //       text: "Coffee shops",
-  //       icon: "☕️",
-  //       category: "Food and Drink",
-  //     },
-  //     {
-  //       number: 2,
-  //       text: "Restaurants",
-  //       icon: "🍽️",
-  //       category: "Food and Drink",
-  //     },
-  //     {
-  //       number: 3,
-  //       text: "Museums and galleries",
-  //       icon: "🖼️",
-  //       category: "Experiences and Culture",
-  //     },
-  //     {
-  //       number: 4,
-  //       text: "Events and festivals",
-  //       icon: "🎪",
-  //       category: "Experiences and Culture",
-  //     },
-  //     {
-  //       number: 5,
-  //       text: "Souvenirs and local craft",
-  //       icon: "🎁",
-  //       category: "Shopping",
-  //     },
-  //     { number: 6, text: "Fashion", icon: "👕", category: "Shopping" },
-  //   ],
-  // },
-  {
-    key: "businessTravelTech",
-    title: "How tech-savvy are you?",
-    subtitle: "Tell us more about yourself",
-    type: "option-list",
-    options: [
-      "Very tech-savvy (I rely on apps for everything)",
-      "Moderately tech-savvy (I use apps but prefer simplicity)",
-      "Not very tech-savvy (I prefer human assistance)",
-    ],
-    allowMultipleSelections: false,
-    condition: { key: "userType", value: 0 },
   },
   {
     key: "travelPreferences",
     title: "It all starts with a swipe!",
-    subtitle: "We’ll suggest more of what you swipe right on.",
+    subtitle: "We'll suggest more of what you swipe right on.",
     type: "card-swipe" as const,
     options: [], // Not used for card swipe
     cards: [
@@ -317,7 +250,6 @@ export const onboardingSteps: OnboardingStep[] = [
     subtitle: "Finish setting up your profile to unlock your favourites.",
     type: "final-slide" as const,
     options: [],
-    condition: { key: "userType", value: 1 },
   },
   {
     key: "travelName",
@@ -325,7 +257,6 @@ export const onboardingSteps: OnboardingStep[] = [
     subtitle: "So we know what to call you",
     type: "travel-name" as const,
     options: [],
-    condition: { key: "userType", value: 1 },
   },
   {
     key: "travelEmail",
@@ -333,7 +264,6 @@ export const onboardingSteps: OnboardingStep[] = [
     subtitle: "Add your email so we can verify your identity",
     type: "travel-email" as const,
     options: [],
-    condition: { key: "userType", value: 1 },
   },
   {
     key: "travelCode",
@@ -341,23 +271,26 @@ export const onboardingSteps: OnboardingStep[] = [
     subtitle: "Enter the 6-digit code sent to ",
     type: "code-slide" as const,
     options: [],
-    condition: { key: "userType", value: 1 },
-  },
-  {
-    key: "businessFinalSlide",
-    title: "Let's finish setting up your business profile",
-    subtitle:
-      "To discover the right people and opportunities on your next trip",
-    type: "final-slide" as const,
-    options: [],
-    condition: { key: "userType", value: 0 },
-  },
-  {
-    key: "personalInfo",
-    title: "Tell us about yourself",
-    subtitle: "We need some basic information to create your profile",
-    type: "personal-form" as const,
-    options: [],
-    condition: { key: "userType", value: 0 },
   },
 ];
+
+// Separate flows - no more combined array
+export const getBusinessFlow = (): OnboardingStep[] => [
+  initialStep,
+  ...businessSteps,
+];
+
+export const getLeisureFlow = (): OnboardingStep[] => [
+  initialStep,
+  ...leisureSteps,
+];
+
+// Combined onboarding steps for backward compatibility (deprecated)
+export const onboardingSteps: OnboardingStep[] = [
+  initialStep,
+  ...businessSteps.map(step => ({ ...step, condition: { key: "userType", value: 0 } })),
+  ...leisureSteps.map(step => ({ ...step, condition: { key: "userType", value: 1 } })),
+];
+
+// Export individual arrays for cleaner access
+export { initialStep, businessSteps, leisureSteps };

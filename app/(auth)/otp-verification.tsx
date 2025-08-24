@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Keyboard,
   StyleSheet,
@@ -16,10 +16,15 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import CustomView from "@/components/CustomView";
 import CustomText from "@/components/CustomText";
-import CustomTouchable from "@/components/CustomTouchableOpacity";
 import LoginLogoSvg from "@/components/SvgComponents/LoginLogoSvg";
 import ArrowLeftSvg from "@/components/SvgComponents/ArrowLeftSvg";
+import NextButton from "@/components/Button/NextButton";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useUXCam } from "@/contexts/UXCamContext";
+import { useOTPVerify, useOTPRequest } from "@/hooks/useOTP";
+import { useLocationPermissionGuard } from "@/hooks/useLocationPermissionGuard";
+import { useQueryClient } from "@tanstack/react-query";
+import * as SecureStore from "expo-secure-store";
 import {
   horizontalScale,
   scaleFontSize,
@@ -32,10 +37,21 @@ const OTPVerificationScreen = () => {
   const router = useRouter();
   const { colors } = useTheme();
   const { email } = useLocalSearchParams();
+  const { mutate: verifyOTP, isPending } = useOTPVerify();
+  const { mutate: requestOTP, isPending: isResending } = useOTPRequest();
+  const { checkAndNavigate } = useLocationPermissionGuard({
+    redirectToTabs: true,
+  });
+  const { setUserId, setUserProperty, logEvent } = useUXCam();
+  const queryClient = useQueryClient();
 
   const [value, setValue] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(59);
+  const [canResend, setCanResend] = useState(false);
+
+  const AUTH_TOKEN_KEY = "authToken";
+  const AUTH_USER_KEY = "authUser";
 
   const ref = useBlurOnFulfill({ value, cellCount: CELL_COUNT });
   const [props, getCellOnLayoutHandler] = useClearByFocusCell({
@@ -43,27 +59,92 @@ const OTPVerificationScreen = () => {
     setValue,
   });
 
-  const handleVerifyPress = async () => {
-    if (value.length !== CELL_COUNT) {
+  // Timer effect for resend functionality
+  useEffect(() => {
+    if (timeLeft > 0) {
+      const timer = setTimeout(() => {
+        setTimeLeft(timeLeft - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setCanResend(true);
+    }
+  }, [timeLeft]);
+
+  // Format time helper function
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
+  };
+
+  const handleVerifyPress = (codeToVerify?: string) => {
+    const codeValue = codeToVerify || value;
+
+    if (codeValue.length !== CELL_COUNT) {
       setErrorMessage("Wrong code. Please try again.");
       return;
     }
 
-    setIsLoading(true);
     setErrorMessage("");
 
-    try {
-      // TODO: Implement OTP verification API call
-      console.log("Verifying OTP:", value, "for email:", email);
+    logEvent("otp_verify_attempt", {
+      email: email as string,
+    });
 
-      // Navigate to next screen after successful verification
-      router.replace("/(onboarding)");
-    } catch (error) {
-      console.error("OTP verification failed:", error);
-      setErrorMessage("Verification failed. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
+    verifyOTP(
+      {
+        email: email as string,
+        otpCode: codeValue,
+      },
+      {
+        onSuccess: async (data) => {
+          try {
+            // Store auth data in SecureStore (same as useAuth.ts)
+            await Promise.all([
+              SecureStore.setItemAsync(AUTH_TOKEN_KEY, data.accessToken),
+              SecureStore.setItemAsync(
+                AUTH_USER_KEY,
+                JSON.stringify(data.user)
+              ),
+            ]);
+
+            // Update the auth query cache
+            queryClient.setQueryData(["auth"], data);
+
+            // Set UXCam properties
+            if (data?.user?.id) {
+              setUserId(data.user.id.toString());
+            }
+            setUserProperty("email", email as string);
+            logEvent("otp_verify_success", {
+              email: email as string,
+            });
+
+            // Navigate to the app
+            await checkAndNavigate();
+          } catch (error) {
+            console.error("Error storing auth data:", error);
+            setErrorMessage(
+              "Authentication successful but failed to save. Please try again."
+            );
+          }
+        },
+        onError: (err: any) => {
+          logEvent("otp_verify_failed", {
+            email: email as string,
+            error:
+              err?.detail ||
+              err?.response?.data?.detail ||
+              "OTP verification failed",
+          });
+
+          setErrorMessage("Wrong code. Please try again.");
+        },
+      }
+    );
   };
 
   return (
@@ -74,95 +155,199 @@ const OTPVerificationScreen = () => {
         accessible={false}
       >
         <SafeAreaView style={styles.container}>
-          {/* Header with back button and logo */}
-          <CustomView style={styles.header}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
-              <ArrowLeftSvg />
-            </TouchableOpacity>
+          <CustomView style={styles.content}>
+            {/* Header with back button and logo */}
+            <CustomView style={styles.topSection}>
+              <CustomView style={styles.header}>
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={() => router.back()}
+                >
+                  <ArrowLeftSvg />
+                </TouchableOpacity>
 
-            <CustomView style={styles.logoContainer}>
-              <LoginLogoSvg />
+                <CustomView style={styles.logoContainer}>
+                  <LoginLogoSvg width={151} height={61} />
+                </CustomView>
+              </CustomView>
+
+              <CustomText
+                fontFamily="Inter-SemiBold"
+                style={[styles.headerStyle, { color: colors.label_dark }]}
+              >
+                Enter the 6-digit code sent to
+              </CustomText>
+
+              <CustomView style={styles.emailContainer}>
+                <CustomText
+                  fontFamily="Inter-SemiBold"
+                  style={[styles.emailText, { color: colors.label_dark }]}
+                >
+                  {email || "email@example.com"}
+                </CustomText>
+              </CustomView>
+
+              <CodeField
+                ref={ref}
+                {...props}
+                value={value}
+                onChangeText={(text) => {
+                  setValue(text);
+                  setErrorMessage("");
+
+                  // Auto-submit when all fields are filled
+                  if (text.length === CELL_COUNT) {
+                    setTimeout(() => {
+                      handleVerifyPress(text);
+                    }, 100); // Small delay to ensure UI updates
+                  }
+                }}
+                cellCount={CELL_COUNT}
+                rootStyle={styles.codeFieldRoot}
+                keyboardType="number-pad"
+                textContentType="oneTimeCode"
+                autoComplete="one-time-code"
+                autoFocus={true}
+                renderCell={({ index, symbol, isFocused }) => {
+                  const hasValue = Boolean(symbol);
+                  return (
+                    <CustomText
+                      fontFamily="Inter-Regular"
+                      key={index}
+                      style={[
+                        styles.cell,
+                        {
+                          borderColor:
+                            isFocused || hasValue
+                              ? colors.light_blue
+                              : "#E4E7EC",
+                          color: hasValue ? colors.label_dark : "#637083",
+                        },
+                        errorMessage && { borderColor: "#FF4D4D" },
+                      ]}
+                      onLayout={getCellOnLayoutHandler(index)}
+                    >
+                      {symbol || (isFocused ? <Cursor /> : null)}
+                    </CustomText>
+                  );
+                }}
+              />
+
+              {errorMessage ? (
+                <CustomText style={styles.errorText}>{errorMessage}</CustomText>
+              ) : null}
+
+              <NextButton
+                title={isPending ? "Verifying..." : "Start exploring!"}
+                onPress={() => handleVerifyPress()}
+                disabled={isPending || value.length !== 6}
+                bgColor={colors.lime}
+                customStyles={[
+                  styles.signInButton,
+                  ...(isPending || value.length !== 6
+                    ? [{ opacity: 0.7 }]
+                    : []),
+                ]}
+              />
+
+              <CustomView style={styles.resendContainer}>
+                {canResend ? (
+                  <>
+                    <CustomText
+                      style={[
+                        styles.resendText,
+                        { color: colors.gray_regular },
+                      ]}
+                    >
+                      Didn't receive the code?{" "}
+                    </CustomText>
+                    <TouchableOpacity
+                      onPress={() => {
+                        logEvent("resend_otp_clicked", {
+                          email: email as string,
+                        });
+
+                        requestOTP(
+                          { email: email as string },
+                          {
+                            onSuccess: () => {
+                              logEvent("resend_otp_success", {
+                                email: email as string,
+                              });
+                              setTimeLeft(59);
+                              setCanResend(false);
+                            },
+                            onError: (err: any) => {
+                              logEvent("resend_otp_failed", {
+                                email: email as string,
+                                error:
+                                  err?.detail ||
+                                  err?.response?.data?.detail ||
+                                  "Resend failed",
+                              });
+                              setErrorMessage(
+                                "Failed to resend code. Please try again."
+                              );
+                            },
+                          }
+                        );
+                      }}
+                      disabled={isResending || isPending}
+                    >
+                      <CustomText
+                        style={[
+                          styles.resendLink,
+                          { color: colors.light_blue },
+                        ]}
+                      >
+                        {isResending ? "Resending..." : "Resend"}
+                      </CustomText>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <CustomText
+                    style={[styles.resendText, { color: colors.gray_regular }]}
+                  >
+                    Resend code in {formatTime(timeLeft)}
+                  </CustomText>
+                )}
+              </CustomView>
+            </CustomView>
+
+            {/* Bottom section like auth screen */}
+            <CustomView style={styles.signUpSection}>
+              <CustomText
+                style={[styles.notMemberText, { color: colors.gray_regular }]}
+              >
+                Not a member?
+              </CustomText>
+
+              <TouchableOpacity
+                onPress={() => {
+                  logEvent("signup_clicked", {
+                    screen: "otp_verification_screen",
+                  });
+                  router.push("/(onboarding)");
+                }}
+                disabled={isPending || isResending}
+                style={[
+                  styles.signUpButton,
+                  { borderColor: colors.lime, backgroundColor: "#FFFFFF" },
+                  (isPending || isResending) && { opacity: 0.7 },
+                ]}
+              >
+                <CustomText
+                  style={[
+                    styles.signUpButtonText,
+                    { color: colors.label_dark },
+                  ]}
+                  fontFamily="Inter-SemiBold"
+                >
+                  Create an account
+                </CustomText>
+              </TouchableOpacity>
             </CustomView>
           </CustomView>
-
-          <CustomText
-            fontFamily="Inter-SemiBold"
-            style={[styles.headerStyle, { color: colors.label_dark }]}
-          >
-            Enter the 6-digit code sent to
-          </CustomText>
-
-          <CustomView style={styles.emailContainer}>
-            <CustomText
-              fontFamily="Inter-SemiBold"
-              style={[styles.emailText, { color: colors.label_dark }]}
-            >
-              {email || "email@example.com"}
-            </CustomText>
-          </CustomView>
-
-          <CodeField
-            ref={ref}
-            {...props}
-            value={value}
-            onChangeText={(text) => {
-              setValue(text);
-              setErrorMessage("");
-            }}
-            cellCount={CELL_COUNT}
-            rootStyle={styles.codeFieldRoot}
-            keyboardType="number-pad"
-            textContentType="oneTimeCode"
-            autoComplete="one-time-code"
-            renderCell={({ index, symbol, isFocused }) => {
-              const hasValue = Boolean(symbol);
-              return (
-                <CustomText
-                  fontFamily="Inter-Regular"
-                  key={index}
-                  style={[
-                    styles.cell,
-                    {
-                      borderColor:
-                        isFocused || hasValue ? colors.light_blue : "#E4E7EC",
-                      color: hasValue ? colors.label_dark : "#637083",
-                    },
-                    errorMessage && { borderColor: "#FF4D4D" },
-                  ]}
-                  onLayout={getCellOnLayoutHandler(index)}
-                >
-                  {symbol || (isFocused ? <Cursor /> : null)}
-                </CustomText>
-              );
-            }}
-          />
-
-          {errorMessage ? (
-            <CustomText style={styles.errorText}>{errorMessage}</CustomText>
-          ) : null}
-
-          <CustomTouchable
-            style={[styles.signInButton, { backgroundColor: colors.lime }]}
-            onPress={handleVerifyPress}
-            disabled={isLoading || value.length !== 6}
-          >
-            <CustomText style={styles.signInButtonText}>
-              {isLoading ? "Verifying..." : "Verify"}
-            </CustomText>
-          </CustomTouchable>
-
-          <CustomText style={styles.notReceived}>
-            Didn't receive code?
-          </CustomText>
-
-          <TouchableOpacity style={styles.linkContainer} onPress={() => {}}>
-            <CustomText style={[styles.notReceived, styles.resendCode]}>
-              Resend code
-            </CustomText>
-          </TouchableOpacity>
         </SafeAreaView>
       </TouchableWithoutFeedback>
     </>
@@ -172,9 +357,16 @@ const OTPVerificationScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: horizontalScale(16),
-    paddingTop: verticalScale(16),
     backgroundColor: "#FFF",
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: horizontalScale(30),
+    paddingTop: verticalScale(16),
+    justifyContent: "space-between",
+  },
+  topSection: {
+    flex: 1,
   },
   header: {
     flexDirection: "row",
@@ -186,13 +378,15 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     flex: 1,
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    width: 151,
+    height: 61,
+    borderRadius: 1,
   },
   headerStyle: {
     fontSize: scaleFontSize(16),
-    marginBottom: verticalScale(4),
+    marginBottom: verticalScale(2),
     textAlign: "center",
   },
   emailContainer: {
@@ -204,19 +398,19 @@ const styles = StyleSheet.create({
   },
   codeFieldRoot: {
     flexDirection: "row",
-    justifyContent: "center",
-    gap: 10,
+    justifyContent: "space-between",
+    width: "100%",
     marginBottom: verticalScale(24),
   },
   cell: {
-    width: 44,
-    height: 52,
-    lineHeight: 52,
-    fontSize: scaleFontSize(20),
-    borderWidth: 1.5,
-    borderRadius: 10,
+    width: horizontalScale(35),
+    height: verticalScale(44),
+    lineHeight: verticalScale(44),
+    fontSize: scaleFontSize(14),
+    borderWidth: 1,
+    borderRadius: horizontalScale(8),
     textAlign: "center",
-    backgroundColor: "#FFF",
+    backgroundColor: "#FFFFFF",
   },
   errorText: {
     color: "#FF4D4D",
@@ -226,27 +420,45 @@ const styles = StyleSheet.create({
   },
   signInButton: {
     width: "100%",
-    paddingVertical: verticalScale(16),
+    paddingVertical: verticalScale(12),
     borderRadius: 12,
     alignItems: "center",
-    marginVertical: verticalScale(24),
+    marginVertical: 0,
   },
   signInButtonText: {
     color: "#000",
     fontSize: scaleFontSize(18),
     fontWeight: "600",
   },
-  notReceived: {
-    color: "#344051",
-    fontSize: scaleFontSize(14),
-    textAlign: "center",
+  resendContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: verticalScale(20),
   },
-  resendCode: {
-    color: "#3C62FA",
+  resendText: {
+    fontSize: scaleFontSize(14),
+  },
+  resendLink: {
+    fontSize: scaleFontSize(14),
     fontWeight: "600",
   },
-  linkContainer: {
-    marginTop: verticalScale(2),
+  signUpSection: {
+    paddingBottom: verticalScale(20),
+  },
+  notMemberText: {
+    fontSize: scaleFontSize(14),
+    textAlign: "center",
+    marginBottom: verticalScale(16),
+  },
+  signUpButton: {
+    paddingVertical: verticalScale(12),
+    borderRadius: 8,
+    alignItems: "center",
+    borderWidth: 2,
+  },
+  signUpButtonText: {
+    fontSize: scaleFontSize(16),
   },
 });
 

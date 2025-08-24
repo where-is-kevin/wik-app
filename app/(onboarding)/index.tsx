@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Alert } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
+import * as SecureStore from "expo-secure-store";
 import { useRouter } from "expo-router";
 import { OnboardingProgressBar } from "@/components/Onboarding/OnboardingProgressBar";
 import { OnboardingLogoSlide } from "@/components/Onboarding/OnboardingLogoSlide";
@@ -19,6 +21,8 @@ import { commonOnboardingStyles } from "@/components/Onboarding/OnboardingStyles
 import {
   OnboardingSelections,
   OnboardingStep,
+  getBusinessFlow,
+  getLeisureFlow,
   onboardingSteps,
 } from "@/constants/onboardingSlides";
 import CustomView from "@/components/CustomView";
@@ -29,11 +33,12 @@ import NextButton from "@/components/Button/NextButton";
 import { PersonalFormData } from "@/components/Onboarding/OnboardingForm";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { useCreateUser } from "@/hooks/useUser";
-import type { CreateUserInput } from "@/hooks/useUser";
-import { useAuth } from "@/hooks/useAuth";
+import { useCreateUser, useValidateRegistrationCode } from "@/hooks/useUser";
+import type {
+  CreateUserInput,
+  ValidateRegistrationCodeInput,
+} from "@/hooks/useUser";
 import { useContent } from "@/hooks/useContent";
-import { useLocationPermissionGuard } from "@/hooks/useLocationPermissionGuard";
 import { CardData } from "@/components/SwipeCards/SwipeCards";
 import { getErrorMessage } from "@/utilities/errorUtils";
 import { verticalScale } from "@/utilities/scaling";
@@ -41,11 +46,14 @@ import { verticalScale } from "@/utilities/scaling";
 const OnboardingScreen = () => {
   const router = useRouter();
   const { mutate: createUser, isPending } = useCreateUser();
-  const { mutate: login } = useAuth();
+  const { mutate: validateRegistrationCode, isPending: isValidating } =
+    useValidateRegistrationCode();
+  const queryClient = useQueryClient();
   const { colors } = useTheme();
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [selections, setSelections] = useState<OnboardingSelections>({});
-  const [filteredSteps, setFilteredSteps] = useState<OnboardingStep[]>([]);
+  const [currentFlow, setCurrentFlow] = useState<OnboardingStep[]>([]);
+  const [userType, setUserType] = useState<number | null>(null);
   const [personalFormData, setPersonalFormData] = useState<PersonalFormData>({
     firstName: "",
     lastName: "",
@@ -53,7 +61,6 @@ const OnboardingScreen = () => {
     home: "",
     travelDestination: "",
     personalSummary: "",
-    password: "",
   });
   const [swipeLikes, setSwipeLikes] = useState<string[]>([]);
   const [swipeDislikes, setSwipeDislikes] = useState<string[]>([]);
@@ -78,12 +85,191 @@ const OnboardingScreen = () => {
     refetch,
   } = useContent({});
 
-  const { checkAndNavigate } = useLocationPermissionGuard({
-    redirectToTabs: true,
-  });
+  // Reusable function to get selected options as string for user description
+  const getSelectedOptionsString = useCallback(() => {
+    console.log("All selections for description:", selections);
+    
+    const results = Object.entries(selections)
+      .map(([key, value]) => {
+        const step = onboardingSteps.find((s) => s.key === key);
+        console.log(`Processing step ${key}:`, { 
+          step: step?.title, 
+          value, 
+          type: step?.type,
+          hasOptions: step?.options?.length,
+          hasTags: step?.tags?.length 
+        });
+        
+        if (!step || value === undefined) return null;
 
-  const stepData = filteredSteps[currentStepIndex];
+        // Handle budget selection
+        if (typeof value === "object" && "min" in value && "max" in value) {
+          return `Budget: $${value.min} - $${value.max}`;
+        }
+
+        // Skip location selection - it's sent as separate location field
+        if (
+          typeof value === "object" &&
+          "id" in value &&
+          "fullName" in value
+        ) {
+          return null;
+        }
+
+        // Handle tag selections (step.tags)
+        if (step.type === "tag-selection" && step.tags && Array.isArray(value)) {
+          console.log(`🏷️ Processing tag selection for ${key}:`, { 
+            value, 
+            stepTags: step.tags?.length,
+            stepType: step.type 
+          });
+          const selectedTags = value.map(tagIndex => {
+            // tagIndex is zero-based, but tag.number is 1-based
+            const tag = step.tags?.find(t => t.number === tagIndex + 1);
+            console.log(`Looking for tag with number ${tagIndex + 1}, found:`, tag?.text);
+            return tag ? tag.text : null;
+          }).filter(Boolean);
+          console.log(`Selected tags result:`, selectedTags);
+          return selectedTags.length > 0 ? selectedTags.join(" | ") : null;
+        }
+
+        // Handle steps with options (regular option selections)
+        if (step.options && step.options.length > 0) {
+          if (Array.isArray(value)) {
+            const selectedOptions = value.map((i) => step.options[i]).filter(Boolean);
+            return selectedOptions.length > 0 ? selectedOptions.join(" | ") : null;
+          }
+          if (typeof value === "number" && step.options[value]) {
+            return step.options[value];
+          }
+        }
+
+        return null;
+      })
+      .filter(Boolean);
+      
+    console.log("Description parts:", results);
+    return results.join(" | ");
+  }, [selections]);
+
+  // Helper function to create user input for travel users
+  const createTravelUserInput = useCallback((): CreateUserInput => ({
+    firstName: travelName.split(" ")[0] || travelName,
+    lastName: travelName.split(" ").slice(1).join(" ") || "",
+    email: travelEmail,
+    home: "",
+    location: selectedLocation?.fullName || "",
+    description: getSelectedOptionsString(),
+    personalSummary: "",
+    onboardingLikes: swipeLikes,
+    onboardingDislikes: swipeDislikes,
+  }), [travelName, travelEmail, selectedLocation, getSelectedOptionsString, swipeLikes, swipeDislikes]);
+
+  // Helper function to create user input for business users  
+  const createBusinessUserInput = useCallback((): CreateUserInput => ({
+    firstName: personalFormData.firstName,
+    lastName: personalFormData.lastName,
+    email: personalFormData.email,
+    home: personalFormData.home,
+    location: selectedLocation?.fullName || "",
+    description: getSelectedOptionsString(),
+    personalSummary: personalFormData.personalSummary,
+    onboardingLikes: swipeLikes,
+    onboardingDislikes: swipeDislikes,
+  }), [personalFormData, selectedLocation, getSelectedOptionsString, swipeLikes, swipeDislikes]);
+
+  // Function to handle code validation
+  const handleCodeValidation = useCallback(async () => {
+    if (verificationCode.length !== 6) return;
+    
+    const validationInput: ValidateRegistrationCodeInput = {
+      email: travelEmail,
+      otpCode: verificationCode,
+    };
+
+    validateRegistrationCode(validationInput, {
+      onSuccess: async (response) => {
+        console.log("Code verification successful, response:", response);
+        
+        try {
+          // Store auth data in secure storage and query cache (like login does)
+          if (response?.accessToken && response?.user) {
+            const authData = {
+              accessToken: response.accessToken,
+              tokenType: response.tokenType || "Bearer",
+              user: response.user,
+            };
+
+            // Store in secure storage
+            await Promise.all([
+              SecureStore.setItemAsync("authToken", authData.accessToken),
+              SecureStore.setItemAsync("authUser", JSON.stringify(authData.user)),
+            ]);
+
+            // Update query cache
+            queryClient.setQueryData(["auth"], authData);
+            
+            console.log("Authentication data stored successfully");
+          }
+          
+          router.push("/(tabs)");
+        } catch (error) {
+          console.error("Error storing auth data:", error);
+          router.push("/(tabs)"); // Continue anyway
+        }
+      },
+      onError: (err: any) => {
+        const errorMessage =
+          err?.detail ||
+          err?.message ||
+          "The verification code is incorrect or has expired. Please try again.";
+        Alert.alert("Verification Failed", errorMessage);
+      },
+    });
+  }, [verificationCode, travelEmail, validateRegistrationCode, router, queryClient]);
+
+  const stepData = currentFlow[currentStepIndex];
   const currentSelection = stepData ? selections[stepData.key] : undefined;
+
+  // Auto-save default budget values when entering budget selection step
+  useEffect(() => {
+    if (stepData?.type === "budget-selection" && !selections[stepData.key]) {
+      setSelections((prev) => ({
+        ...prev,
+        [stepData.key]: budgetRange,
+      }));
+    }
+  }, [stepData?.key, stepData?.type, budgetRange, selections]);
+
+  // Function to handle resending verification code
+  const handleResendCode = useCallback(async () => {
+    const userInput = createTravelUserInput();
+
+    createUser(userInput, {
+      onSuccess: () => {
+        Alert.alert(
+          "Code Sent",
+          "A new verification code has been sent to your email.",
+          [{ text: "OK", style: "default" }]
+        );
+      },
+      onError: (err: any) => {
+        console.error("Failed to resend OTP", err?.message || "Unknown error");
+        Alert.alert(
+          "Error",
+          "Failed to resend verification code. Please try again.",
+          [{ text: "OK", style: "default" }]
+        );
+      },
+    });
+  }, [createUser, createTravelUserInput]);
+
+  // Auto-submit when verification code is complete
+  useEffect(() => {
+    if (verificationCode.length === 6 && stepData?.type === "code-slide") {
+      handleCodeValidation();
+    }
+  }, [verificationCode, stepData?.type, handleCodeValidation]);
 
   // Transform content data to match SwipeCards interface (limit to 5 items)
   const transformedCardData: CardData[] = content
@@ -128,27 +314,18 @@ const OnboardingScreen = () => {
   const selectedIndices = getSelectedIndices();
 
   useEffect(() => {
-    const initialSteps = onboardingSteps.filter((step) => !step.condition);
-    setFilteredSteps(initialSteps);
-  }, []);
+    // Start with just the initial step
+    const initialSteps = userType === null ? [getBusinessFlow()[0]] : [];
+    setCurrentFlow(initialSteps);
+  }, [userType]);
 
   useEffect(() => {
-    const newFilteredSteps = onboardingSteps.filter((step) => {
-      if (!step.condition) return true;
-      const { key, value } = step.condition;
-      const stepSelection = selections[key];
-
-      // Handle array selections - check if value exists in array
-      if (Array.isArray(stepSelection)) {
-        return stepSelection.includes(value);
-      }
-
-      // Handle single selection
-      return stepSelection === value;
-    });
-
-    setFilteredSteps(newFilteredSteps);
-  }, [selections]);
+    // When user type is selected, switch to the appropriate flow
+    if (userType !== null) {
+      const flow = userType === 0 ? getBusinessFlow() : getLeisureFlow();
+      setCurrentFlow(flow);
+    }
+  }, [userType]);
 
   // Show tutorial only when content is loaded and we're on the card swipe slide
   useEffect(() => {
@@ -323,6 +500,9 @@ const OnboardingScreen = () => {
       [stepData.key]: index,
     }));
 
+    // Set user type and let useEffect handle flow switching
+    setUserType(index);
+
     setTimeout(() => {
       setCurrentStepIndex(1);
     }, 150);
@@ -349,101 +529,57 @@ const OnboardingScreen = () => {
   };
 
   const handleNext = async () => {
-    // Check if we're at the final registration step (personal-form for business or code-slide for travel)
+
+    // If we're on travel-email step, call createUser to send OTP before moving to code verification
+    if (stepData?.type === "travel-email") {
+      try {
+        const userInput = createTravelUserInput();
+
+        createUser(userInput, {
+          onSuccess: () => {
+            // Clear verification code and move to next step (code verification) after OTP is sent
+            setVerificationCode("");
+            setCurrentStepIndex(currentStepIndex + 1);
+          },
+          onError: (err: any) => {
+            console.error(
+              "Failed to send OTP",
+              err?.message || "Unknown error"
+            );
+            Alert.alert(
+              "Error",
+              "Failed to send verification code. Please try again.",
+              [{ text: "OK", style: "default" }]
+            );
+          },
+        });
+      } catch (error) {
+        console.error("Failed to prepare user data", error);
+      }
+      return;
+    }
+
+    // Check if we're on code-slide (validate OTP) - manual button option
+    if (stepData?.type === "code-slide") {
+      handleCodeValidation();
+      return;
+    }
+
+    // Check if we're at the final registration step (personal-form for business)
     if (
-      currentStepIndex === filteredSteps.length - 1 &&
-      (stepData?.type === "personal-form" || stepData?.type === "code-slide")
+      currentStepIndex === currentFlow.length - 1 &&
+      stepData?.type === "personal-form"
     ) {
       try {
-        const getSelectedOptionsString = () => {
-          return Object.entries(selections)
-            .map(([key, value]) => {
-              const step = onboardingSteps.find((s) => s.key === key);
-              if (!step || value === undefined) return null;
-
-              // Handle budget selection
-              if (
-                typeof value === "object" &&
-                "min" in value &&
-                "max" in value
-              ) {
-                return `Budget: $${value.min} - $${value.max}`;
-              }
-
-              // Handle location selection
-              if (
-                typeof value === "object" &&
-                "id" in value &&
-                "fullName" in value
-              ) {
-                return `Destination: ${value.fullName}`;
-              }
-
-              // Skip steps without options (like budget selection)
-              if (!step.options.length) return null;
-
-              if (Array.isArray(value)) {
-                return value.map((i) => step.options[i]).join(", ");
-              }
-              return step.options[value as number];
-            })
-            .filter(Boolean)
-            .join(" | ");
-        };
-
-        // Map form data to CreateUserInput based on user type
-        const userInput: CreateUserInput =
-          stepData?.type === "code-slide"
-            ? {
-                // Travel user data
-                firstName: travelName.split(" ")[0] || travelName,
-                lastName: travelName.split(" ").slice(1).join(" ") || "",
-                email: travelEmail,
-                home: "",
-                location: personalFormData.travelDestination || "",
-                password: "temp123", // TODO: Handle password for travel users
-                description: getSelectedOptionsString(),
-                personalSummary: "",
-                onboardingLikes: swipeLikes,
-                onboardingDislikes: swipeDislikes,
-              }
-            : {
-                // Business user data
-                firstName: personalFormData.firstName,
-                lastName: personalFormData.lastName,
-                email: personalFormData.email,
-                home: personalFormData.home,
-                location: personalFormData.travelDestination,
-                password: personalFormData.password,
-                description: getSelectedOptionsString(),
-                personalSummary: personalFormData.personalSummary,
-                onboardingLikes: swipeLikes,
-                onboardingDislikes: swipeDislikes,
-              };
+        const userInput = createBusinessUserInput();
 
         createUser(userInput, {
           onSuccess: async () => {
             try {
-              // After successful user creation, log in the user
-              login(
-                {
-                  username: userInput.email,
-                  password: userInput.password,
-                },
-                {
-                  onSuccess: async () => {
-                    // Navigate through location permission check instead of directly to tabs
-                    await checkAndNavigate();
-                  },
-                  onError: (loginErr: any) => {
-                    console.error("Login failed after signup", loginErr);
-                    router.push("/(auth)");
-                  },
-                }
-              );
-            } catch (loginErr) {
-              console.error("Login failed after signup", loginErr);
-              router.push("/(auth)");
+              // For business users, navigate directly to tabs after creation
+              router.push("/(tabs)");
+            } catch (error) {
+              console.error("Navigation failed after user creation", error);
             }
           },
           onError: (err: any) => {
@@ -647,10 +783,7 @@ const OnboardingScreen = () => {
         code={verificationCode}
         onCodeChange={setVerificationCode}
         email={travelEmail}
-        onResendCode={() => {
-          // TODO: Implement resend code logic
-          console.log("Resending verification code to:", travelEmail);
-        }}
+        onResendCode={handleResendCode}
       />
     );
   };
@@ -745,7 +878,7 @@ const OnboardingScreen = () => {
         <CustomView style={commonOnboardingStyles.progressContainer}>
           <OnboardingProgressBar
             steps={
-              filteredSteps.filter(
+              currentFlow.filter(
                 (step) =>
                   step.type === "option-list" ||
                   step.type === "budget-selection" ||
@@ -754,7 +887,7 @@ const OnboardingScreen = () => {
               ).length
             }
             currentStep={
-              filteredSteps
+              currentFlow
                 .slice(0, currentStepIndex + 1)
                 .filter(
                   (step) =>
@@ -784,23 +917,27 @@ const OnboardingScreen = () => {
             <NextButton
               onPress={handleNext}
               customStyles={
-                isNextButtonDisabled() || isPending
+                isNextButtonDisabled() || isPending || isValidating
                   ? commonOnboardingStyles.nextButtonDisabled
                   : {}
               }
               bgColor={colors.lime}
               title={
                 isPending
-                  ? "Finalizing..."
+                  ? stepData?.type === "travel-email"
+                    ? "Sending code..."
+                    : "Finalizing..."
+                  : isValidating
+                  ? "Verifying..."
                   : stepData?.type === "final-slide"
                   ? "Let's Go!"
                   : stepData?.type === "code-slide"
                   ? "Start exploring!"
-                  : currentStepIndex === filteredSteps.length - 1
+                  : currentStepIndex === currentFlow.length - 1
                   ? "Create Account"
                   : "Continue"
               }
-              disabled={isNextButtonDisabled() || isPending}
+              disabled={isNextButtonDisabled() || isPending || isValidating}
             />
           )}
       </CustomView>

@@ -1,13 +1,8 @@
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import CustomText from "../CustomText";
-import CustomTouchable from "../CustomTouchableOpacity";
 import { useTheme } from "@/contexts/ThemeContext";
-import {
-  horizontalScale,
-  scaleFontSize,
-  verticalScale,
-} from "@/utilities/scaling";
+import { horizontalScale, scaleFontSize } from "@/utilities/scaling";
 
 interface OnboardingTagProps {
   number: number;
@@ -34,6 +29,7 @@ export const OnboardingTag: React.FC<OnboardingTagProps> = ({
           backgroundColor: selected
             ? colors.light_blue
             : colors.onboarding_gray,
+          borderColor: selected ? colors.light_blue : colors.border_gray,
         },
       ]}
       onPress={onPress}
@@ -65,6 +61,7 @@ const styles = StyleSheet.create({
     padding: 9.5,
     borderRadius: 28,
     minWidth: 140,
+    borderWidth: 1,
   },
   numberContainer: {
     width: 18,

@@ -2,7 +2,7 @@ import CustomText from "@/components/CustomText";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import CustomView from "@/components/CustomView";
 import LoginLogoSvg from "@/components/SvgComponents/LoginLogoSvg";
-import CustomTextInput from "@/components/TextInput/CustomTextInput";
+import { OnboardingSearch } from "@/components/Onboarding/OnboardingSearch";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useUXCam } from "@/contexts/UXCamContext"; // Add this import
 import {
@@ -11,77 +11,67 @@ import {
   verticalScale,
 } from "@/utilities/scaling";
 import { StatusBar } from "expo-status-bar";
-import React, { useState, useEffect } from "react";
-import { Dimensions, Platform, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { Platform, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
-import { useAuth } from "@/hooks/useAuth";
-import { useLocationPermissionGuard } from "@/hooks/useLocationPermissionGuard";
+import { useOTPRequest } from "@/hooks/useOTP";
 
 interface SignInScreenProps {
   // Add any props here if needed
 }
-const windowHeight = Dimensions.get("window").height;
 
 const SignInScreen: React.FC<SignInScreenProps> = () => {
   const [email, setEmail] = useState<string>(__DEV__ ? "user@example.com" : "");
-  const [password, setPassword] = useState<string>(__DEV__ ? "string" : "");
   const { colors } = useTheme();
   const router = useRouter();
-  const { mutate: login, isPending } = useAuth();
-  const { checkAndNavigate } = useLocationPermissionGuard({
-    redirectToTabs: true,
-  });
-  const { setUserId, setUserProperty, logEvent } = useUXCam(); // Add setUserProperty
-  const isFormValid = email.trim() !== "" && password.trim() !== "";
+  const { mutate: requestOTP, isPending } = useOTPRequest();
+  const { logEvent } = useUXCam();
+  const isFormValid = email.trim() !== "";
 
   const handleSignIn = (): void => {
     if (!isFormValid) return;
 
-    // Log sign in attempt
-    logEvent("signin_attempt", {
+    // Log OTP request attempt
+    logEvent("otp_request_attempt", {
       method: "email",
       email: email,
     });
 
-    login(
+    requestOTP(
+      { email },
       {
-        username: email,
-        password,
-      },
-      {
-        onSuccess: async (data) => {
-          if (data?.user?.id) {
-            setUserId(data.user.id.toString());
-          }
-          setUserProperty("email", email);
-          logEvent("signin_success", {
+        onSuccess: () => {
+          logEvent("otp_request_success", {
             method: "email",
             email: email,
           });
 
-          await checkAndNavigate(); // Navigate after login
+          // Navigate to OTP verification screen with email parameter
+          router.push({
+            pathname: "/(auth)/otp-verification",
+            params: { email },
+          });
         },
         onError: (err: any) => {
-          // Log failed login
-          logEvent("signin_failed", {
+          logEvent("otp_request_failed", {
             method: "email",
             email: email,
-            error: err?.detail || err?.response?.data?.detail || "Login failed",
+            error:
+              err?.detail ||
+              err?.response?.data?.detail ||
+              "OTP request failed",
           });
 
-          alert(err?.detail || err?.response?.data?.detail || "Login failed");
+          alert(
+            err?.detail ||
+              err?.response?.data?.detail ||
+              "Failed to send OTP. Please try again."
+          );
         },
       }
     );
-  };
-
-  const handleForgotPassword = (): void => {
-    logEvent("forgot_password_clicked", {
-      screen: "signin_screen",
-    });
-    // router.push("/forgot-password");
   };
 
   const handleSignUp = (): void => {
@@ -113,60 +103,63 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
           </CustomView>
           {/* Form */}
           <CustomView style={styles.form}>
-            <CustomView style={styles.inputContainer}>
-              <CustomTextInput
-                label="Email"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                placeholder="Enter your email"
-                editable={!isPending}
-              />
+            <CustomView style={styles.topSection}>
+              <CustomView style={styles.inputContainer}>
+                <OnboardingSearch
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  placeholder="Username or email"
+                  showIcon={false}
+                  customStyles={{ marginBottom: 0 }}
+                />
+              </CustomView>
 
-              <CustomTextInput
-                label="Password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={true}
-                placeholder="Enter your password"
-                editable={!isPending}
-              />
+              <CustomTouchable
+                disabled={isPending || !isFormValid}
+                bgColor={colors.lime}
+                style={[
+                  styles.signInButton,
+                  (!isFormValid || isPending) && { opacity: 0.7 },
+                ]}
+                onPress={handleSignIn}
+              >
+                <CustomText
+                  fontFamily="Inter-SemiBold"
+                  style={[
+                    styles.signInButtonText,
+                    { color: colors.label_dark },
+                  ]}
+                >
+                  {isPending ? "Loading..." : "Let's go!"}
+                </CustomText>
+              </CustomTouchable>
             </CustomView>
 
-            <CustomTouchable
-              disabled={isPending || !isFormValid}
-              bgColor={colors.lime}
-              style={[
-                styles.signInButton,
-                (!isFormValid || isPending) && { opacity: 0.7 },
-              ]}
-              onPress={handleSignIn}
-            >
-              <CustomText
-                fontFamily="Inter-SemiBold"
-                style={[styles.signInButtonText, { color: colors.label_dark }]}
-              >
-                Test OTP →
-              </CustomText>
-            </CustomTouchable>
-
-            <CustomView style={styles.signUpContainer}>
+            <CustomView style={styles.signUpSection}>
               <CustomText
                 style={[styles.notMemberText, { color: colors.gray_regular }]}
               >
-                Not a member?{" "}
+                Not a member?
               </CustomText>
-              <CustomTouchable onPress={handleSignUp} disabled={isPending}>
+
+              <CustomTouchable
+                onPress={handleSignUp}
+                disabled={isPending}
+                style={[
+                  styles.signUpButton,
+                  { borderColor: colors.lime, backgroundColor: "#FFFFFF" },
+                  isPending && { opacity: 0.7 },
+                ]}
+              >
                 <CustomText
                   style={[
-                    styles.signUpText,
-                    {
-                      color: isPending ? colors.gray_regular : colors.link_blue,
-                    },
+                    styles.signUpButtonText,
+                    { color: colors.label_dark },
                   ]}
                   fontFamily="Inter-SemiBold"
                 >
-                  Sign up
+                  Create an account
                 </CustomText>
               </CustomTouchable>
             </CustomView>
@@ -191,16 +184,14 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: horizontalScale(24),
-    ...Platform.select({
-      ios: {
-        justifyContent: "center",
-      },
-      android: {
-        paddingTop: windowHeight * 0.11,
-      },
-    }),
+    paddingTop: verticalScale(30),
   },
   form: {
+    width: "100%",
+    flex: 1,
+    justifyContent: "space-between",
+  },
+  topSection: {
     width: "100%",
   },
   forgotPasswordContainer: {
@@ -214,21 +205,26 @@ const styles = StyleSheet.create({
     paddingVertical: verticalScale(12),
     borderRadius: 8,
     alignItems: "center",
-    marginBottom: verticalScale(16),
-    marginHorizontal: horizontalScale(24),
   },
   signInButtonText: {
     fontSize: scaleFontSize(16),
   },
-  signUpContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
+  signUpSection: {
+    paddingBottom: verticalScale(20),
   },
   notMemberText: {
-    fontSize: scaleFontSize(12),
+    fontSize: scaleFontSize(14),
+    textAlign: "center",
+    marginBottom: verticalScale(16),
   },
-  signUpText: {
-    fontSize: scaleFontSize(12),
+  signUpButton: {
+    paddingVertical: verticalScale(12),
+    borderRadius: 8,
+    alignItems: "center",
+    borderWidth: 2,
+  },
+  signUpButtonText: {
+    fontSize: scaleFontSize(16),
   },
   googleButton: {
     flexDirection: "row",
@@ -247,11 +243,11 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignSelf: "center",
-    marginBottom: verticalScale(40),
+    marginBottom: verticalScale(60),
   },
   inputContainer: {
     gap: verticalScale(12),
-    marginBottom: verticalScale(16),
+    marginBottom: verticalScale(24),
     marginTop: verticalScale(6),
   },
   otherWaysText: {

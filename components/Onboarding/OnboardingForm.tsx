@@ -19,8 +19,6 @@ export interface PersonalFormData {
   email: string;
   home: string;
   travelDestination: string;
-  // profileImage: string | null;
-  password: string;
   personalSummary: string;
 }
 
@@ -44,12 +42,9 @@ export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
       formData.lastName.trim() !== "" &&
       formData.email.trim() !== "" &&
       formData.home.trim() !== "" &&
-      formData.travelDestination.trim() !== "" &&
-      formData.password.trim() !== ""
+      formData.travelDestination.trim() !== ""
     );
   };
-
-  const isButtonDisabled = !isFormValid();
 
   // const handleImageSelection = async () => {
   //   // Request permission to access the media library
@@ -150,17 +145,6 @@ export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
           value={formData.travelDestination}
           onChangeText={(text) => handleChange("travelDestination", text)}
           placeholder="Enter your travel destination"
-        />
-      </CustomView>
-
-      {/* custom view for the password input */}
-      <CustomView style={styles.formGroup}>
-        <CustomTextInput
-          label="Password"
-          value={formData.password}
-          onChangeText={(text) => handleChange("password", text)}
-          placeholder="Enter your password"
-          secureTextEntry={true}
         />
       </CustomView>
     </KeyboardAwareScrollView>

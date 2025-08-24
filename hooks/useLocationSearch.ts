@@ -95,15 +95,6 @@ export const useLocationSearch = () => {
     }
   };
 
-  // Debounce function to prevent too many API calls
-  const debouncedSearch = (query: string, delay: number = 300) => {
-    const timeoutId = setTimeout(() => {
-      searchLocations(query);
-    }, delay);
-
-    return () => clearTimeout(timeoutId);
-  };
-
   const clearResults = () => {
     setResults([]);
     setError(null);
@@ -114,7 +105,7 @@ export const useLocationSearch = () => {
     results,
     loading,
     error,
-    searchLocations: debouncedSearch,
+    searchLocations,
     clearResults,
   };
 };

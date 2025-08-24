@@ -1,22 +1,27 @@
 import * as React from "react";
 import Svg, { Rect, Defs, Pattern, Use, Image } from "react-native-svg";
-const SVGComponent = ({ ...props }) => (
-  <Svg width={121} height={49} viewBox="0 0 121 49" fill="none" {...props}>
-    <Rect x={0.375} width={120} height={49} fill="url(#pattern0_7880_8293)" />
+const LoginLogoSvg = ({ width = 181, height = 74, ...props }) => (
+  <Svg width={width} height={height} viewBox="0 0 181 74" fill="none" {...props}>
+    <Rect
+      x={0}
+      width={180}
+      height={74}
+      fill="url(#pattern0_9621_16914)"
+    />
     <Defs>
       <Pattern
-        id="pattern0_7880_8293"
+        id="pattern0_9621_16914"
         patternContentUnits="objectBoundingBox"
         width={1}
         height={1}
       >
         <Use
-          xlinkHref="#image0_7880_8293"
-          transform="matrix(0.00083612 0 0 0.00204764 0 -0.00167224)"
+          xlinkHref="#image0_9621_16914"
+          transform="matrix(0.000839002 0 0 0.00204082 -0.00172336 0)"
         />
       </Pattern>
       <Image
-        id="image0_7880_8293"
+        id="image0_9621_16914"
         width={1196}
         height={490}
         preserveAspectRatio="none"
@@ -25,4 +30,4 @@ const SVGComponent = ({ ...props }) => (
     </Defs>
   </Svg>
 );
-export default SVGComponent;
+export default LoginLogoSvg;
