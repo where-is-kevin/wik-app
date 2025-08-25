@@ -7,7 +7,7 @@ export default ({ config }) => ({
     config: {
       ...config.android?.config,
       googleMaps: {
-        apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
+        apiKey: process.env.GOOGLE_MAPS_API_KEY,
       },
     },
   },
@@ -15,6 +15,6 @@ export default ({ config }) => ({
     ...config.extra, // Retain existing extra fields
     apiUrl: process.env.API_URL, // Load API URL from .env
     uxcamAppKey: process.env.UXCAM_APP_KEY, // Add UXCam app key
-    googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY, // Add this line
+    googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY, // Add this line
   },
 });

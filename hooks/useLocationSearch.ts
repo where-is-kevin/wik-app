@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { LocationData } from "@/components/Onboarding/OnboardingLocationItem";
+import Constants from "expo-constants";
 
-const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+const GOOGLE_PLACES_API_KEY = Constants.expoConfig?.extra?.googleMapsApiKey;
 
 interface GooglePlacesPrediction {
   place_id: string;
@@ -20,7 +21,6 @@ interface GooglePlacesResponse {
   predictions: GooglePlacesPrediction[];
   status: string;
 }
-
 
 export const useLocationSearch = () => {
   const [results, setResults] = useState<LocationData[]>([]);
@@ -49,11 +49,11 @@ export const useLocationSearch = () => {
       const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
         query
       )}&types=(cities)&key=${GOOGLE_PLACES_API_KEY}`;
-      
+
       const response = await fetch(url, {
-        method: 'GET',
+        method: "GET",
         headers: {
-          'Accept': 'application/json',
+          Accept: "application/json",
         },
       });
 
