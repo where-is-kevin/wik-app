@@ -2,7 +2,7 @@
   "expo": {
     "name": "Where is Kevin?",
     "slug": "wik-app",
-    "version": "1.0.7",
+    "version": "1.0.9",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -27,6 +27,7 @@
         "ACCESS_FINE_LOCATION",
         "INTERNET"
       ],
+      "locationPermissionReason": "Allow Kevin to use your location to show nearby events and content.",
       "package": "com.whereiskevin.wikapp"
     },
     "web": {
@@ -71,9 +72,7 @@
         }
       ]
     ],
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "experiments": {
       "typedRoutes": true
     },
