@@ -68,10 +68,10 @@ const LikeItemComponent: React.FC<LikeItemProps> = ({
         <OptimizedImage
           source={validImageUrl ? { uri: validImageUrl } : PLACEHOLDER_IMAGE}
           style={styles.image}
-          resizeMode="cover"
+          contentFit="cover"
           priority="normal"
-          showLoader={true}
-          fallbackSource={PLACEHOLDER_IMAGE}
+          showLoadingIndicator={true}
+          fallbackImage={PLACEHOLDER_IMAGE}
         />
 
         {/* Category tag in top left */}

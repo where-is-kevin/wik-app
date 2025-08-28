@@ -41,7 +41,7 @@ export const SwipeFeedback = React.memo<SwipeFeedbackProps>(
         <Image
           source={imageSource}
           style={styles.feedbackImage}
-          resizeMode="contain"
+          contentFit="contain"
           fadeDuration={0}
         />
       </Animated.View>

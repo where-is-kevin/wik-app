@@ -1,315 +1,365 @@
-// Create this file: @/components/OptimizedImage/index.tsx
+import React, { useState } from "react";
+import {
+  View,
+  TouchableOpacity,
+  ViewStyle,
+  ImageStyle,
+  StyleSheet,
+  StyleProp,
+  Text,
+} from "react-native";
+import { Image, ImageSource, ImageContentFit } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "@/contexts/ThemeContext";
+import SimpleLoader from "@/components/Loader/SimpleLoader";
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
-import FastImage from 'react-native-fast-image';
+// Default fallback image - using a simple placeholder
+const DefaultPlaceholder = require("@/assets/images/placeholder-bucket.png");
 
-// Default fallback image - put this in your assets
-import DefaultPlaceholder from '@/assets/images/placeholder-bucket.png';
-import AnimatedLoader from '../Loader/AnimatedLoader';
+type ImagePriority = "low" | "normal" | "high";
+type CachePolicy = "memory" | "disk" | "memory-disk" | "none";
+
+const DEFAULT_AVATARS = {
+  USER_AVATAR: DefaultPlaceholder,
+};
 
 interface OptimizedImageProps {
-  source: { uri: string } | any;
-  style?: any;
-  resizeMode?: 'contain' | 'cover' | 'stretch' | 'center';
-  priority?: 'low' | 'normal' | 'high';
-  showLoader?: boolean;
-  fallbackSource?: any;
+  source: string | ImageSource | { uri: string };
+  style?: StyleProp<ImageStyle>;
+  contentFit?: ImageContentFit;
+  placeholder?: string;
+  showLoadingIndicator?: boolean;
+  showErrorFallback?: boolean;
+  fallbackImage?: string | ImageSource;
+  useDefaultAvatar?: boolean;
+  defaultAvatarType?: keyof typeof DEFAULT_AVATARS;
+  onPress?: () => void;
   onLoad?: () => void;
-  onError?: () => void;
+  onError?: (error: any) => void;
+  transition?: number;
+  priority?: ImagePriority;
+  cachePolicy?: CachePolicy;
+  borderRadius?: number;
+  overlayComponent?: React.ReactNode;
+  errorRetryText?: string;
+  accessibilityLabel?: string;
+  resizeMode?: "contain" | "cover" | "stretch" | "center";
   children?: React.ReactNode;
 }
 
-// Simple Skeleton Component (like popular skeleton libraries)
-const SkeletonPlaceholder: React.FC<{ style?: any }> = ({ style }) => {
-  const shimmerAnim = useRef(new Animated.Value(0)).current;
+const OptimizedImage: React.FC<OptimizedImageProps> = ({
+  source,
+  style,
+  contentFit = "cover",
+  placeholder,
+  showLoadingIndicator = true,
+  showErrorFallback = true,
+  fallbackImage,
+  useDefaultAvatar = false,
+  defaultAvatarType = "USER_AVATAR",
+  onPress,
+  onLoad,
+  onError,
+  transition = 200,
+  priority = "normal",
+  cachePolicy = "memory-disk",
+  borderRadius,
+  overlayComponent,
+  errorRetryText = "Retry",
+  accessibilityLabel,
+}) => {
+  const { colors } = useTheme();
 
-  useEffect(() => {
-    const shimmerAnimation = Animated.loop(
-      Animated.timing(shimmerAnim, {
-        toValue: 1,
-        duration: 1500,
-        useNativeDriver: false, // We need to animate width
-      })
-    );
-
-    shimmerAnimation.start();
-
-    return () => shimmerAnimation.stop();
-  }, [shimmerAnim]);
-
-  const shimmerWidth = shimmerAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
+  const styles = StyleSheet.create({
+    container: {
+      position: "relative",
+      overflow: "hidden",
+    },
+    image: {
+      width: "100%",
+      height: "100%",
+    } as ImageStyle,
+    loadingContainer: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    errorContainer: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: colors.background,
+    },
+    errorText: {
+      fontSize: 12,
+      color: colors.gray_regular,
+      marginTop: 8,
+      textAlign: "center",
+    },
+    retryButton: {
+      marginTop: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 4,
+      backgroundColor: colors.lime,
+      borderRadius: 4,
+    },
+    retryText: {
+      color: colors.text,
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    overlayContainer: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
   });
 
-  return (
-    <View style={[styles.skeletonContainer, style]}>
-      <Animated.View
-        style={[
-          styles.skeletonShimmer,
-          {
-            width: shimmerWidth,
-          },
-        ]}
-      />
-    </View>
-  );
-};
-
-// 1. REGULAR IMAGE COMPONENT
-export const OptimizedImage: React.FC<OptimizedImageProps> = ({
-  source,
-  style,
-  resizeMode = 'cover',
-  priority = 'normal',
-  showLoader = true,
-  fallbackSource = DefaultPlaceholder,
-  onLoad,
-  onError,
-}) => {
-  const [loading, setLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Get the image source
-  const getImageSource = () => {
-    if (hasError) {
-      return fallbackSource;
+  const isSourceEmpty = (
+    src: string | ImageSource | { uri: string }
+  ): boolean => {
+    if (typeof src === "string") {
+      return !src || src.trim() === "";
     }
-    
-    if (source && typeof source === 'object' && source.uri) {
-      return {
-        uri: source.uri,
-        priority: FastImage.priority[priority] || FastImage.priority.normal,
-        cache: FastImage.cacheControl.immutable,
-      };
+    if (src && typeof src === "object" && "uri" in src) {
+      return !src.uri || src.uri.trim() === "";
     }
-    
-    return source || fallbackSource;
+    return !src;
   };
 
-  // Reset states when source changes
-  useEffect(() => {
-    setLoading(true);
-    setHasError(false);
-    
-    // Clear any existing timeout
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
+  const [isLoading, setIsLoading] = useState(() => {
+    if (useDefaultAvatar && isSourceEmpty(source)) {
+      return false;
     }
-    
-    // Set a timeout to prevent infinite loading
-    timeoutRef.current = setTimeout(() => {
-      setLoading(false);
-    }, 10000);
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [source?.uri]);
-
-  const handleLoadStart = useCallback(() => {
-    setLoading(true);
-  }, []);
-
-  const handleLoadEnd = useCallback(() => {
-    setLoading(false);
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    onLoad?.();
-  }, [onLoad]);
-
-  const handleError = useCallback(() => {
-    setLoading(false);
-    setHasError(true);
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    onError?.();
-  }, [onError]);
-
-  return (
-    <View style={[style, styles.container]}>
-      {/* Simple Skeleton Loading State */}
-      {loading && showLoader && !hasError && (
-        <SkeletonPlaceholder style={StyleSheet.absoluteFill} />
-      )}
-
-      {/* FastImage */}
-      <FastImage
-        source={getImageSource()}
-        style={StyleSheet.absoluteFill}
-        resizeMode={FastImage.resizeMode[resizeMode] || FastImage.resizeMode.cover}
-        onLoadStart={handleLoadStart}
-        onLoadEnd={handleLoadEnd}
-        onError={handleError}
-      />
-    </View>
-  );
-};
-
-// 2. BACKGROUND IMAGE COMPONENT
-export const OptimizedImageBackground: React.FC<OptimizedImageProps> = ({
-  source,
-  style,
-  resizeMode = 'cover',
-  priority = 'normal',
-  showLoader = true,
-  fallbackSource = DefaultPlaceholder,
-  onLoad,
-  onError,
-  children,
-}) => {
-  const [loading, setLoading] = useState(true);
+    return !useDefaultAvatar;
+  });
   const [hasError, setHasError] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
-  // Get the image source
-  const getImageSource = () => {
-    if (hasError) {
-      return fallbackSource;
-    }
-    
-    if (source && typeof source === 'object' && source.uri) {
-      return {
-        uri: source.uri,
-        priority: FastImage.priority[priority] || FastImage.priority.normal,
-        cache: FastImage.cacheControl.immutable,
-      };
-    }
-    
-    return source || fallbackSource;
+  const handleLoad = () => {
+    setIsLoading(false);
+    setHasError(false);
+    onLoad?.();
   };
 
-  // Reset states when source changes
-  useEffect(() => {
-    setLoading(true);
-    setHasError(false);
-    
-    // Clear any existing timeout
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    
-    // Set a timeout to prevent infinite loading
-    timeoutRef.current = setTimeout(() => {
-      setLoading(false);
-    }, 10000);
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [source?.uri]);
-
-  const handleLoadStart = useCallback(() => {
-    setLoading(true);
-  }, []);
-
-  const handleLoadEnd = useCallback(() => {
-    setLoading(false);
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    onLoad?.();
-  }, [onLoad]);
-
-  const handleError = useCallback(() => {
-    setLoading(false);
+  const handleError = (error: any) => {
+    setIsLoading(false);
     setHasError(true);
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    onError?.();
-  }, [onError]);
+    onError?.(error);
+  };
 
-  return (
-    <View style={[style, styles.container]}>
-      {/* AnimatedLoader for Background Images */}
-      {loading && showLoader && !hasError && (
-        <View style={styles.loadingContainer}>
-          <AnimatedLoader />
+  const handleRetry = () => {
+    setHasError(false);
+    setIsLoading(true);
+    setRetryKey((prev) => prev + 1);
+  };
+
+  const getImageSource = (): string | ImageSource => {
+    if (isSourceEmpty(source) && useDefaultAvatar) {
+      return DEFAULT_AVATARS[defaultAvatarType];
+    }
+
+    if (hasError && fallbackImage) {
+      return fallbackImage;
+    }
+
+    if (hasError && useDefaultAvatar) {
+      return DEFAULT_AVATARS[defaultAvatarType];
+    }
+
+    if (isSourceEmpty(source) && fallbackImage) {
+      return fallbackImage;
+    }
+
+    return source as string | ImageSource;
+  };
+
+  const getBorderRadiusImageStyle = (): ImageStyle | undefined => {
+    return borderRadius !== undefined ? { borderRadius } : undefined;
+  };
+
+  const getBorderRadiusViewStyle = (): ViewStyle | undefined => {
+    return borderRadius !== undefined ? { borderRadius } : undefined;
+  };
+
+  const containerStyles: StyleProp<ViewStyle>[] = [
+    styles.container,
+    getBorderRadiusViewStyle(),
+  ];
+
+  const imageStyles: StyleProp<ImageStyle>[] = [
+    styles.image,
+    style,
+    getBorderRadiusImageStyle(),
+  ];
+
+  const renderContent = () => {
+    if (hasError && !fallbackImage && !useDefaultAvatar && showErrorFallback) {
+      return (
+        <View style={[styles.errorContainer, getBorderRadiusViewStyle()]}>
+          <Ionicons
+            name="image-outline"
+            size={24}
+            color={colors.gray_regular}
+          />
+          <Text style={styles.errorText}>Failed to load image</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+            <Text style={styles.retryText}>{errorRetryText}</Text>
+          </TouchableOpacity>
         </View>
-      )}
+      );
+    }
 
-      {/* FastImage as Background */}
-      <FastImage
-        source={getImageSource()}
-        style={StyleSheet.absoluteFill}
-        resizeMode={FastImage.resizeMode[resizeMode] || FastImage.resizeMode.cover}
-        onLoadStart={handleLoadStart}
-        onLoadEnd={handleLoadEnd}
-        onError={handleError}
-      />
+    const currentSource = getImageSource();
+    const isUsingDefaultAvatar =
+      useDefaultAvatar && (isSourceEmpty(source) || hasError);
 
-      {/* Children overlay on top of the image */}
-      {children}
-    </View>
-  );
+    return (
+      <>
+        <Image
+          key={retryKey}
+          source={currentSource}
+          style={imageStyles}
+          contentFit={contentFit}
+          placeholder={placeholder}
+          onLoad={isUsingDefaultAvatar ? undefined : handleLoad}
+          onError={isUsingDefaultAvatar ? undefined : handleError}
+          transition={isUsingDefaultAvatar ? 0 : transition}
+          priority={priority}
+          cachePolicy={cachePolicy}
+          accessibilityLabel={accessibilityLabel}
+          recyclingKey={
+            typeof currentSource === "string" ? currentSource : undefined
+          }
+        />
+
+        {isLoading && showLoadingIndicator && (
+          <View style={[styles.loadingContainer, getBorderRadiusViewStyle()]}>
+            <SimpleLoader
+              borderRadius={borderRadius}
+              width="100%"
+              height="100%"
+            />
+          </View>
+        )}
+
+        {overlayComponent && (
+          <View style={styles.overlayContainer}>{overlayComponent}</View>
+        )}
+      </>
+    );
+  };
+
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        style={containerStyles}
+        onPress={onPress}
+        activeOpacity={0.8}
+      >
+        {renderContent()}
+      </TouchableOpacity>
+    );
+  }
+
+  return <View style={containerStyles}>{renderContent()}</View>;
 };
 
-// 3. CARD/LIST IMAGE COMPONENT
+// Background Image Component
+export const OptimizedImageBackground: React.FC<OptimizedImageProps> = ({
+  children,
+  ...props
+}) => {
+  return <OptimizedImage {...props} overlayComponent={children} />;
+};
+
+// Card/List Image Component
 export const OptimizedCardImage: React.FC<OptimizedImageProps> = (props) => (
   <OptimizedImage
     {...props}
     priority="normal"
-    showLoader={true}
+    showLoadingIndicator={true}
     style={[{ borderRadius: 8 }, props.style]}
   />
 );
 
-// 4. HERO/BANNER IMAGE COMPONENT (Using Background)
+// Hero/Banner Image Component
 export const OptimizedHeroImage: React.FC<OptimizedImageProps> = (props) => (
   <OptimizedImageBackground
     {...props}
     priority="high"
-    showLoader={true}
+    showLoadingIndicator={true}
   />
 );
 
-// 5. AVATAR/PROFILE IMAGE COMPONENT
+// Avatar/Profile Image Component
 export const OptimizedAvatar: React.FC<OptimizedImageProps> = (props) => (
   <OptimizedImage
     {...props}
     priority="low"
-    showLoader={false} // Usually too small for loader
+    showLoadingIndicator={false}
     style={[{ borderRadius: 50 }, props.style]}
   />
 );
 
-// 6. ALIAS FOR EASIER MIGRATION (FastImageBackground equivalent)
+// Optimized prefetch function
+const prefetchImages = async (urls: string | string[]): Promise<boolean[]> => {
+  const urlsArray = Array.isArray(urls) ? urls : [urls];
+
+  const validUrls = urlsArray.filter(
+    (url) => url && typeof url === "string" && url.trim() !== ""
+  );
+
+  if (validUrls.length === 0) {
+    return [];
+  }
+
+  return Promise.all(
+    validUrls.map(async (url) => {
+      try {
+        return await Image.prefetch(url, {
+          cachePolicy: "disk",
+          headers: {
+            "Cache-Control": "max-age=31536000, immutable",
+          },
+        });
+      } catch (error) {
+        console.warn(`Failed to prefetch image: ${url}`, error);
+        return false;
+      }
+    })
+  );
+};
+
+const clearImageCache = (): Promise<boolean> => {
+  return Image.clearMemoryCache();
+};
+
+const getImageCacheSize = (): Promise<number> => {
+  console.warn("getCacheSize is not available in expo-image");
+  return Promise.resolve(0);
+};
+
+// Attach static methods to the component
+(OptimizedImage as any).prefetch = prefetchImages;
+(OptimizedImage as any).clearCache = clearImageCache;
+(OptimizedImage as any).getCacheSize = getImageCacheSize;
+
+// Alias for easier migration
 export const FastImageBackground = OptimizedImageBackground;
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#f5f5f5', // Light gray while loading
-    overflow: 'hidden',
-  },
-  loadingContainer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    zIndex: 1,
-  },
-  skeletonContainer: {
-    backgroundColor: '#e1e9ee',
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  skeletonShimmer: {
-    height: '100%',
-    backgroundColor: '#f2f8fc',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-  },
-});
-
-// Export default for easy importing
-export default OptimizedImage;
+export default OptimizedImage as React.FC<OptimizedImageProps> & {
+  prefetch: typeof prefetchImages;
+  clearCache: typeof clearImageCache;
+  getCacheSize: typeof getImageCacheSize;
+};

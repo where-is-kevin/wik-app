@@ -71,6 +71,6 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   nextButtonText: {
-    fontSize: scaleFontSize(16),
+    fontSize: scaleFontSize(18),
   },
 });

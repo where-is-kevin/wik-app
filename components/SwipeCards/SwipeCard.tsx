@@ -6,7 +6,6 @@ import CustomText from "@/components/CustomText";
 import { scaleFontSize } from "@/utilities/scaling";
 import { OptimizedImageBackground } from "../OptimizedImage/OptimizedImage";
 import { CardContentOverlay } from "./CardContentOverlay";
-import AnimatedLoader from "../Loader/AnimatedLoader";
 import { getImageSource } from "@/utilities/imageHelpers";
 import { STATIC_IMAGES } from "@/constants/images";
 
@@ -32,14 +31,13 @@ interface SwipeCardProps {
   animatedStyle?: any;
   colors: any;
   onBucketPress?: (value: string) => void;
-  hideBucketsButton?: boolean;
-  onImageLoad: (itemId: string) => void;
-  onImageError: (itemId: string) => void;
-  imageLoaded: boolean;
+  hideButtons?: boolean;
+  onImageLoad?: (itemId: string) => void;
+  onImageError?: (itemId: string) => void;
 }
 
 export const SwipeCard = React.memo<SwipeCardProps>(
-  ({
+  function SwipeCard({
     item,
     isCurrentCard,
     isNextCard,
@@ -47,42 +45,24 @@ export const SwipeCard = React.memo<SwipeCardProps>(
     animatedStyle,
     colors,
     onBucketPress,
-    hideBucketsButton,
+    hideButtons,
     onImageLoad,
     onImageError,
-    imageLoaded,
-  }) => {
+  }) {
     const imageSource = useMemo(
       () => getImageSource(item.imageUrl),
       [item.imageUrl]
     );
 
     const handleImageLoad = useCallback(() => {
-      onImageLoad(item.id);
+      onImageLoad?.(item.id);
     }, [onImageLoad, item.id]);
 
     const handleImageError = useCallback(() => {
-      onImageError(item.id);
+      onImageError?.(item.id);
     }, [onImageError, item.id]);
 
-    // Show loader for current card while image is loading
-    if (isCurrentCard && !imageLoaded) {
-      return (
-        <View key={item.id} style={styles.loaderContainer}>
-          <AnimatedLoader />
-          {/* Hidden image to trigger loading */}
-          <OptimizedImageBackground
-            source={imageSource}
-            style={{ width: 0, height: 0 }}
-            onLoad={handleImageLoad}
-            onError={handleImageError}
-            showLoader={false}
-            fallbackSource={STATIC_IMAGES.PLACEHOLDER_IMAGE}
-            priority="high"
-          />
-        </View>
-      );
-    }
+    // Removed complex loading logic - let OptimizedImage handle it
 
     const renderCardContent = () => {
       if (isCurrentCard) {
@@ -91,7 +71,7 @@ export const SwipeCard = React.memo<SwipeCardProps>(
             item={item}
             colors={colors}
             onBucketPress={onBucketPress}
-            hideBucketsButton={hideBucketsButton}
+            hideButtons={hideButtons}
           />
         );
       }
@@ -132,10 +112,10 @@ export const SwipeCard = React.memo<SwipeCardProps>(
         <OptimizedImageBackground
           source={imageSource}
           style={styles.cardImage}
-          resizeMode="cover"
+          contentFit="cover"
           priority={isCurrentCard ? "high" : "normal"}
-          showLoader={false}
-          fallbackSource={STATIC_IMAGES.PLACEHOLDER_IMAGE}
+          showLoadingIndicator={false}
+          fallbackImage={STATIC_IMAGES.PLACEHOLDER_IMAGE}
           onLoad={handleImageLoad}
           onError={handleImageError}
         >

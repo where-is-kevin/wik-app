@@ -92,10 +92,10 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
           <OptimizedImage
             source={safeImages[0] ? { uri: safeImages[0] } : PLACEHOLDER_IMAGE}
             style={styles.mainImage}
-            resizeMode="cover"
+            contentFit="cover"
             priority="normal"
-            showLoader={true}
-            fallbackSource={PLACEHOLDER_IMAGE}
+            showLoadingIndicator={true}
+            fallbackImage={PLACEHOLDER_IMAGE}
           />
         </CustomView>
 
@@ -107,10 +107,10 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
                 safeImages[1] ? { uri: safeImages[1] } : PLACEHOLDER_IMAGE
               }
               style={styles.smallImage}
-              resizeMode="cover"
+              contentFit="cover"
               priority="normal"
-              showLoader={true}
-              fallbackSource={PLACEHOLDER_IMAGE}
+              showLoadingIndicator={true}
+              fallbackImage={PLACEHOLDER_IMAGE}
             />
           </CustomView>
 
@@ -122,10 +122,10 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
                 safeImages[2] ? { uri: safeImages[2] } : PLACEHOLDER_IMAGE
               }
               style={styles.smallImage}
-              resizeMode="cover"
+              contentFit="cover"
               priority="normal"
-              showLoader={true}
-              fallbackSource={PLACEHOLDER_IMAGE}
+              showLoadingIndicator={true}
+              fallbackImage={PLACEHOLDER_IMAGE}
             />
           </CustomView>
         </CustomView>

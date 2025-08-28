@@ -45,7 +45,6 @@ export type CreateUserInput = {
   email: string;
   home: string;
   location: string;
-  password: string;
   description: string;
   personalSummary: string;
   onboardingLikes?: string[]; // Array of content IDs that user liked
@@ -55,7 +54,34 @@ export type CreateUserInput = {
 const createUser = async (input: CreateUserInput): Promise<User> => {
   try {
     return await createTimedAjax<User>({
-      url: `${API_URL}/oauth2/user`,
+      url: `${API_URL}/otp/register-request`,
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+      responseType: "json",
+    });
+  } catch (error: any) {
+    if (error?.response) {
+      // Throw the actual API response so it can be accessed in the component
+      throw error.response;
+    }
+    throw error;
+  }
+};
+
+// Validate registration code function
+export type ValidateRegistrationCodeInput = {
+  email: string;
+  otpCode: string;
+};
+
+const validateRegistrationCode = async (input: ValidateRegistrationCodeInput): Promise<any> => {
+  try {
+    return await createTimedAjax<any>({
+      url: `${API_URL}/otp/register-verify`,
       method: "POST",
       headers: {
         accept: "application/json",
@@ -115,6 +141,14 @@ export function useUser() {
 export function useCreateUser() {
   return useMutation({
     mutationFn: createUser,
+  });
+}
+
+// Custom hook for validating registration code
+export function useValidateRegistrationCode() {
+  return useMutation({
+    mutationFn: validateRegistrationCode,
+    retry: false, // Disable retries
   });
 }
 

@@ -39,16 +39,11 @@ interface CardContentOverlayProps {
   item: CardData;
   colors: any;
   onBucketPress?: (value: string) => void;
-  hideBucketsButton?: boolean;
+  hideButtons?: boolean;
 }
 
 export const CardContentOverlay = React.memo<CardContentOverlayProps>(
-  function CardContentOverlay({
-    item,
-    colors,
-    onBucketPress,
-    hideBucketsButton,
-  }) {
+  function CardContentOverlay({ item, colors, onBucketPress, hideButtons }) {
     const handleBucketPress = useCallback(() => {
       onBucketPress?.(item.id);
     }, [onBucketPress, item.id]);
@@ -174,29 +169,34 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
 
         <CustomView bgColor={colors.overlay} style={styles.rightTopSection}>
           <CustomView bgColor={colors.overlay} style={styles.row}>
-            {!hideBucketsButton && (
-              <CustomTouchable
-                style={styles.bucketContainer}
-                bgColor={colors.lime}
-                onPress={handleBucketPress}
-              >
-                <BucketSvg stroke={colors.label_dark} />
-              </CustomTouchable>
-            )}
-            <CustomTouchable bgColor={colors.lime} style={styles.shareButton}>
-              <ShareButton
-                title={""}
-                message={`Check out this bucket: `}
-                url={item.contentShareUrl || ""}
-                IconComponent={() => (
-                  <SendSvgSmall
-                    width={18}
-                    height={18}
-                    stroke={colors.label_dark}
+            {!hideButtons && (
+              <>
+                <CustomTouchable
+                  style={styles.bucketContainer}
+                  bgColor={colors.lime}
+                  onPress={handleBucketPress}
+                >
+                  <BucketSvg stroke={colors.label_dark} />
+                </CustomTouchable>
+                <CustomTouchable
+                  bgColor={colors.lime}
+                  style={styles.shareButton}
+                >
+                  <ShareButton
+                    title={""}
+                    message={`Check out this bucket: `}
+                    url={item.contentShareUrl || ""}
+                    IconComponent={() => (
+                      <SendSvgSmall
+                        width={18}
+                        height={18}
+                        stroke={colors.label_dark}
+                      />
+                    )}
                   />
-                )}
-              />
-            </CustomTouchable>
+                </CustomTouchable>
+              </>
+            )}
           </CustomView>
         </CustomView>
       </View>

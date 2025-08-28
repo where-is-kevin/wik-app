@@ -117,10 +117,10 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
         <OptimizedImage
           source={{ uri: validProfileImageUrl }}
           style={styles.profileImage}
-          resizeMode="cover"
+          contentFit="cover"
           priority="high"
-          showLoader={false} // Avatar usually doesn't need loader as it's small
-          fallbackSource={DEFAULT_PROFILE_IMAGE}
+          showLoadingIndicator={false} // Avatar usually doesn't need loader as it's small
+          fallbackImage={DEFAULT_PROFILE_IMAGE}
         />
       </Animated.View>
 
