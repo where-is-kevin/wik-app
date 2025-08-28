@@ -202,7 +202,11 @@ const BucketDetailsScreen = () => {
 
   // Map navigation handler
   const handleOpenMap = () => {
-    router.push(`/map-screen?source=bucket-single&bucketId=${bucketId}&query=${encodeURIComponent(debouncedSearchQuery)}`);
+    router.push(
+      `/map-screen?source=bucket-single&bucketId=${bucketId}&query=${encodeURIComponent(
+        debouncedSearchQuery
+      )}`
+    );
   };
 
   // Loading state
@@ -312,7 +316,7 @@ const BucketDetailsScreen = () => {
 
       {/* Floating Map Button */}
       {hasBucketContent && hasFilteredResults && (
-        <FloatingMapButton onPress={handleOpenMap} />
+        <FloatingMapButton onPress={handleOpenMap} hasTabBar={false} />
       )}
     </SafeAreaView>
   );

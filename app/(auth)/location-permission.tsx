@@ -3,7 +3,6 @@ import React, { useState } from "react";
 import { StyleSheet } from "react-native";
 import { useLocation } from "@/contexts/LocationContext";
 import { useLocationPermissionGuard } from "@/hooks/useLocationPermissionGuard";
-import * as Location from "expo-location";
 import { router } from "expo-router";
 import CustomText from "@/components/CustomText";
 import CustomView from "@/components/CustomView";
@@ -23,13 +22,11 @@ interface LocationPermissionScreenProps {
 
 const LocationPermissionScreen: React.FC<LocationPermissionScreenProps> = ({
   onPermissionGranted,
-  onSkip,
-  showSkipOption = true,
 }) => {
-  const { requestPermission, permissionStatus } = useLocation();
+  const { errorMsg } = useLocation();
   const { colors } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
-  const { savePermissionStatus } = useLocationPermissionGuard({
+  const { requestLocationPermission } = useLocationPermissionGuard({
     redirectToTabs: false,
     skipLocationCheck: true,
   });
@@ -38,17 +35,14 @@ const LocationPermissionScreen: React.FC<LocationPermissionScreenProps> = ({
     setIsLoading(true);
     
     try {
-      // Use the proper permission request from context
-      const granted = await requestPermission();
+      // Use the modern async permission request
+      const granted = await requestLocationPermission();
       
       if (granted) {
-        await savePermissionStatus("granted");
         onPermissionGranted?.();
-      } else {
-        await savePermissionStatus("denied");
       }
       
-      // Always proceed to tabs
+      // Always proceed to tabs (even if permission denied)
       router.replace("/(tabs)");
     } catch (error) {
       console.error("Location permission error:", error);
@@ -67,6 +61,12 @@ const LocationPermissionScreen: React.FC<LocationPermissionScreenProps> = ({
           based on your location. You'll be asked to grant location access in
           the next step.
         </CustomText>
+
+        {errorMsg && (
+          <CustomText style={[styles.errorText, { color: '#FF6B6B' }]}>
+            {errorMsg}
+          </CustomText>
+        )}
 
         <CustomTouchable
           style={styles.continueButton}
@@ -123,5 +123,11 @@ const styles = StyleSheet.create({
   continueButtonText: {
     fontSize: scaleFontSize(16),
     textAlign: "center",
+  },
+  errorText: {
+    fontSize: scaleFontSize(14),
+    textAlign: "center",
+    marginBottom: 16,
+    paddingHorizontal: 20,
   },
 });

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   FlatList,
@@ -9,7 +9,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useQueryClient } from "@tanstack/react-query";
 import CustomView from "@/components/CustomView";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -24,11 +23,13 @@ import CustomText from "@/components/CustomText";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import { useDeleteUser } from "@/hooks/useDeleteUser";
 import { useAuth } from "@/hooks/useAuth"; // Changed from useAuthGuard
+import AppInfoModal from "@/components/AppInfoModal";
 
 const settingsData = [
   { id: "1", title: "Feedback" },
   { id: "2", title: "Privacy and security" },
   { id: "3", title: "Change password" },
+  { id: "6", title: "App information" },
   { id: "4", title: "Log out" },
   { id: "5", title: "Delete user" },
 ];
@@ -37,9 +38,9 @@ const Settings = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const queryClient = useQueryClient();
   const deleteUserMutation = useDeleteUser();
   const { logout } = useAuth(); // Use the new auth hook
+  const [showAppInfoModal, setShowAppInfoModal] = useState(false);
 
   const handleFeedback = () => {
     router.push("/(settings)");
@@ -57,6 +58,10 @@ const Settings = () => {
   const handleLogout = async () => {
     // console.log("Logging out...");
     await logout(); // Use the auth hook's logout function
+  };
+
+  const handleAppInfo = () => {
+    setShowAppInfoModal(true);
   };
 
   const handleDeleteUser = () => {
@@ -102,6 +107,9 @@ const Settings = () => {
       case "3":
         handleChangePassword();
         break;
+      case "6":
+        handleAppInfo();
+        break;
       case "4":
         handleLogout();
         break;
@@ -144,13 +152,19 @@ const Settings = () => {
           {item.title}
           {item.id === "5" && deleteUserMutation.isPending && " (Deleting...)"}
         </CustomText>
-        {item.id !== "4" && item.id !== "5" && (
+        {item.id === "6" ? (
+          <Ionicons
+            name="information-circle-outline"
+            size={18}
+            color={colors?.event_gray}
+          />
+        ) : item.id !== "4" && item.id !== "5" ? (
           <Ionicons
             name="chevron-forward"
             size={16}
             color={colors?.event_gray}
           />
-        )}
+        ) : null}
       </CustomTouchable>
 
       {index < settingsData.length - 1 && (
@@ -192,6 +206,11 @@ const Settings = () => {
             />
           </CustomView>
         </CustomView>
+
+        <AppInfoModal
+          visible={showAppInfoModal}
+          onClose={() => setShowAppInfoModal(false)}
+        />
       </CustomView>
     </>
   );
@@ -214,7 +233,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: verticalScale(16),
+    paddingVertical: verticalScale(10),
     paddingHorizontal: horizontalScale(16),
   },
   settingText: {
@@ -223,6 +242,10 @@ const styles = StyleSheet.create({
   separator: {
     height: 1,
     width: "100%",
+  },
+  versionContainer: {
+    marginTop: "auto",
+    marginBottom: verticalScale(20),
   },
 });
 

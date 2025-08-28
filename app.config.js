@@ -4,6 +4,8 @@ export default ({ config }) => ({
   ...config, // Merge existing app.json configuration
   android: {
     ...config.android, // Keep existing Android config
+    compileSdkVersion: 35,
+    targetSdkVersion: 35,
     config: {
       ...config.android?.config,
       googleMaps: {
