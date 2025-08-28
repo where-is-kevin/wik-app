@@ -218,16 +218,10 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
     <FastImageBackground
       source={typeof item === "string" ? { uri: item } : item}
       style={[styles.backgroundImage, { height: IMAGE_CONTAINER_HEIGHT }]}
-      resizeMode="cover"
+      contentFit="cover"
       priority="high"
-      showLoader={true}
-    >
-      <SafeAreaView
-        style={[styles.headerContainer, { backgroundColor: colors.overlay }]}
-      >
-        <BackHeader transparent={true} />
-      </SafeAreaView>
-    </FastImageBackground>
+      showLoadingIndicator={true}
+    />
   );
 
   // Bucket functionality handlers
@@ -457,6 +451,13 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
               index,
             })}
           />
+
+          {/* Back Header - Always visible overlay */}
+          <SafeAreaView
+            style={[styles.backHeaderOverlay, { backgroundColor: colors.overlay }]}
+          >
+            <BackHeader transparent={true} />
+          </SafeAreaView>
 
           {/* Image Indicators - Now positioned relative to image container */}
           {images.length > 1 && (
@@ -742,6 +743,14 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     width: "100%",
+    backgroundColor: "transparent",
+  },
+  backHeaderOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
     backgroundColor: "transparent",
   },
   imageIndicators: {

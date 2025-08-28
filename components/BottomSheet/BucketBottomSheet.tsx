@@ -240,10 +240,10 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
               typeof item.image === "string" ? { uri: item.image } : item.image
             }
             style={styles.bucketItemImage}
-            resizeMode="cover"
+            contentFit="cover"
             priority="normal"
-            showLoader={true}
-            fallbackSource={PLACEHOLDER_IMAGE}
+            showLoadingIndicator={true}
+            fallbackImage={PLACEHOLDER_IMAGE}
           />
           <CustomView style={styles.bucketItemContent}>
             <CustomText

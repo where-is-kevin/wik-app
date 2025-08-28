@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View, Platform } from "react-native";
 import CustomText from "../CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
 import { horizontalScale, scaleFontSize } from "@/utilities/scaling";
@@ -36,7 +36,14 @@ export const OnboardingTag: React.FC<OnboardingTagProps> = ({
     >
       {selected && (
         <View style={styles.numberContainer}>
-          <CustomText style={styles.numberText}>{number}</CustomText>
+          <CustomText
+            style={[
+              styles.numberText,
+              Platform.OS === "android" && styles.numberTextAndroid,
+            ]}
+          >
+            {number}
+          </CustomText>
         </View>
       )}
       <View style={styles.contentContainer}>
@@ -60,7 +67,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 9.5,
     borderRadius: 28,
-    minWidth: 140,
     borderWidth: 1,
   },
   numberContainer: {
@@ -76,6 +82,13 @@ const styles = StyleSheet.create({
     color: "#3C62FA",
     fontSize: scaleFontSize(14),
     textAlign: "center",
+    textAlignVertical: "center",
+    includeFontPadding: false,
+    lineHeight: scaleFontSize(14) * 1.1,
+  },
+  numberTextAndroid: {
+    paddingTop: Platform.OS === "android" ? 1 : 0,
+    marginTop: Platform.OS === "android" ? -1 : 0,
   },
   contentContainer: {
     flexDirection: "row",

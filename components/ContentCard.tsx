@@ -61,8 +61,8 @@ const ContentCard: React.FC<ContentCardProps> = ({
           source={validImageUrl ? { uri: validImageUrl } : PLACEHOLDER_IMAGE}
           style={styles.cardImage}
           priority="normal"
-          showLoader={true}
-          fallbackSource={PLACEHOLDER_IMAGE}
+          showLoadingIndicator={true}
+          fallbackImage={PLACEHOLDER_IMAGE}
         />
 
         {/* Top Row with Category Tag and Bucket Button */}

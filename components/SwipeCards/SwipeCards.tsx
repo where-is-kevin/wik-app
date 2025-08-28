@@ -17,6 +17,8 @@ const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;
 const SWIPE_UP_THRESHOLD = 0.25 * SCREEN_HEIGHT;
+const MAX_HORIZONTAL_MOVEMENT = SCREEN_WIDTH * 0.4; // Constrain horizontal movement
+const MAX_VERTICAL_MOVEMENT = SCREEN_HEIGHT * 0.3; // Constrain vertical movement
 const SWIPE_OUT_DURATION = 250;
 const TAP_DURATION_THRESHOLD = 200;
 const MAX_RENDERED_CARDS = 3;
@@ -91,13 +93,18 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   const animatedValues = useMemo(
     () => ({
       rotate: position.x.interpolate({
-        inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
-        outputRange: ["-10deg", "0deg", "10deg"],
+        inputRange: [-MAX_HORIZONTAL_MOVEMENT, 0, MAX_HORIZONTAL_MOVEMENT],
+        outputRange: ["-15deg", "0deg", "15deg"],
         extrapolate: "clamp",
       }),
       scaleUp: position.y.interpolate({
-        inputRange: [-SCREEN_HEIGHT / 4, 0],
-        outputRange: [0.8, 1],
+        inputRange: [-MAX_VERTICAL_MOVEMENT, 0],
+        outputRange: [0.85, 1],
+        extrapolate: "clamp",
+      }),
+      opacity: position.x.interpolate({
+        inputRange: [-MAX_HORIZONTAL_MOVEMENT, 0, MAX_HORIZONTAL_MOVEMENT],
+        outputRange: [0.8, 1, 0.8],
         extrapolate: "clamp",
       }),
     }),
@@ -158,35 +165,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     },
     [onCardTap, router]
   );
-
-  const forceSwipe = useCallback(
-    (direction: "left" | "right" | "up") => {
-      const x =
-        direction === "right"
-          ? SCREEN_WIDTH
-          : direction === "left"
-          ? -SCREEN_WIDTH
-          : 0;
-      const y = direction === "up" ? -SCREEN_HEIGHT : 0;
-
-      Animated.timing(position, {
-        toValue: { x, y },
-        duration: SWIPE_OUT_DURATION,
-        useNativeDriver: true,
-      }).start(() => onSwipeComplete(direction));
-    },
-    [position]
-  );
-
-  const resetPosition = useCallback(() => {
-    Animated.spring(position, {
-      toValue: { x: 0, y: 0 },
-      friction: 4,
-      useNativeDriver: true,
-    }).start();
-    hideAllFeedback();
-    currentGestureCard.current = null;
-  }, [position, hideAllFeedback]);
 
   const onSwipeComplete = useCallback(
     (direction: "left" | "right" | "up") => {
@@ -250,6 +228,36 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     ]
   );
 
+  const forceSwipe = useCallback(
+    (direction: "left" | "right" | "up") => {
+      const x =
+        direction === "right"
+          ? SCREEN_WIDTH
+          : direction === "left"
+          ? -SCREEN_WIDTH
+          : 0;
+      const y = direction === "up" ? -SCREEN_HEIGHT : 0;
+
+      Animated.timing(position, {
+        toValue: { x, y },
+        duration: SWIPE_OUT_DURATION,
+        useNativeDriver: true,
+      }).start(() => onSwipeComplete(direction));
+    },
+    [position, onSwipeComplete]
+  );
+
+  const resetPosition = useCallback(() => {
+    Animated.spring(position, {
+      toValue: { x: 0, y: 0 },
+      tension: 100,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+    hideAllFeedback();
+    currentGestureCard.current = null;
+  }, [position, hideAllFeedback]);
+
   const createPanResponder = useCallback(
     (item: CardData, isCurrentCard: boolean) => {
       return PanResponder.create({
@@ -262,13 +270,31 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
             y: evt.nativeEvent.locationY,
           };
         },
-        onPanResponderMove: (event, gesture) => {
+        onPanResponderMove: (_, gesture) => {
           if (isCurrentCard) {
-            position.setValue({ x: gesture.dx, y: gesture.dy });
-            updateFeedbackOpacity(gesture);
+            // Constrain movement with resistance
+            const constrainedX = Math.max(
+              -MAX_HORIZONTAL_MOVEMENT,
+              Math.min(MAX_HORIZONTAL_MOVEMENT, gesture.dx)
+            );
+            
+            const constrainedY = Math.max(
+              -MAX_VERTICAL_MOVEMENT,
+              Math.min(0, gesture.dy) // Only allow upward movement
+            );
+
+            // Apply resistance when nearing the edges
+            const resistanceFactorX = Math.abs(constrainedX) / MAX_HORIZONTAL_MOVEMENT;
+            const resistanceFactorY = Math.abs(constrainedY) / MAX_VERTICAL_MOVEMENT;
+            
+            const finalX = constrainedX * (1 - resistanceFactorX * 0.3);
+            const finalY = constrainedY * (1 - resistanceFactorY * 0.2);
+
+            position.setValue({ x: finalX, y: finalY });
+            updateFeedbackOpacity({ dx: finalX, dy: finalY });
           }
         },
-        onPanResponderRelease: (event, gesture) => {
+        onPanResponderRelease: (_, gesture) => {
           const touchDuration = Date.now() - touchStartTime.current;
           const distanceMoved = Math.sqrt(
             Math.pow(gesture.dx, 2) + Math.pow(gesture.dy, 2)
@@ -312,6 +338,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     },
     [
       data,
+      position,
       handleCardTap,
       updateFeedbackOpacity,
       hideAllFeedback,
@@ -345,7 +372,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
         const absoluteIndex = cardIndex + relativeIndex;
         const isCurrentCard = absoluteIndex === cardIndex;
         const isNextCard = absoluteIndex === cardIndex + 1;
-        const isCurrentImageLoaded = imageLoaded[item.id];
 
         if (isCurrentCard) {
           const panResponder = createPanResponder(item, true);
@@ -364,6 +390,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
                   { rotate: animatedValues.rotate },
                   { scale: animatedValues.scaleUp },
                 ],
+                opacity: animatedValues.opacity,
                 zIndex: 999,
               }}
               colors={colors}
@@ -371,7 +398,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
               hideButtons={hideButtons}
               onImageLoad={handleImageLoad}
               onImageError={handleImageError}
-              imageLoaded={isCurrentImageLoaded}
             />
           );
         }
@@ -388,7 +414,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
               hideButtons={hideButtons}
               onImageLoad={handleImageLoad}
               onImageError={handleImageError}
-              imageLoaded={imageLoaded[item.id] || false}
             />
           );
         }

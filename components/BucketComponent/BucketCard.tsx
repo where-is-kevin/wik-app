@@ -1,10 +1,8 @@
-import React, { useState } from "react";
-import { StyleSheet, Dimensions } from "react-native";
+import React from "react";
+import { StyleSheet } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
-  horizontalScale,
   scaleFontSize,
-  verticalScale,
 } from "@/utilities/scaling";
 import CustomView from "@/components/CustomView";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
@@ -12,8 +10,6 @@ import CustomText from "@/components/CustomText";
 import ShareButton from "../Button/ShareButton";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
 
-const { width } = Dimensions.get("window");
-const cardWidth = (width - horizontalScale(60)) / 2;
 
 interface ExperienceCard {
   id: string;
@@ -58,10 +54,10 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
                 : safeImages[0]
             }
             style={styles.mainImage}
-            resizeMode="cover"
+            contentFit="cover"
             priority="normal"
-            showLoader={true}
-            fallbackSource={PLACEHOLDER_IMAGE}
+            showLoadingIndicator={true}
+            fallbackImage={PLACEHOLDER_IMAGE}
           />
         </CustomView>
 
@@ -76,10 +72,10 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
                   : safeImages[1]
               }
               style={styles.smallImage}
-              resizeMode="cover"
+              contentFit="cover"
               priority="normal"
-              showLoader={true}
-              fallbackSource={PLACEHOLDER_IMAGE}
+              showLoadingIndicator={true}
+              fallbackImage={PLACEHOLDER_IMAGE}
             />
           </CustomView>
 
@@ -94,10 +90,10 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
                   : safeImages[2]
               }
               style={styles.smallImage}
-              resizeMode="cover"
+              contentFit="cover"
               priority="normal"
-              showLoader={true}
-              fallbackSource={PLACEHOLDER_IMAGE}
+              showLoadingIndicator={true}
+              fallbackImage={PLACEHOLDER_IMAGE}
             />
           </CustomView>
         </CustomView>

@@ -3,7 +3,11 @@ import { StyleSheet, ScrollView } from "react-native";
 import CustomView from "../CustomView";
 import CustomText from "../CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
-import { horizontalScale, scaleFontSize, verticalScale } from "@/utilities/scaling";
+import {
+  horizontalScale,
+  scaleFontSize,
+  verticalScale,
+} from "@/utilities/scaling";
 import { OnboardingTag } from "./OnboardingTag";
 import { OnboardingStep } from "@/constants/onboardingSlides";
 import { commonOnboardingStyles } from "./OnboardingStyles";
@@ -79,31 +83,72 @@ export const OnboardingTagSlide: React.FC<OnboardingTagSlideProps> = ({
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.horizontalTagsContainer}
             >
-              <CustomView style={styles.twoRowContainer}>
+              <CustomView style={styles.threeRowContainer}>
+                {/* First row - 4 tags */}
                 <CustomView style={styles.tagRow}>
-                  {tags.slice(0, 2).map((tag) => (
-                    <OnboardingTag
-                      key={tag.number}
-                      number={tag.number}
-                      text={tag.text}
-                      icon={tag.icon}
-                      selected={selectedIndices.includes(tag.number - 1)}
-                      onPress={() => onSelection(tag.number - 1)}
-                    />
-                  ))}
-                </CustomView>
-                {tags.length > 2 && (
-                  <CustomView style={styles.tagRow}>
-                    {tags.slice(2, 4).map((tag) => (
+                  {tags.slice(0, 4).map((tag) => {
+                    const tagIndex = tag.number - 1;
+                    const isSelected = selectedIndices.includes(tagIndex);
+                    const selectionOrder = isSelected
+                      ? selectedIndices.indexOf(tagIndex) + 1
+                      : tag.number;
+
+                    return (
                       <OnboardingTag
                         key={tag.number}
-                        number={tag.number}
+                        number={selectionOrder}
                         text={tag.text}
                         icon={tag.icon}
-                        selected={selectedIndices.includes(tag.number - 1)}
-                        onPress={() => onSelection(tag.number - 1)}
+                        selected={isSelected}
+                        onPress={() => onSelection(tagIndex)}
                       />
-                    ))}
+                    );
+                  })}
+                </CustomView>
+                {/* Second row - 4 tags */}
+                {tags.length > 4 && (
+                  <CustomView style={styles.tagRow}>
+                    {tags.slice(4, 8).map((tag) => {
+                      const tagIndex = tag.number - 1;
+                      const isSelected = selectedIndices.includes(tagIndex);
+                      const selectionOrder = isSelected
+                        ? selectedIndices.indexOf(tagIndex) + 1
+                        : tag.number;
+
+                      return (
+                        <OnboardingTag
+                          key={tag.number}
+                          number={selectionOrder}
+                          text={tag.text}
+                          icon={tag.icon}
+                          selected={isSelected}
+                          onPress={() => onSelection(tagIndex)}
+                        />
+                      );
+                    })}
+                  </CustomView>
+                )}
+                {/* Third row - up to 4 tags */}
+                {tags.length > 8 && (
+                  <CustomView style={styles.tagRow}>
+                    {tags.slice(8, 12).map((tag) => {
+                      const tagIndex = tag.number - 1;
+                      const isSelected = selectedIndices.includes(tagIndex);
+                      const selectionOrder = isSelected
+                        ? selectedIndices.indexOf(tagIndex) + 1
+                        : tag.number;
+
+                      return (
+                        <OnboardingTag
+                          key={tag.number}
+                          number={selectionOrder}
+                          text={tag.text}
+                          icon={tag.icon}
+                          selected={isSelected}
+                          onPress={() => onSelection(tagIndex)}
+                        />
+                      );
+                    })}
                   </CustomView>
                 )}
               </CustomView>
@@ -140,7 +185,7 @@ const styles = StyleSheet.create({
   horizontalTagsContainer: {
     paddingHorizontal: horizontalScale(24),
   },
-  twoRowContainer: {
+  threeRowContainer: {
     flexDirection: "column",
   },
   tagRow: {

@@ -80,10 +80,10 @@ const LikeCard: React.FC<LikeCardProps> = ({
           <OptimizedImage
             source={validImageUrl ? { uri: validImageUrl } : PLACEHOLDER_IMAGE}
             style={styles.image}
-            resizeMode="cover"
+            contentFit="cover"
             priority="normal"
-            showLoader={true}
-            fallbackSource={PLACEHOLDER_IMAGE}
+            showLoadingIndicator={true}
+            fallbackImage={PLACEHOLDER_IMAGE}
           />
 
           {/* Experience tag in top left */}

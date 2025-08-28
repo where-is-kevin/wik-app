@@ -1,5 +1,5 @@
 import { useContent } from "@/hooks/useContent";
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import { useAddLike } from "@/hooks/useLikes";
 import { getErrorMessage } from "@/utilities/errorUtils";
 import { StyleSheet, TouchableOpacity, Linking } from "react-native";
@@ -26,7 +26,7 @@ import FilterSvg from "@/components/SvgComponents/FilterSvg";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 
 const SwipeableCards = () => {
-  const { location, hasPermission, permissionStatus } = useLocation();
+  const { location, permissionStatus } = useLocation();
   const [selectedFilters, setSelectedFilters] = useState<FilterType[]>([
     "events",
     "venues",
@@ -52,9 +52,9 @@ const SwipeableCards = () => {
 
   // Convert permission status to the format expected by useContent
   const getPermissionStatus = () => {
-    if (permissionStatus === 'granted') return 'granted';
-    if (permissionStatus === 'denied') return 'denied';
-    return 'undetermined';
+    if (permissionStatus === "granted") return "granted";
+    if (permissionStatus === "denied") return "denied";
+    return "undetermined";
   };
 
   const {
@@ -175,7 +175,7 @@ const SwipeableCards = () => {
   const handleComplete = useCallback(() => {
     // console.log("All cards swiped, fetching new content...");
     refetch();
-  }, []);
+  }, [refetch]);
 
   const handleShowBucketBottomSheet = (itemId?: string) => {
     if (itemId) {
@@ -202,7 +202,7 @@ const SwipeableCards = () => {
 
         // console.log(`Successfully added item to bucket "${item.title}"`);
       } catch (error) {
-        // console.error("Failed to add item to bucket:", error);
+        console.error("Failed to add item to bucket:", error);
       }
     }
   };
@@ -252,8 +252,9 @@ const SwipeableCards = () => {
   }
 
   // Check if we're still waiting for location decision
-  const waitingForLocation = getPermissionStatus() === 'undetermined' || 
-    (getPermissionStatus() === 'granted' && !location?.lat && !location?.lon);
+  const waitingForLocation =
+    getPermissionStatus() === "undetermined" ||
+    (getPermissionStatus() === "granted" && !location?.lat && !location?.lon);
 
   // Show loading state
   if (isLoading || waitingForLocation) {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Alert } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useQueryClient } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
 import { useRouter } from "expo-router";
@@ -10,6 +11,9 @@ import { OnboardingPersonalFormSlide } from "@/components/Onboarding/OnboardingP
 import { OnboardingCardSwipeSlide } from "@/components/Onboarding/OnboardingCardSwipeSlide";
 import { OnboardingSwipeUpModal } from "@/components/Modals/OnboardingSwipeUpModal";
 import { OnboardingTagSlide } from "@/components/Onboarding/OnboardingTagSlide";
+import { OnboardingBusinessTagSlide } from "@/components/Onboarding/OnboardingBusinessTagSlide";
+import { OnboardingBusinessPersonalFormSlide } from "@/components/Onboarding/OnboardingBusinessPersonalFormSlide";
+import { OnboardingBusinessWorkFormSlide } from "@/components/Onboarding/OnboardingBusinessWorkFormSlide";
 import { OnboardingFinalSlide } from "@/components/Onboarding/OnboardingFinalSlide";
 import { OnboardingBudgetSlide } from "@/components/Onboarding/OnboardingBudgetSlide";
 import { OnboardingLocationSlide } from "@/components/Onboarding/OnboardingLocationSlide";
@@ -31,6 +35,8 @@ import { useTheme } from "@/contexts/ThemeContext";
 import ArrowLeftSvg from "@/components/SvgComponents/ArrowLeftSvg";
 import NextButton from "@/components/Button/NextButton";
 import { PersonalFormData } from "@/components/Onboarding/OnboardingForm";
+import { BusinessPersonalFormData } from "@/components/Onboarding/OnboardingBusinessPersonalFormSlide";
+import { BusinessWorkFormData } from "@/components/Onboarding/OnboardingBusinessWorkFormSlide";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useCreateUser, useValidateRegistrationCode } from "@/hooks/useUser";
@@ -42,6 +48,7 @@ import { useContent } from "@/hooks/useContent";
 import { CardData } from "@/components/SwipeCards/SwipeCards";
 import { getErrorMessage } from "@/utilities/errorUtils";
 import { verticalScale } from "@/utilities/scaling";
+import * as Location from "expo-location";
 
 const OnboardingScreen = () => {
   const router = useRouter();
@@ -50,6 +57,31 @@ const OnboardingScreen = () => {
     useValidateRegistrationCode();
   const queryClient = useQueryClient();
   const { colors } = useTheme();
+  
+  // Simple navigation function - no complex auth checks during onboarding
+  const navigateAfterAuth = useCallback(async () => {
+    try {
+      console.log("Navigating after onboarding completion...");
+      
+      // Check location permission status
+      const { status } = await Location.getForegroundPermissionsAsync();
+      console.log("Location permission status:", status);
+      
+      if (status === Location.PermissionStatus.GRANTED) {
+        // Permission already granted, go directly to tabs
+        console.log("Permission granted, going to tabs");
+        router.push("/(tabs)");
+      } else {
+        // Permission needed, show permission screen  
+        console.log("Permission needed, showing permission screen");
+        router.push("/(auth)/location-permission");
+      }
+    } catch (error) {
+      console.error("Error checking location permission:", error);
+      // On error, show permission screen to be safe
+      router.push("/(auth)/location-permission");
+    }
+  }, [router]);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [selections, setSelections] = useState<OnboardingSelections>({});
   const [currentFlow, setCurrentFlow] = useState<OnboardingStep[]>([]);
@@ -77,6 +109,17 @@ const OnboardingScreen = () => {
   const [travelEmail, setTravelEmail] = useState<string>("");
   const [travelName, setTravelName] = useState<string>("");
   const [verificationCode, setVerificationCode] = useState<string>("");
+  const [businessPersonalFormData, setBusinessPersonalFormData] = useState<BusinessPersonalFormData>({
+    fullName: "",
+    currentLocation: "",
+    areasOfExpertise: [],
+  });
+  const [businessWorkFormData, setBusinessWorkFormData] = useState<BusinessWorkFormData>({
+    role: "",
+    company: "",
+    industry: "",
+    stage: "",
+  });
 
   const {
     data: content,
@@ -117,7 +160,7 @@ const OnboardingScreen = () => {
         }
 
         // Handle tag selections (step.tags)
-        if (step.type === "tag-selection" && step.tags && Array.isArray(value)) {
+        if ((step.type === "tag-selection" || step.type === "business-tag-selection") && step.tags && Array.isArray(value)) {
           console.log(`🏷️ Processing tag selection for ${key}:`, { 
             value, 
             stepTags: step.tags?.length,
@@ -166,17 +209,32 @@ const OnboardingScreen = () => {
   }), [travelName, travelEmail, selectedLocation, getSelectedOptionsString, swipeLikes, swipeDislikes]);
 
   // Helper function to create user input for business users  
-  const createBusinessUserInput = useCallback((): CreateUserInput => ({
-    firstName: personalFormData.firstName,
-    lastName: personalFormData.lastName,
-    email: personalFormData.email,
-    home: personalFormData.home,
-    location: selectedLocation?.fullName || "",
-    description: getSelectedOptionsString(),
-    personalSummary: personalFormData.personalSummary,
-    onboardingLikes: swipeLikes,
-    onboardingDislikes: swipeDislikes,
-  }), [personalFormData, selectedLocation, getSelectedOptionsString, swipeLikes, swipeDislikes]);
+  const createBusinessUserInput = useCallback((): CreateUserInput => {
+    const [firstName, ...lastNameParts] = businessPersonalFormData.fullName.split(" ");
+    const lastName = lastNameParts.join(" ");
+    
+    // Combine business form data for description
+    const businessDescription = [
+      businessWorkFormData.role && `Role: ${businessWorkFormData.role}`,
+      businessWorkFormData.company && `Company: ${businessWorkFormData.company}`,
+      businessWorkFormData.industry && `Industry: ${businessWorkFormData.industry}`,
+      businessWorkFormData.stage && `Stage: ${businessWorkFormData.stage}`,
+      businessPersonalFormData.areasOfExpertise.length > 0 && `Expertise: ${businessPersonalFormData.areasOfExpertise.join(", ")}`,
+      getSelectedOptionsString()
+    ].filter(Boolean).join(" | ");
+    
+    return {
+      firstName: firstName || "",
+      lastName: lastName || "",
+      email: travelEmail, // Use travel email from the email slide
+      home: "",
+      location: businessPersonalFormData.currentLocation,
+      description: businessDescription,
+      personalSummary: "",
+      onboardingLikes: swipeLikes,
+      onboardingDislikes: swipeDislikes,
+    };
+  }, [businessPersonalFormData, businessWorkFormData, travelEmail, getSelectedOptionsString, swipeLikes, swipeDislikes]);
 
   // Function to handle code validation
   const handleCodeValidation = useCallback(async () => {
@@ -212,10 +270,10 @@ const OnboardingScreen = () => {
             console.log("Authentication data stored successfully");
           }
           
-          router.push("/(tabs)");
+          await navigateAfterAuth();
         } catch (error) {
           console.error("Error storing auth data:", error);
-          router.push("/(tabs)"); // Continue anyway
+          await navigateAfterAuth(); // Continue anyway
         }
       },
       onError: (err: any) => {
@@ -226,7 +284,7 @@ const OnboardingScreen = () => {
         Alert.alert("Verification Failed", errorMessage);
       },
     });
-  }, [verificationCode, travelEmail, validateRegistrationCode, router, queryClient]);
+  }, [verificationCode, travelEmail, validateRegistrationCode, queryClient, navigateAfterAuth]);
 
   const stepData = currentFlow[currentStepIndex];
   const currentSelection = stepData ? selections[stepData.key] : undefined;
@@ -533,7 +591,8 @@ const OnboardingScreen = () => {
     // If we're on travel-email step, call createUser to send OTP before moving to code verification
     if (stepData?.type === "travel-email") {
       try {
-        const userInput = createTravelUserInput();
+        // Use appropriate user input based on user type
+        const userInput = userType === 0 ? createBusinessUserInput() : createTravelUserInput();
 
         createUser(userInput, {
           onSuccess: () => {
@@ -565,19 +624,19 @@ const OnboardingScreen = () => {
       return;
     }
 
-    // Check if we're at the final registration step (personal-form for business)
+    // Check if we're at the final leisure registration step (personal-form)
     if (
       currentStepIndex === currentFlow.length - 1 &&
       stepData?.type === "personal-form"
     ) {
       try {
-        const userInput = createBusinessUserInput();
+        const userInput = createTravelUserInput();
 
         createUser(userInput, {
           onSuccess: async () => {
             try {
-              // For business users, navigate directly to tabs after creation
-              router.push("/(tabs)");
+              // For leisure users, navigate directly to tabs after creation
+              await navigateAfterAuth();
             } catch (error) {
               console.error("Navigation failed after user creation", error);
             }
@@ -690,6 +749,58 @@ const OnboardingScreen = () => {
     );
   };
 
+  const renderBusinessPersonalForm = () => {
+    if (!stepData) return null;
+
+    const handleBusinessPersonalFormChange = (data: BusinessPersonalFormData) => {
+      setBusinessPersonalFormData(data);
+      
+      const isFormValid = data.fullName.trim() !== "" && data.currentLocation.trim() !== "";
+      
+      if (stepData) {
+        setSelections((prev) => ({
+          ...prev,
+          [stepData.key]: isFormValid ? 1 : 0,
+        }));
+      }
+    };
+
+    return (
+      <OnboardingBusinessPersonalFormSlide
+        title={stepData.title}
+        subtitle={stepData.subtitle}
+        onFormChange={handleBusinessPersonalFormChange}
+        initialData={businessPersonalFormData}
+      />
+    );
+  };
+
+  const renderBusinessWorkForm = () => {
+    if (!stepData) return null;
+
+    const handleBusinessWorkFormChange = (data: BusinessWorkFormData) => {
+      setBusinessWorkFormData(data);
+      
+      const isFormValid = data.role.trim() !== "" && data.company.trim() !== "" && data.industry.trim() !== "" && data.stage.trim() !== "";
+      
+      if (stepData) {
+        setSelections((prev) => ({
+          ...prev,
+          [stepData.key]: isFormValid ? 1 : 0,
+        }));
+      }
+    };
+
+    return (
+      <OnboardingBusinessWorkFormSlide
+        title={stepData.title}
+        subtitle={stepData.subtitle}
+        onFormChange={handleBusinessWorkFormChange}
+        initialData={businessWorkFormData}
+      />
+    );
+  };
+
   const renderCardSwipe = () => {
     if (!stepData) return null;
     return (
@@ -714,6 +825,17 @@ const OnboardingScreen = () => {
     if (!stepData) return null;
     return (
       <OnboardingTagSlide
+        stepData={stepData}
+        selectedIndices={selectedIndices}
+        onSelection={handleSelection}
+      />
+    );
+  };
+
+  const renderBusinessTagSelection = () => {
+    if (!stepData) return null;
+    return (
+      <OnboardingBusinessTagSlide
         stepData={stepData}
         selectedIndices={selectedIndices}
         onSelection={handleSelection}
@@ -802,10 +924,16 @@ const OnboardingScreen = () => {
         return renderLocationSelection();
       case "personal-form":
         return renderPersonalForm();
+      case "business-personal-form":
+        return renderBusinessPersonalForm();
+      case "business-work-form":
+        return renderBusinessWorkForm();
       case "card-swipe":
         return renderCardSwipe();
       case "tag-selection":
         return renderTagSelection();
+      case "business-tag-selection":
+        return renderBusinessTagSelection();
       case "final-slide":
         return renderFinalSlide();
       case "travel-email":
@@ -842,6 +970,16 @@ const OnboardingScreen = () => {
       return !travelName.trim();
     }
 
+    // For business personal form step, require full name and location
+    if (stepData?.type === "business-personal-form") {
+      return !businessPersonalFormData.fullName.trim() || !businessPersonalFormData.currentLocation.trim();
+    }
+
+    // For business work form step, require all fields
+    if (stepData?.type === "business-work-form") {
+      return !businessWorkFormData.role.trim() || !businessWorkFormData.company.trim() || !businessWorkFormData.industry.trim() || !businessWorkFormData.stage.trim();
+    }
+
     // For code verification step, require 6-digit code
     if (stepData?.type === "code-slide") {
       return verificationCode.length !== 6;
@@ -874,6 +1012,7 @@ const OnboardingScreen = () => {
       {(stepData?.type === "option-list" ||
         stepData?.type === "budget-selection" ||
         stepData?.type === "tag-selection" ||
+        stepData?.type === "business-tag-selection" ||
         stepData?.type === "location-selection") && (
         <CustomView style={commonOnboardingStyles.progressContainer}>
           <OnboardingProgressBar
@@ -883,6 +1022,7 @@ const OnboardingScreen = () => {
                   step.type === "option-list" ||
                   step.type === "budget-selection" ||
                   step.type === "tag-selection" ||
+                  step.type === "business-tag-selection" ||
                   step.type === "location-selection"
               ).length
             }
@@ -894,6 +1034,7 @@ const OnboardingScreen = () => {
                     step.type === "option-list" ||
                     step.type === "budget-selection" ||
                     step.type === "tag-selection" ||
+                  step.type === "business-tag-selection" ||
                     step.type === "location-selection"
                 ).length - 1
             }
@@ -903,7 +1044,9 @@ const OnboardingScreen = () => {
 
       {renderStepContent()}
 
-      <CustomView
+      <LinearGradient
+        colors={['#FFFFFF', 'rgba(255, 255, 255, 0)']}
+        locations={[0, 1]}
         style={[
           commonOnboardingStyles.footer,
           stepData?.type === "card-swipe"
@@ -940,7 +1083,7 @@ const OnboardingScreen = () => {
               disabled={isNextButtonDisabled() || isPending || isValidating}
             />
           )}
-      </CustomView>
+      </LinearGradient>
 
       {/* Modal for first swipe right */}
       <OnboardingSwipeUpModal
