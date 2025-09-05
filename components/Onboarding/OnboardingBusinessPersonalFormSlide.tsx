@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, TouchableOpacity } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import CustomView from "../CustomView";
 import CustomText from "../CustomText";
@@ -11,6 +11,11 @@ import {
 } from "@/utilities/scaling";
 import { OnboardingSearch } from "./OnboardingSearch";
 import { commonOnboardingStyles } from "./OnboardingStyles";
+import { OnboardingFormLocationModal } from "./OnboardingLocationModal";
+import { OnboardingExpertiseModal } from "./OnboardingExpertiseModal";
+import { LocationData } from "./OnboardingLocationItem";
+import OnboardingSearchSvg from "../SvgComponents/OnboardingSearchSvg";
+import { getExpertiseColor } from "./ExpertiseTagsStore";
 
 interface OnboardingBusinessPersonalFormSlideProps {
   title: string;
@@ -21,16 +26,13 @@ interface OnboardingBusinessPersonalFormSlideProps {
 
 export interface BusinessPersonalFormData {
   fullName: string;
-  currentLocation: string;
+  currentLocation: string | LocationData;
   areasOfExpertise: string[];
 }
 
-export const OnboardingBusinessPersonalFormSlide: React.FC<OnboardingBusinessPersonalFormSlideProps> = ({
-  title,
-  subtitle,
-  onFormChange,
-  initialData,
-}) => {
+export const OnboardingBusinessPersonalFormSlide: React.FC<
+  OnboardingBusinessPersonalFormSlideProps
+> = ({ title, subtitle, onFormChange, initialData }) => {
   const { colors } = useTheme();
   const [formData, setFormData] = useState<BusinessPersonalFormData>(
     initialData || {
@@ -39,11 +41,45 @@ export const OnboardingBusinessPersonalFormSlide: React.FC<OnboardingBusinessPer
       areasOfExpertise: [],
     }
   );
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showExpertiseModal, setShowExpertiseModal] = useState(false);
 
   const updateField = (field: keyof BusinessPersonalFormData, value: any) => {
     const newData = { ...formData, [field]: value };
     setFormData(newData);
     onFormChange(newData);
+  };
+
+  const handleLocationSelect = (location: LocationData) => {
+    updateField("currentLocation", location);
+  };
+
+  const handleExpertiseSelect = (expertise: string[]) => {
+    updateField("areasOfExpertise", expertise);
+  };
+
+  const getLocationDisplayValue = () => {
+    if (
+      typeof formData.currentLocation === "object" &&
+      formData.currentLocation?.name
+    ) {
+      return formData.currentLocation.name;
+    }
+    return typeof formData.currentLocation === "string"
+      ? formData.currentLocation
+      : "";
+  };
+
+  const getLocationForValidation = () => {
+    if (
+      typeof formData.currentLocation === "object" &&
+      formData.currentLocation?.name
+    ) {
+      return formData.currentLocation.name;
+    }
+    return typeof formData.currentLocation === "string"
+      ? formData.currentLocation
+      : "";
   };
 
   return (
@@ -80,10 +116,10 @@ export const OnboardingBusinessPersonalFormSlide: React.FC<OnboardingBusinessPer
         enableResetScrollToCoords={false}
         scrollEnabled={true}
       >
-        {/* Profile Picture Placeholder */}
+        {/* Profile Picture Placeholder
         <CustomView style={styles.profilePictureContainer}>
           <CustomView style={[styles.profilePicture, { backgroundColor: colors.border_gray }]} />
-        </CustomView>
+        </CustomView> */}
 
         {/* Full Name */}
         <CustomView style={styles.inputContainer}>
@@ -104,13 +140,21 @@ export const OnboardingBusinessPersonalFormSlide: React.FC<OnboardingBusinessPer
           <CustomText style={[styles.label, { color: colors.label_dark }]}>
             Current Location
           </CustomText>
-          <OnboardingSearch
-            value={formData.currentLocation}
-            onChangeText={(text) => updateField("currentLocation", text)}
-            placeholder="Start typing and select"
-            showIcon={true}
-            customStyles={{ marginBottom: 0 }}
-          />
+          <TouchableOpacity
+            onPress={() => setShowLocationModal(true)}
+            activeOpacity={0.7}
+          >
+            <CustomView pointerEvents="none">
+              <OnboardingSearch
+                value={getLocationDisplayValue()}
+                onChangeText={() => {}} // Disabled - modal handles input
+                placeholder="Start typing and select"
+                showIcon={true}
+                customStyles={{ marginBottom: 0 }}
+                editable={false}
+              />
+            </CustomView>
+          </TouchableOpacity>
         </CustomView>
 
         {/* Areas of Expertise */}
@@ -118,15 +162,68 @@ export const OnboardingBusinessPersonalFormSlide: React.FC<OnboardingBusinessPer
           <CustomText style={[styles.label, { color: colors.label_dark }]}>
             Areas of Expertise
           </CustomText>
-          <OnboardingSearch
-            value={formData.areasOfExpertise.join(", ")}
-            onChangeText={(text) => updateField("areasOfExpertise", text.split(", ").filter(Boolean))}
-            placeholder="Start typing and select"
-            showIcon={true}
-            customStyles={{ marginBottom: 0 }}
-          />
+          <TouchableOpacity
+            onPress={() => setShowExpertiseModal(true)}
+            activeOpacity={0.7}
+          >
+            <CustomView 
+              style={[
+                styles.expertiseContainer,
+                { borderColor: colors.input_border }
+              ]}
+            >
+              {formData.areasOfExpertise.length > 0 ? (
+                <CustomView style={styles.expertisePills}>
+                  {formData.areasOfExpertise.map((expertise, index) => {
+                    const tagColor = getExpertiseColor(expertise, colors);
+                    
+                    return (
+                      <CustomView 
+                        key={index}
+                        style={[
+                          styles.expertisePill,
+                          { backgroundColor: tagColor }
+                        ]}
+                      >
+                        <CustomText style={styles.expertisePillText}>
+                          {expertise}
+                        </CustomText>
+                      </CustomView>
+                    );
+                  })}
+                </CustomView>
+              ) : (
+                <CustomText style={[styles.placeholderText, { color: colors.gray_regular }]}>
+                  Start typing and select
+                </CustomText>
+              )}
+              <CustomView style={styles.searchIcon}>
+                <OnboardingSearchSvg />
+              </CustomView>
+            </CustomView>
+          </TouchableOpacity>
         </CustomView>
       </KeyboardAwareScrollView>
+
+      {/* Location Modal */}
+      <OnboardingFormLocationModal
+        visible={showLocationModal}
+        onClose={() => setShowLocationModal(false)}
+        onLocationSelect={handleLocationSelect}
+        selectedLocation={
+          typeof formData.currentLocation === "object"
+            ? formData.currentLocation
+            : undefined
+        }
+      />
+
+      {/* Expertise Modal */}
+      <OnboardingExpertiseModal
+        visible={showExpertiseModal}
+        onClose={() => setShowExpertiseModal(false)}
+        onExpertiseSelect={handleExpertiseSelect}
+        selectedExpertise={formData.areasOfExpertise}
+      />
     </CustomView>
   );
 };
@@ -161,5 +258,39 @@ const styles = StyleSheet.create({
     fontSize: scaleFontSize(16),
     fontWeight: "500",
     marginBottom: verticalScale(8),
+  },
+  expertiseContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: "#FFFFFF",
+    minHeight: 44,
+  },
+  expertisePills: {
+    flex: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  expertisePill: {
+    borderRadius: 12,
+    paddingHorizontal: horizontalScale(12),
+    paddingVertical: verticalScale(4),
+    marginBottom: verticalScale(4),
+  },
+  expertisePillText: {
+    color: "#FFFFFF",
+    fontSize: scaleFontSize(12),
+    fontWeight: "500",
+  },
+  placeholderText: {
+    flex: 1,
+    fontSize: scaleFontSize(14),
+  },
+  searchIcon: {
+    padding: horizontalScale(4),
   },
 });

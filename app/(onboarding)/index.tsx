@@ -117,7 +117,7 @@ const OnboardingScreen = () => {
   const [businessWorkFormData, setBusinessWorkFormData] = useState<BusinessWorkFormData>({
     role: "",
     company: "",
-    industry: "",
+    industry: [],
     stage: "",
   });
 
@@ -217,7 +217,7 @@ const OnboardingScreen = () => {
     const businessDescription = [
       businessWorkFormData.role && `Role: ${businessWorkFormData.role}`,
       businessWorkFormData.company && `Company: ${businessWorkFormData.company}`,
-      businessWorkFormData.industry && `Industry: ${businessWorkFormData.industry}`,
+      businessWorkFormData.industry.length > 0 && `Industry: ${businessWorkFormData.industry.join(",")}`,
       businessWorkFormData.stage && `Stage: ${businessWorkFormData.stage}`,
       businessPersonalFormData.areasOfExpertise.length > 0 && `Expertise: ${businessPersonalFormData.areasOfExpertise.join(", ")}`,
       getSelectedOptionsString()
@@ -228,11 +228,19 @@ const OnboardingScreen = () => {
       lastName: lastName || "",
       email: travelEmail, // Use travel email from the email slide
       home: "",
-      location: businessPersonalFormData.currentLocation,
+      location: typeof businessPersonalFormData.currentLocation === 'object' 
+        ? businessPersonalFormData.currentLocation?.name || ''
+        : businessPersonalFormData.currentLocation || '',
       description: businessDescription,
       personalSummary: "",
       onboardingLikes: swipeLikes,
       onboardingDislikes: swipeDislikes,
+      // Add individual business form fields
+      role: businessWorkFormData.role,
+      company: businessWorkFormData.company,
+      industry: businessWorkFormData.industry,
+      stage: businessWorkFormData.stage,
+      areasOfExpertise: businessPersonalFormData.areasOfExpertise,
     };
   }, [businessPersonalFormData, businessWorkFormData, travelEmail, getSelectedOptionsString, swipeLikes, swipeDislikes]);
 
@@ -755,7 +763,10 @@ const OnboardingScreen = () => {
     const handleBusinessPersonalFormChange = (data: BusinessPersonalFormData) => {
       setBusinessPersonalFormData(data);
       
-      const isFormValid = data.fullName.trim() !== "" && data.currentLocation.trim() !== "";
+      const locationValue = typeof data.currentLocation === 'object' 
+        ? data.currentLocation?.name || ''
+        : data.currentLocation || '';
+      const isFormValid = data.fullName.trim() !== "" && locationValue.trim() !== "";
       
       if (stepData) {
         setSelections((prev) => ({
@@ -781,7 +792,7 @@ const OnboardingScreen = () => {
     const handleBusinessWorkFormChange = (data: BusinessWorkFormData) => {
       setBusinessWorkFormData(data);
       
-      const isFormValid = data.role.trim() !== "" && data.company.trim() !== "" && data.industry.trim() !== "" && data.stage.trim() !== "";
+      const isFormValid = data.role.trim() !== "" && data.company.trim() !== "" && data.industry.length > 0 && data.stage.trim() !== "";
       
       if (stepData) {
         setSelections((prev) => ({
@@ -972,12 +983,15 @@ const OnboardingScreen = () => {
 
     // For business personal form step, require full name and location
     if (stepData?.type === "business-personal-form") {
-      return !businessPersonalFormData.fullName.trim() || !businessPersonalFormData.currentLocation.trim();
+      const locationValue = typeof businessPersonalFormData.currentLocation === 'object' 
+        ? businessPersonalFormData.currentLocation?.name || ''
+        : businessPersonalFormData.currentLocation || '';
+      return !businessPersonalFormData.fullName.trim() || !locationValue.trim();
     }
 
     // For business work form step, require all fields
     if (stepData?.type === "business-work-form") {
-      return !businessWorkFormData.role.trim() || !businessWorkFormData.company.trim() || !businessWorkFormData.industry.trim() || !businessWorkFormData.stage.trim();
+      return !businessWorkFormData.role.trim() || !businessWorkFormData.company.trim() || !businessWorkFormData.industry.length || !businessWorkFormData.stage.trim();
     }
 
     // For code verification step, require 6-digit code

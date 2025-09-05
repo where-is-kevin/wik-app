@@ -24,6 +24,7 @@ interface OnboardingSearchProps {
   hasError?: boolean;
   errorMessage?: string;
   customStyles?: ViewStyle;
+  editable?: boolean;
 }
 
 export const OnboardingSearch: React.FC<OnboardingSearchProps> = ({
@@ -40,6 +41,7 @@ export const OnboardingSearch: React.FC<OnboardingSearchProps> = ({
   hasError = false,
   errorMessage,
   customStyles,
+  editable = true,
 }) => {
   const { colors } = useTheme();
   const [isFocused, setIsFocused] = React.useState(false);
@@ -75,6 +77,7 @@ export const OnboardingSearch: React.FC<OnboardingSearchProps> = ({
           autoCorrect={autoCorrect}
           spellCheck={spellCheck}
           autoFocus={autoFocus}
+          editable={editable}
         />
         {showIcon && (
           <CustomView style={styles.searchIconContainer}>
