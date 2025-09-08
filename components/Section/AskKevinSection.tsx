@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomView from "../CustomView";
 import StarSvg from "../SvgComponents/StarSvg";
 import SendSvgSmall from "../SvgComponents/SendSvgSmall";
+import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
 
 type AskKevinSectionProps = {
   onSend?: (message: string) => void;
@@ -29,6 +30,7 @@ type AskKevinSectionProps = {
 const AskKevinSection = ({ onSend, onInputChange }: AskKevinSectionProps) => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { trackButtonClick, trackCustomEvent, trackSearch } = useAnalyticsContext();
   const [input, setInput] = useState("");
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isInputFocused, setIsInputFocused] = useState(false);
@@ -59,14 +61,38 @@ const AskKevinSection = ({ onSend, onInputChange }: AskKevinSectionProps) => {
   const handleSend = () => {
     if (input.trim() === "") return;
 
+    const message = input.trim();
+    
+    // Track Ask Kevin interaction
+    trackButtonClick('ask_kevin_send_button', {
+      message_length: message.length,
+      keyboard_type: Platform.OS,
+      is_focused: isInputFocused
+    });
+    
+    trackSearch(message, {
+      search_type: 'ask_kevin',
+      source: 'ask_kevin_input',
+      query_length: message.length
+    });
+    
+    trackCustomEvent('ask_kevin_query_sent', {
+      query: message,
+      query_length: message.length,
+      timestamp: new Date().toISOString()
+    });
+
     Keyboard.dismiss();
-    onSend?.(input.trim());
+    onSend?.(message);
     setInput("");
   };
 
   const handleInputFocus = () => {
     setIsInputFocused(true);
-    // console.log("AskKevin: Input focused");
+    trackCustomEvent('ask_kevin_input_focused', {
+      platform: Platform.OS,
+      keyboard_height: keyboardHeight
+    });
   };
 
   const handleInputBlur = () => {

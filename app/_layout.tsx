@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { LocationProvider } from "@/contexts/LocationContext";
 import { UXCamProvider } from "@/contexts/UXCamContext";
+import { AnalyticsProvider } from "@/contexts/AnalyticsContext";
 import { PortalProvider } from "@gorhom/portal";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -51,9 +52,10 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <UXCamProvider>
-          <ThemeProvider>
-            <LocationProvider>
-              <PortalProvider>
+          <AnalyticsProvider>
+            <ThemeProvider>
+              <LocationProvider>
+                <PortalProvider>
                 <StatusBar style="dark" />
                 <Stack>
                   {/* Root index handles auth routing */}
@@ -92,9 +94,10 @@ export default function RootLayout() {
                   {/* Fallback screen for undefined routes */}
                   <Stack.Screen name="+not-found" />
                 </Stack>
-              </PortalProvider>
-            </LocationProvider>
-          </ThemeProvider>
+                </PortalProvider>
+              </LocationProvider>
+            </ThemeProvider>
+          </AnalyticsProvider>
         </UXCamProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>

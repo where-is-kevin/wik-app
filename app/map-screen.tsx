@@ -12,10 +12,12 @@ import { BucketBottomSheet } from "@/components/BottomSheet/BucketBottomSheet";
 import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
 import { useMapData, hasLocation } from "@/hooks/useMapData";
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
+import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
 
 const MapScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { trackScreenView, trackButtonClick } = useAnalyticsContext();
 
   // Get source and query from route params, default to likes
   const source = (params.source as string) || "likes";
@@ -61,9 +63,19 @@ const MapScreen = () => {
   const [mapKey, setMapKey] = React.useState(0);
   const [isNavigating, setIsNavigating] = React.useState(false);
 
-  const handleRegionChange = React.useCallback((newRegion: any) => {
+  const handleRegionChange = React.useCallback(() => {
     // Just a simple callback for now
   }, []);
+
+  // Track screen view when component mounts
+  React.useEffect(() => {
+    trackScreenView("map_screen", {
+      source,
+      search_query: searchQuery,
+      bucket_id: bucketId || "none",
+      items_count: data.length,
+    });
+  }, [trackScreenView, source, searchQuery, bucketId, data.length]);
 
   // Initialize region when data is loaded
   React.useEffect(() => {
@@ -138,7 +150,6 @@ const MapScreen = () => {
       });
     }
   };
-
 
   const handleCardPress = React.useCallback(
     (item: any) => {
@@ -234,7 +245,10 @@ const MapScreen = () => {
   return (
     <View style={styles.container}>
       <MapHeader
-        onBack={() => router.back()}
+        onBack={() => {
+          trackButtonClick("map_back_button", { source, screen: "map_screen" });
+          router.back();
+        }}
       />
 
       <CustomMapView

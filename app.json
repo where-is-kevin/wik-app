@@ -15,7 +15,8 @@
         "NSLocationWhenInUseUsageDescription": "Allow Kevin to use your location to show nearby events and content.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow Kevin to use your location to show nearby events and content."
       },
-      "bundleIdentifier": "com.whereiskevin.wikapp"
+      "bundleIdentifier": "com.whereiskevin.wikapp",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
@@ -28,7 +29,8 @@
         "INTERNET"
       ],
       "locationPermissionReason": "Allow Kevin to use your location to show nearby events and content.",
-      "package": "com.whereiskevin.wikapp"
+      "package": "com.whereiskevin.wikapp",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
@@ -38,6 +40,7 @@
     },
     "plugins": [
       "expo-router",
+      "@react-native-firebase/app",
       [
         "expo-font",
         {
@@ -69,6 +72,14 @@
         "expo-image-picker",
         {
           "photosPermission": "The app needs access to your photos to set your profile picture."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
         }
       ]
     ],

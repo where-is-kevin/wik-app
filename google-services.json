@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "415622821466",
+    "project_id": "whereiskevin-7f46c",
+    "storage_bucket": "whereiskevin-7f46c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:415622821466:android:bb3e65c7b82c5d1d0e0a63",
+        "android_client_info": {
+          "package_name": "com.whereiskevin.wikapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCNSokM8VaNW4HLwELa9oo2IYQYsBZixdQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

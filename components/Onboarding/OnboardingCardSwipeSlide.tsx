@@ -14,6 +14,7 @@ import SwipeCardTooltips from "../Tooltips/SwipeCardTooltips";
 import AnimatedLoader from "../Loader/AnimatedLoader";
 import { commonOnboardingStyles } from "./OnboardingStyles";
 import { OnboardingStep } from "@/constants/onboardingSlides";
+import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
 
 interface OnboardingCardSwipeSlideProps {
   stepData: OnboardingStep;
@@ -47,6 +48,71 @@ export const OnboardingCardSwipeSlide: React.FC<
   onRetry,
 }) => {
   const { colors } = useTheme();
+  const { trackSwipe, trackButtonClick, trackContentInteraction } = useAnalyticsContext();
+
+  // Enhanced analytics tracking for onboarding swipes
+  const handleSwipeLeft = (item: CardData) => {
+    trackSwipe('left', 'onboarding_card_swipe', {
+      item_id: item.id,
+      item_title: item.title,
+      item_category: item.category || 'unknown',
+      onboarding_step: stepData.title,
+      swipe_type: 'dislike'
+    });
+    trackContentInteraction('onboarding_card', item.id, 'swipe_left', {
+      step: stepData.title
+    });
+    onSwipeLeft(item);
+  };
+
+  const handleSwipeRight = (item: CardData) => {
+    trackSwipe('right', 'onboarding_card_swipe', {
+      item_id: item.id,
+      item_title: item.title,
+      item_category: item.category || 'unknown',
+      onboarding_step: stepData.title,
+      swipe_type: 'like'
+    });
+    trackContentInteraction('onboarding_card', item.id, 'swipe_right', {
+      step: stepData.title
+    });
+    onSwipeRight(item);
+  };
+
+  const handleSwipeUp = (item: CardData) => {
+    trackSwipe('up', 'onboarding_card_swipe', {
+      item_id: item.id,
+      item_title: item.title,
+      item_category: item.category || 'unknown',
+      onboarding_step: stepData.title,
+      swipe_type: 'save'
+    });
+    trackContentInteraction('onboarding_card', item.id, 'swipe_up', {
+      step: stepData.title
+    });
+    onSwipeUp(item);
+  };
+
+  const handleCardTap = (item: CardData) => {
+    trackButtonClick('onboarding_card_tap', {
+      item_id: item.id,
+      item_title: item.title,
+      item_category: item.category || 'unknown',
+      onboarding_step: stepData.title
+    });
+    trackContentInteraction('onboarding_card', item.id, 'tap', {
+      step: stepData.title
+    });
+    onCardTap(item);
+  };
+
+  const handleRetry = () => {
+    trackButtonClick('onboarding_retry_button', {
+      onboarding_step: stepData.title,
+      error_context: error ? 'content_load_error' : 'empty_state'
+    });
+    onRetry();
+  };
 
   // Show loading state while content is being fetched
   if (isLoading) {
@@ -71,7 +137,7 @@ export const OnboardingCardSwipeSlide: React.FC<
           </CustomText>
           <CustomTouchable
             style={styles.retryButton}
-            onPress={onRetry}
+            onPress={handleRetry}
             bgColor={colors.lime}
           >
             <CustomText style={styles.retryButtonText}>Retry</CustomText>
@@ -93,7 +159,7 @@ export const OnboardingCardSwipeSlide: React.FC<
           </CustomText>
           <CustomTouchable
             style={styles.retryButton}
-            onPress={onRetry}
+            onPress={handleRetry}
             bgColor={colors.lime}
           >
             <CustomText style={styles.retryButtonText}>Refresh</CustomText>
@@ -128,10 +194,10 @@ export const OnboardingCardSwipeSlide: React.FC<
       <CustomView style={styles.swipeContainer}>
         <SwipeCards
           data={cardData}
-          onCardTap={onCardTap}
-          onSwipeLeft={onSwipeLeft}
-          onSwipeRight={onSwipeRight}
-          onSwipeUp={onSwipeUp}
+          onCardTap={handleCardTap}
+          onSwipeLeft={handleSwipeLeft}
+          onSwipeRight={handleSwipeRight}
+          onSwipeUp={handleSwipeUp}
           onComplete={onComplete}
           hideButtons={true}
         />

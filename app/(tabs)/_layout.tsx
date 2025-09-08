@@ -15,9 +15,11 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomText from "../../components/CustomText";
 import { scaleFontSize } from "../../utilities/scaling";
+import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
 
 export default function TabLayout() {
   const { bottom } = useSafeAreaInsets();
+  const { trackNavigation, trackButtonClick } = useAnalyticsContext();
 
   // Individual jiggle values for each tab
   const profileJiggle = useSharedValue(0);
@@ -32,6 +34,23 @@ export default function TabLayout() {
       withTiming(-1.2, { duration: 150 }),
       withTiming(0, { duration: 150 })
     );
+  };
+
+  // Enhanced tab press handlers with analytics
+  const handleTabPress = (tabName: string, jiggleValue: SharedValue<number>) => {
+    triggerJiggle(jiggleValue);
+    
+    // Track tab navigation
+    trackButtonClick(`tab_${tabName}`, {
+      tab_name: tabName,
+      from_screen: 'tabs',
+      interaction_type: 'tab_press'
+    });
+    
+    trackNavigation('tabs', tabName, {
+      navigation_type: 'tab_switch',
+      target_tab: tabName
+    });
   };
 
   // Function to get tab-specific styles
@@ -109,7 +128,7 @@ export default function TabLayout() {
             ),
           }}
           listeners={{
-            tabPress: () => triggerJiggle(profileJiggle),
+            tabPress: () => handleTabPress('profile', profileJiggle),
           }}
         />
         <Tabs.Screen
@@ -136,7 +155,7 @@ export default function TabLayout() {
             ),
           }}
           listeners={{
-            tabPress: () => triggerJiggle(indexJiggle),
+            tabPress: () => handleTabPress('index', indexJiggle),
           }}
         />
         <Tabs.Screen
@@ -168,7 +187,7 @@ export default function TabLayout() {
             ),
           }}
           listeners={{
-            tabPress: () => triggerJiggle(askKevinJiggle),
+            tabPress: () => handleTabPress('ask-kevin', askKevinJiggle),
           }}
         />
         <Tabs.Screen
@@ -198,7 +217,7 @@ export default function TabLayout() {
             ),
           }}
           listeners={{
-            tabPress: () => triggerJiggle(settingsJiggle),
+            tabPress: () => handleTabPress('settings', settingsJiggle),
           }}
         />
       </Tabs>
