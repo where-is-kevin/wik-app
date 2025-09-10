@@ -74,13 +74,12 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
   // Calculate dynamic heights based on your header
   const ESTIMATED_HEADER_HEIGHT = verticalScale(10) + 12 + 24;
-  // Increased the minimum height from 0.3 to 0.45 (45% instead of 30%)
   const PANEL_MIN_HEIGHT = SCREEN_HEIGHT * 0.45;
   const PANEL_MAX_HEIGHT = SCREEN_HEIGHT - insets.top - ESTIMATED_HEADER_HEIGHT;
 
   // Calculate the image container height to stop at the first snap point
   const IMAGE_CONTAINER_HEIGHT =
-    SCREEN_HEIGHT - PANEL_MIN_HEIGHT + verticalScale(16);
+    SCREEN_HEIGHT - PANEL_MIN_HEIGHT + verticalScale(24);
 
   // Bottom sheet setup with dynamic snap points
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -295,20 +294,22 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
     }
 
     console.log("Original URL:", contentData.googleMapsUrl);
-    
+
     // Extract coordinates from the URL
-    const coordsMatch = contentData.googleMapsUrl.match(/query=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
-    
+    const coordsMatch = contentData.googleMapsUrl.match(
+      /query=(-?\d+\.?\d*),(-?\d+\.?\d*)/
+    );
+
     if (coordsMatch && coordsMatch[1] && coordsMatch[2]) {
       const lat = coordsMatch[1];
       const lng = coordsMatch[2];
       console.log("Extracted coordinates:", lat, lng);
 
-      if (Platform.OS === 'ios') {
+      if (Platform.OS === "ios") {
         // For iOS, try Apple Maps first
         const appleMapsUrls = [
           `maps://?q=${lat},${lng}`,
-          `http://maps.apple.com/?q=${lat},${lng}`
+          `http://maps.apple.com/?q=${lat},${lng}`,
         ];
 
         for (const url of appleMapsUrls) {
@@ -337,7 +338,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
         // For Android, use geo intent
         const androidUrls = [
           `geo:${lat},${lng}?q=${lat},${lng}`,
-          `https://maps.google.com/?q=${lat},${lng}`
+          `https://maps.google.com/?q=${lat},${lng}`,
         ];
 
         for (const url of androidUrls) {
@@ -454,7 +455,10 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
           {/* Back Header - Always visible overlay */}
           <SafeAreaView
-            style={[styles.backHeaderOverlay, { backgroundColor: colors.overlay }]}
+            style={[
+              styles.backHeaderOverlay,
+              { backgroundColor: colors.overlay },
+            ]}
           >
             <BackHeader transparent={true} />
           </SafeAreaView>
@@ -755,7 +759,7 @@ const styles = StyleSheet.create({
   },
   imageIndicators: {
     position: "absolute",
-    bottom: 35, // Fixed distance from bottom of image container
+    bottom: verticalScale(35),
     left: 0,
     right: 0,
     flexDirection: "row",

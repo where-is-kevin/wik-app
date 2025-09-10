@@ -11,7 +11,7 @@ import {
 import { Image, ImageSource, ImageContentFit } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/contexts/ThemeContext";
-import SimpleLoader from "@/components/Loader/SimpleLoader";
+import ShimmerLoader from "@/components/Loader/ShimmerLoader";
 
 // Default fallback image - using a simple placeholder
 const DefaultPlaceholder = require("@/assets/images/placeholder-bucket.png");
@@ -245,7 +245,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
 
         {isLoading && showLoadingIndicator && (
           <View style={[styles.loadingContainer, getBorderRadiusViewStyle()]}>
-            <SimpleLoader
+            <ShimmerLoader
               borderRadius={borderRadius}
               width="100%"
               height="100%"

@@ -65,7 +65,8 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 }) => {
   const { colors } = useTheme();
   const router = useRouter();
-  const { trackSwipe, trackButtonClick, trackContentInteraction } = useAnalyticsContext();
+  const { trackSwipe, trackButtonClick, trackContentInteraction } =
+    useAnalyticsContext();
   const [cardIndex, setCardIndex] = useState(0);
   const [imageLoaded, setImageLoaded] = useState<{ [key: string]: boolean }>(
     {}
@@ -75,6 +76,9 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   const position = useRef(new Animated.ValueXY()).current;
   const feedbackOpacity = useRef(new Animated.Value(0)).current;
   const feedbackScale = useRef(new Animated.Value(0.8)).current;
+
+  // Track animation state to prevent position jumping
+  const isAnimating = useRef(false);
 
   const [currentSwipeDirection, setCurrentSwipeDirection] = useState<
     "left" | "right" | "up" | null
@@ -159,19 +163,19 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 
   const handleCardTap = useCallback(
     (item: CardData) => {
-      trackButtonClick('main_card_tap', {
+      trackButtonClick("main_card_tap", {
         item_id: item.id,
         item_title: item.title,
-        item_category: item.category || 'unknown',
+        item_category: item.category || "unknown",
         card_position: cardIndex,
         total_cards: data.length,
-        is_sponsored: item.isSponsored || false
+        is_sponsored: item.isSponsored || false,
       });
-      
-      trackContentInteraction('main_card', item.id, 'tap', {
+
+      trackContentInteraction("main_card", item.id, "tap", {
         position: cardIndex,
         total: data.length,
-        similarity: item.similarity
+        similarity: item.similarity,
       });
 
       if (onCardTap) {
@@ -180,7 +184,14 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
         router.push(`/event-details/${item.id}`);
       }
     },
-    [onCardTap, router, trackButtonClick, trackContentInteraction, cardIndex, data.length]
+    [
+      onCardTap,
+      router,
+      trackButtonClick,
+      trackContentInteraction,
+      cardIndex,
+      data.length,
+    ]
   );
 
   const onSwipeComplete = useCallback(
@@ -200,21 +211,26 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
       if (!item) return;
 
       // Track swipe analytics
-      const swipeType = direction === "right" ? "like" : direction === "left" ? "dislike" : "save";
-      trackSwipe(direction, 'main_card_swipe', {
+      const swipeType =
+        direction === "right"
+          ? "like"
+          : direction === "left"
+          ? "dislike"
+          : "save";
+      trackSwipe(direction, "main_card_swipe", {
         item_id: item.id,
         item_title: item.title,
-        item_category: item.category || 'unknown',
+        item_category: item.category || "unknown",
         swipe_type: swipeType,
         card_position: cardIndex,
         total_cards: data.length,
-        is_sponsored: item.isSponsored || false
+        is_sponsored: item.isSponsored || false,
       });
-      
-      trackContentInteraction('main_card', item.id, `swipe_${direction}`, {
+
+      trackContentInteraction("main_card", item.id, `swipe_${direction}`, {
         position: cardIndex,
         total: data.length,
-        similarity: item.similarity
+        similarity: item.similarity,
       });
 
       try {
@@ -242,10 +258,11 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
             onComplete();
           }, 300);
         } else {
+          // Reset position smoothly after a brief delay to allow swipe animation to complete
           setTimeout(() => {
             position.setValue({ x: 0, y: 0 });
-            hideAllFeedback();
           }, 100);
+          hideAllFeedback();
         }
 
         return nextIndex;
@@ -275,11 +292,15 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
           : 0;
       const y = direction === "up" ? -SCREEN_HEIGHT : 0;
 
+      isAnimating.current = true;
       Animated.timing(position, {
         toValue: { x, y },
         duration: SWIPE_OUT_DURATION,
         useNativeDriver: true,
-      }).start(() => onSwipeComplete(direction));
+      }).start(() => {
+        isAnimating.current = false;
+        onSwipeComplete(direction);
+      });
     },
     [position, onSwipeComplete]
   );
@@ -314,16 +335,18 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
               -MAX_HORIZONTAL_MOVEMENT,
               Math.min(MAX_HORIZONTAL_MOVEMENT, gesture.dx)
             );
-            
+
             const constrainedY = Math.max(
               -MAX_VERTICAL_MOVEMENT,
               Math.min(0, gesture.dy) // Only allow upward movement
             );
 
             // Apply resistance when nearing the edges
-            const resistanceFactorX = Math.abs(constrainedX) / MAX_HORIZONTAL_MOVEMENT;
-            const resistanceFactorY = Math.abs(constrainedY) / MAX_VERTICAL_MOVEMENT;
-            
+            const resistanceFactorX =
+              Math.abs(constrainedX) / MAX_HORIZONTAL_MOVEMENT;
+            const resistanceFactorY =
+              Math.abs(constrainedY) / MAX_VERTICAL_MOVEMENT;
+
             const finalX = constrainedX * (1 - resistanceFactorX * 0.3);
             const finalY = constrainedY * (1 - resistanceFactorY * 0.2);
 
@@ -451,6 +474,9 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
               hideButtons={hideButtons}
               onImageLoad={handleImageLoad}
               onImageError={handleImageError}
+              animatedStyle={{
+                zIndex: 1,
+              }}
             />
           );
         }

@@ -16,22 +16,24 @@ import { OnboardingCompanyModal } from "./OnboardingCompanyModal";
 import { OnboardingIndustryModal } from "./OnboardingIndustryModal";
 import OnboardingSearchSvg from "../SvgComponents/OnboardingSearchSvg";
 
-// Get industry colors (matching the modal colors)
-const getIndustryColor = (industryName: string, colors: any): string => {
-  const industryColors: { [key: string]: string } = {
-    Technology: colors.light_blue,
-    "Tourism and Hospitality": colors.venue_orange,
-    "Travel Tech": colors.label_dark,
-    Healthcare: colors.pink,
-    Finance: colors.legal_green,
-    Education: colors.bordo,
-    Retail: "#9C27B0",
-    Manufacturing: "#FF5722",
-    Consulting: "#607D8B",
-    "Media & Entertainment": "#795548",
-  };
+// Import shared industry functions from modal
+import { getIndustryTags, customIndustryStore, getRandomColor } from "./OnboardingIndustryModal";
 
-  return industryColors[industryName] || colors.light_blue; // Default color
+// Get industry colors (using exact same logic as modal)
+const getIndustryColor = (industryName: string, colors: any): string => {
+  // First check predefined tags
+  const industryTags = getIndustryTags(colors);
+  const predefinedTag = industryTags.find((tag) => tag.name === industryName);
+
+  if (predefinedTag) {
+    return predefinedTag.color;
+  }
+
+  // For custom tags, use shared stored color or generate new one
+  if (!customIndustryStore[industryName]) {
+    customIndustryStore[industryName] = getRandomColor();
+  }
+  return customIndustryStore[industryName];
 };
 
 interface OnboardingBusinessWorkFormSlideProps {

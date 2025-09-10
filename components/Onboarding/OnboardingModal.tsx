@@ -27,12 +27,17 @@ export const OnboardingBlurModal: React.FC<OnboardingBlurModalProps> = ({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="fade"
       transparent={true}
+      statusBarTranslucent
       onRequestClose={onClose}
       presentationStyle="overFullScreen"
     >
-      <BlurView intensity={8} style={styles.overlay}>
+      <BlurView
+        intensity={8}
+        style={styles.overlay}
+        experimentalBlurMethod="dimezisBlurView"
+      >
         <TouchableOpacity
           style={styles.overlay}
           activeOpacity={1}
@@ -77,7 +82,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: "100%",
-    minHeight: verticalScale(278),
+    minHeight: verticalScale(320),
     padding: 15,
     paddingTop: 20,
     flexDirection: "column",

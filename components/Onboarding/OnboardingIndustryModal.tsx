@@ -11,13 +11,13 @@ import {
 import { OnboardingSearch } from "./OnboardingSearch";
 import { OnboardingBlurModal } from "./OnboardingModal";
 
-interface IndustryTag {
+export interface IndustryTag {
   id: string;
   name: string;
   color: string;
 }
 
-const getIndustryTags = (colors: any): IndustryTag[] => [
+export const getIndustryTags = (colors: any): IndustryTag[] => [
   { id: "technology", name: "Technology", color: colors.light_blue },
   { id: "travel-tech", name: "Travel Tech", color: colors.label_dark },
   {
@@ -35,7 +35,7 @@ const getIndustryTags = (colors: any): IndustryTag[] => [
 ];
 
 // Generate random colors for custom tags
-const getRandomColor = () => {
+export const getRandomColor = () => {
   const colors = [
     "#FF9800",
     "#4CAF50",
@@ -48,7 +48,7 @@ const getRandomColor = () => {
 };
 
 // Global store for custom industry tags
-const customIndustryStore: { [key: string]: string } = {};
+export const customIndustryStore: { [key: string]: string } = {};
 
 interface OnboardingIndustryModalProps {
   visible: boolean;
