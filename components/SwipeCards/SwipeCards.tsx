@@ -1,5 +1,5 @@
 // components/SwipeCards.tsx
-import React, { useRef, useState, useCallback, useMemo } from "react";
+import React, { useRef, useState, useCallback, useMemo, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -51,6 +51,7 @@ interface SwipeCardsProps {
   onCardTap?: (item: CardData) => void;
   onBucketPress?: (value: string) => void;
   hideButtons?: boolean;
+  shouldAdvanceOnSwipeUp?: boolean; // New prop to control if swipe up advances card
 }
 
 export const SwipeCards: React.FC<SwipeCardsProps> = ({
@@ -62,15 +63,13 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
   onCardTap,
   onBucketPress,
   hideButtons = false,
+  shouldAdvanceOnSwipeUp = true, // Default to true for backward compatibility
 }) => {
   const { colors } = useTheme();
   const router = useRouter();
   const { trackSwipe, trackButtonClick, trackContentInteraction } =
     useAnalyticsContext();
   const [cardIndex, setCardIndex] = useState(0);
-  const [imageLoaded, setImageLoaded] = useState<{ [key: string]: boolean }>(
-    {}
-  );
 
   // Animation values
   const position = useRef(new Animated.ValueXY()).current;
@@ -79,6 +78,13 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 
   // Track animation state to prevent position jumping
   const isAnimating = useRef(false);
+
+  // Reset position when card index changes
+  useEffect(() => {
+    if (!isAnimating.current) {
+      position.setValue({ x: 0, y: 0 });
+    }
+  }, [cardIndex, position]);
 
   const [currentSwipeDirection, setCurrentSwipeDirection] = useState<
     "left" | "right" | "up" | null
@@ -114,16 +120,16 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
         extrapolate: "clamp",
       }),
     }),
-    [position]
+    [position.x, position.y]
   );
 
   // Callbacks
-  const handleImageLoad = useCallback((itemId: string) => {
-    setImageLoaded((prev) => ({ ...prev, [itemId]: true }));
+  const handleImageLoad = useCallback((_itemId: string) => {
+    // Image load tracking removed to prevent excessive re-renders
   }, []);
 
-  const handleImageError = useCallback((itemId: string) => {
-    setImageLoaded((prev) => ({ ...prev, [itemId]: true }));
+  const handleImageError = useCallback((_itemId: string) => {
+    // Image error tracking removed to prevent excessive re-renders
   }, []);
 
   const updateFeedbackOpacity = useCallback(
@@ -247,26 +253,32 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 
       currentGestureCard.current = null;
 
-      // All swipe directions should advance to the next card
-      setCardIndex((prevIndex) => {
-        const nextIndex = prevIndex + 1;
+      // Check if we should advance the card based on direction and configuration
+      const shouldAdvanceCard = direction !== "up" || shouldAdvanceOnSwipeUp;
+      
+      if (shouldAdvanceCard) {
+        // Advance to the next card
+        setCardIndex((prevIndex) => {
+          const nextIndex = prevIndex + 1;
 
-        if (nextIndex >= data.length) {
-          setTimeout(() => {
-            position.setValue({ x: 0, y: 0 });
+          if (nextIndex >= data.length) {
+            setTimeout(() => {
+              position.setValue({ x: 0, y: 0 });
+              hideAllFeedback();
+              onComplete();
+            }, 300);
+          } else {
+            // Don't reset position - let the new card render with a clean transform
             hideAllFeedback();
-            onComplete();
-          }, 300);
-        } else {
-          // Reset position smoothly after a brief delay to allow swipe animation to complete
-          setTimeout(() => {
-            position.setValue({ x: 0, y: 0 });
-          }, 100);
-          hideAllFeedback();
-        }
+          }
 
-        return nextIndex;
-      });
+          return nextIndex;
+        });
+      } else {
+        // Don't advance card, just reset position and show feedback
+        position.setValue({ x: 0, y: 0 });
+        hideAllFeedback();
+      }
     },
     [
       data,
@@ -279,6 +291,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
       hideAllFeedback,
       trackSwipe,
       trackContentInteraction,
+      shouldAdvanceOnSwipeUp,
     ]
   );
 
@@ -302,7 +315,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
         onSwipeComplete(direction);
       });
     },
-    [position, onSwipeComplete]
+    [position, onSwipeComplete, cardIndex]
   );
 
   const resetPosition = useCallback(() => {
@@ -407,16 +420,15 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
     ]
   );
 
-  // Early return if no data
-  if (!data || data.length === 0) {
-    return (
-      <View style={styles.emptyCardsContainer}>
-        <AnimatedLoader />
-      </View>
-    );
-  }
-
-  const renderCards = () => {
+  const renderCards = useCallback(() => {
+    // Early return if no data
+    if (!data || data.length === 0) {
+      return (
+        <View style={styles.emptyCardsContainer}>
+          <AnimatedLoader />
+        </View>
+      );
+    }
     if (cardIndex >= data.length) {
       return (
         <Animated.View
@@ -476,6 +488,13 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
               onImageError={handleImageError}
               animatedStyle={{
                 zIndex: 1,
+                // Ensure next card is always at center position
+                transform: [
+                  { translateX: 0 },
+                  { translateY: 0 },
+                  { rotate: '0deg' },
+                  { scale: 1 }
+                ],
               }}
             />
           );
@@ -484,7 +503,19 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
         return null;
       })
       .reverse();
-  };
+  }, [
+    data,
+    cardIndex,
+    visibleCards,
+    animatedValues,
+    position,
+    colors,
+    onBucketPress,
+    hideButtons,
+    handleImageLoad,
+    handleImageError,
+    createPanResponder,
+  ]);
 
   return (
     <View style={styles.container}>

@@ -27,6 +27,7 @@ export const OnboardingSwipeUpModal: React.FC<OnboardingSwipeUpModalProps> = ({
       transparent
       animationType="fade"
       onRequestClose={onClose}
+      statusBarTranslucent
     >
       <CustomView style={styles.overlay} bgColor="rgba(0, 0, 0, 0.7)">
         <CustomView

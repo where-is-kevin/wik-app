@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Alert } from "react-native";
+import { Alert, BackHandler } from "react-native";
+import { useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQueryClient } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
@@ -407,6 +408,22 @@ const OnboardingScreen = () => {
       setShowTutorial(false);
     }
   }, [stepData, isContentLoading, content]);
+
+  // Handle Android back button to go to previous slide instead of exiting onboarding
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (currentStepIndex > 0) {
+          setCurrentStepIndex(currentStepIndex - 1);
+          return true; // Prevent default back action
+        }
+        return false; // Allow default back action (exit onboarding)
+      };
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [currentStepIndex])
+  );
 
   const handleFormChange = (formData: PersonalFormData) => {
     setPersonalFormData(formData);

@@ -1,8 +1,8 @@
 import { useContent } from "@/hooks/useContent";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { useAddLike } from "@/hooks/useLikes";
 import { getErrorMessage } from "@/utilities/errorUtils";
-import { StyleSheet, TouchableOpacity, Linking } from "react-native";
+import { StyleSheet, TouchableOpacity, Linking, Alert } from "react-native";
 import CustomView from "@/components/CustomView";
 import { horizontalScale, verticalScale } from "@/utilities/scaling";
 import {
@@ -82,80 +82,93 @@ const SwipeableCards = () => {
   const dislikeMutation = useAddDislike();
 
   // Transform your content data to match SwipeCards interface
+  // Memoize transformedData to prevent recreation on every render
+  const transformedData: CardData[] = useMemo(() => {
+    return content
+      ? content.map((item) => ({
+          id: item.id,
+          title: item.title,
+          imageUrl:
+            item.internalImageUrls && item.internalImageUrls.length > 0
+              ? item.internalImageUrls[0]
+              : item.googlePlacesImageUrl,
+          price: item.price ? item.price.toString() : undefined,
+          rating: item?.rating ? item.rating.toString() : undefined,
+          category: item.category,
+          websiteUrl: item.websiteUrl || "",
+          address: item.address || "",
+          isSponsored: item.isSponsored,
+          contentShareUrl: item.contentShareUrl,
+          tags: item.tags,
+          similarity: item.similarity,
+          distance: item.distance,
+        }))
+      : [];
+  }, [content]);
 
-  // Fixed: Now content is always an array, so we can map directly
-  const transformedData: CardData[] = content
-    ? content.map((item) => ({
-        id: item.id,
-        title: item.title,
-        imageUrl:
-          item.internalImageUrls && item.internalImageUrls.length > 0
-            ? item.internalImageUrls[0]
-            : item.googlePlacesImageUrl,
-        price: item.price ? item.price.toString() : undefined,
-        rating: item?.rating ? item.rating.toString() : undefined,
-        category: item.category,
-        websiteUrl: item.websiteUrl || "",
-        address: item.address || "",
-        isSponsored: item.isSponsored,
-        contentShareUrl: item.contentShareUrl,
-        tags: item.tags,
-        similarity: item.similarity,
-        distance: item.distance,
-      }))
-    : [];
+  const handleLike = useCallback(
+    (item: CardData) => {
+      if (!item) {
+        console.error("No item provided to handleLike");
+        return;
+      }
 
-  const handleLike = (item: CardData) => {
-    if (!item) {
-      console.error("No item provided to handleLike");
-      return;
-    }
+      const likeData = {
+        contentIds: [item.id],
+      };
 
-    const likeData = {
-      contentIds: [item.id],
-    };
+      addLikeMutation.mutate(likeData, {
+        onError: (error) => {
+          console.error("Failed to add like:", error);
+        },
+      });
+    },
+    [addLikeMutation]
+  );
 
-    addLikeMutation.mutate(likeData, {
-      onError: (error) => {
-        console.error("Failed to add like:", error);
-      },
-    });
-  };
+  const handleDislike = useCallback(
+    (item: CardData) => {
+      if (!item) {
+        console.error("No item provided to handleLike");
+        return;
+      }
 
-  const handleDislike = (item: CardData) => {
-    if (!item) {
-      console.error("No item provided to handleLike");
-      return;
-    }
+      const dislikeData = {
+        contentIds: [item.id],
+      };
 
-    const dislikeData = {
-      contentIds: [item.id],
-    };
+      dislikeMutation.mutate(dislikeData, {
+        onError: (error) => {
+          console.error("Failed to add like:", error);
+        },
+      });
+    },
+    [dislikeMutation]
+  );
 
-    dislikeMutation.mutate(dislikeData, {
-      onError: (error) => {
-        console.error("Failed to add like:", error);
-      },
-    });
-  };
+  const handleSwipeLeft = useCallback(
+    (item: CardData) => {
+      if (!item) {
+        console.error("No item provided to handleSwipeLeft");
+        return;
+      }
+      handleDislike(item);
+    },
+    [handleDislike]
+  );
 
-  const handleSwipeLeft = (item: CardData) => {
-    if (!item) {
-      console.error("No item provided to handleSwipeLeft");
-      return;
-    }
-    handleDislike(item);
-  };
+  const handleSwipeRight = useCallback(
+    (item: CardData) => {
+      if (!item) {
+        console.error("No item provided to handleSwipeRight");
+        return;
+      }
+      handleLike(item);
+    },
+    [handleLike]
+  );
 
-  const handleSwipeRight = (item: CardData) => {
-    if (!item) {
-      console.error("No item provided to handleSwipeRight");
-      return;
-    }
-    handleLike(item);
-  };
-
-  const handleSwipeUp = (item: CardData) => {
+  const handleSwipeUp = useCallback((item: CardData) => {
     if (!item) {
       console.error("No item provided to handleSwipeUp");
       return;
@@ -167,9 +180,9 @@ const SwipeableCards = () => {
         // console.error("Failed to open URL:", err);
       });
     } else {
-      // console.log("No website URL available for this item");
+      Alert.alert("No Website", "No website is available for this content.");
     }
-  };
+  }, []);
 
   // Simplified: Just refetch new content when cards are exhausted
   const handleComplete = useCallback(() => {
@@ -177,12 +190,12 @@ const SwipeableCards = () => {
     refetch();
   }, [refetch]);
 
-  const handleShowBucketBottomSheet = (itemId?: string) => {
+  const handleShowBucketBottomSheet = useCallback((itemId?: string) => {
     if (itemId) {
       setSelectedItemId(itemId);
     }
     setIsBucketBottomSheetVisible(true);
-  };
+  }, []);
 
   const handleCloseBucketBottomSheet = () => {
     setIsBucketBottomSheetVisible(false);
@@ -344,6 +357,7 @@ const SwipeableCards = () => {
             onSwipeUp={handleSwipeUp}
             onComplete={handleComplete}
             onBucketPress={handleShowBucketBottomSheet}
+            shouldAdvanceOnSwipeUp={false} // Don't advance card on swipe up in tabs screen
           />
         </CustomView>
       </CustomView>

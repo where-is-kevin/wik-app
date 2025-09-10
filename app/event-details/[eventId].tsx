@@ -253,7 +253,6 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
       }
     }
   };
-  console.log();
 
   const handleShowCreateBucketBottomSheet = () => {
     setIsBucketBottomSheetVisible(false);
