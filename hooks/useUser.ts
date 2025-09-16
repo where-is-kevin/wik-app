@@ -40,16 +40,34 @@ const fetchUser = async (jwt: string): Promise<User> => {
 
 // Create user function
 export type CreateUserInput = {
-  firstName: string;
-  lastName: string;
+  // Common fields (kept for backward compatibility)
+  firstName?: string;
+  lastName?: string;
   email: string;
-  home: string;
-  location: string;
-  description: string;
-  personalSummary: string;
+  home?: string;
+  location?: string;
+  description?: string;
+  personalSummary?: string;
   onboardingLikes?: string[]; // Array of content IDs that user liked
   onboardingDislikes?: string[]; // Array of content IDs that user disliked
-  // Business form fields
+
+  // New structured fields
+  type?: "leisure" | "business";
+  fullName?: string;
+
+  // Leisure-specific fields
+  travelingReason?: string[];
+  travelingTags?: string[];
+  minBudget?: number;
+  maxBudget?: number;
+  currency?: string;
+
+  // Business-specific fields
+  travelingGoal?: string[];
+  connectionTags?: string[];
+  industryTags?: string[];
+  networkingStyle?: string[];
+  currentLocation?: string;
   role?: string;
   company?: string;
   industry?: string[];

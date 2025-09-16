@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  StyleSheet,
-  TouchableWithoutFeedback,
-  Keyboard,
-} from "react-native";
+import { StyleSheet, TouchableWithoutFeedback, Keyboard } from "react-native";
 import {
   CodeField,
   Cursor,
@@ -38,9 +34,9 @@ export const OnboardingCodeSlide: React.FC<OnboardingCodeSlideProps> = ({
   email,
 }) => {
   const { colors } = useTheme();
-  const [timeLeft, setTimeLeft] = useState(59);
+  const [timeLeft, setTimeLeft] = useState(30);
   const [canResend, setCanResend] = useState(false);
-  const ref = useBlurOnFulfill({value: code, cellCount: 6});
+  const ref = useBlurOnFulfill({ value: code, cellCount: 6 });
   const [props, getCellOnLayoutHandler] = useClearByFocusCell({
     value: code,
     setValue: onCodeChange,
@@ -110,16 +106,16 @@ export const OnboardingCodeSlide: React.FC<OnboardingCodeSlideProps> = ({
           textContentType="oneTimeCode"
           autoComplete="sms-otp"
           autoFocus={true}
-          renderCell={({index, symbol, isFocused}) => (
+          renderCell={({ index, symbol, isFocused }) => (
             <CustomText
               key={index}
               style={[
                 styles.codeInput,
                 {
-                  borderColor: isFocused 
-                    ? colors.light_blue 
-                    : symbol 
-                    ? colors.light_blue 
+                  borderColor: isFocused
+                    ? colors.light_blue
+                    : symbol
+                    ? colors.light_blue
                     : colors.input_border,
                   color: colors.label_dark,
                 },

@@ -25,6 +25,7 @@ import FilterModal, { FilterType } from "@/components/FilterModal/FilterModal";
 import FilterSvg from "@/components/SvgComponents/FilterSvg";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
+import ModeHeader from "@/components/Header/ModeHeader";
 
 const SwipeableCards = () => {
   const { location, permissionStatus } = useLocation();
@@ -321,9 +322,10 @@ const SwipeableCards = () => {
   if (!transformedData.length) {
     return (
       <>
+        <ModeHeader />
         <CustomView style={styles.content}>
           <CustomTouchable
-            style={[styles.filterSvgButton, { marginTop: insets.top }]}
+            style={styles.filterSvgButton}
             onPress={() => setIsFilterModalVisible(true)}
           >
             <CustomView style={styles.filterSvgContainer}>
@@ -372,9 +374,10 @@ const SwipeableCards = () => {
 
   return (
     <>
+      <ModeHeader />
       <CustomView style={styles.content}>
         <CustomTouchable
-          style={[styles.filterSvgButton, { marginTop: insets.top }]}
+          style={styles.filterSvgButton}
           onPress={() => setIsFilterModalVisible(true)}
         >
           <CustomView style={styles.filterSvgContainer}>
@@ -518,8 +521,8 @@ const styles = StyleSheet.create({
     paddingBottom: verticalScale(5),
   },
   filterSvgButton: {
-    paddingVertical: verticalScale(4),
-    marginBottom: verticalScale(5),
+    marginTop: verticalScale(16),
+    marginBottom: verticalScale(10),
     alignSelf: "flex-end",
   },
   filterSvgContainer: {

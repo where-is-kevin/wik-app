@@ -11,6 +11,7 @@ import { LocationProvider } from "@/contexts/LocationContext";
 import { UXCamProvider } from "@/contexts/UXCamContext";
 import { AnalyticsProvider } from "@/contexts/AnalyticsContext";
 import { PortalProvider } from "@gorhom/portal";
+import { ModeProvider } from "@/contexts/ModeContext";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -56,44 +57,49 @@ export default function RootLayout() {
             <ThemeProvider>
               <LocationProvider>
                 <PortalProvider>
-                <StatusBar style="dark" />
-                <Stack>
-                  {/* Root index handles auth routing */}
-                  <Stack.Screen name="index" options={{ headerShown: false }} />
-                  {/* Authentication screens */}
-                  <Stack.Screen
-                    name="(auth)"
-                    options={{ headerShown: false }}
-                  />
-                  {/* Onboarding screens */}
-                  <Stack.Screen
-                    name="(onboarding)"
-                    options={{ headerShown: false }}
-                  />
-                  {/* Main tab navigation */}
-                  <Stack.Screen
-                    name="(tabs)"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="(profile)"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="(settings)"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="event-details/[eventId]"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="map-screen"
-                    options={{ headerShown: false }}
-                  />
-                  {/* Fallback screen for undefined routes */}
-                  <Stack.Screen name="+not-found" />
-                </Stack>
+                  <ModeProvider>
+                    <StatusBar style="dark" />
+                    <Stack>
+                      {/* Root index handles auth routing */}
+                      <Stack.Screen
+                        name="index"
+                        options={{ headerShown: false }}
+                      />
+                      {/* Authentication screens */}
+                      <Stack.Screen
+                        name="(auth)"
+                        options={{ headerShown: false }}
+                      />
+                      {/* Onboarding screens */}
+                      <Stack.Screen
+                        name="(onboarding)"
+                        options={{ headerShown: false }}
+                      />
+                      {/* Main tab navigation */}
+                      <Stack.Screen
+                        name="(tabs)"
+                        options={{ headerShown: false }}
+                      />
+                      <Stack.Screen
+                        name="(profile)"
+                        options={{ headerShown: false }}
+                      />
+                      <Stack.Screen
+                        name="(settings)"
+                        options={{ headerShown: false }}
+                      />
+                      <Stack.Screen
+                        name="event-details/[eventId]"
+                        options={{ headerShown: false }}
+                      />
+                      <Stack.Screen
+                        name="map-screen"
+                        options={{ headerShown: false }}
+                      />
+                      {/* Fallback screen for undefined routes */}
+                      <Stack.Screen name="+not-found" />
+                    </Stack>
+                  </ModeProvider>
                 </PortalProvider>
               </LocationProvider>
             </ThemeProvider>

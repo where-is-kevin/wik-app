@@ -30,6 +30,8 @@ interface MasonryGridProps {
   // Optional scroll props
   showVerticalScrollIndicator?: boolean;
   contentContainerStyle?: object;
+  // Scroll direction tracking
+  onScroll?: (event: any) => void;
 }
 
 const MasonryGrid: React.FC<MasonryGridProps> = ({
@@ -43,6 +45,7 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
   onRefresh,
   showVerticalScrollIndicator = false,
   contentContainerStyle,
+  onScroll,
 }) => {
   const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
@@ -72,8 +75,8 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
   const renderColumn = useCallback(
     (columnData: LikeItem[]) => (
       <View style={styles.columnContainer}>
-        {columnData.map((item) => (
-          <View key={item.id} style={{ marginBottom: 0 }}>
+        {columnData.map((item, index) => (
+          <View key={item.id}>
             <LikeCard
               onBucketPress={() => onBucketPress(item.id)}
               item={item}
@@ -125,6 +128,9 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
       keyExtractor={keyExtractor}
       showsVerticalScrollIndicator={showVerticalScrollIndicator}
       contentContainerStyle={[styles.container, contentContainerStyle]}
+      // Scroll tracking
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       // Refresh Control
       refreshControl={
         onRefresh ? (
@@ -151,15 +157,17 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
 
 const styles = {
   container: {
-    paddingHorizontal: horizontalScale(16),
+    paddingHorizontal: horizontalScale(24),
+    paddingLeft: horizontalScale(22),
   },
   columnsContainer: {
     flexDirection: "row" as const,
-    gap: 16,
+    gap: 10,
     alignItems: "flex-start" as const,
+    justifyContent: "space-between" as const,
   },
   columnContainer: {
-    flex: 1,
+    width: 160,
   },
   footerLoader: {
     paddingVertical: verticalScale(20),

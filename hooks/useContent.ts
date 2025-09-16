@@ -33,6 +33,7 @@ type Content = {
   contentShareUrl: string;
   similarity: number;
   distance?: number;
+  eventDatetime?: string;
 };
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;

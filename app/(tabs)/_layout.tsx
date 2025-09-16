@@ -37,19 +37,22 @@ export default function TabLayout() {
   };
 
   // Enhanced tab press handlers with analytics
-  const handleTabPress = (tabName: string, jiggleValue: SharedValue<number>) => {
+  const handleTabPress = (
+    tabName: string,
+    jiggleValue: SharedValue<number>
+  ) => {
     triggerJiggle(jiggleValue);
-    
+
     // Track tab navigation
     trackButtonClick(`tab_${tabName}`, {
       tab_name: tabName,
-      from_screen: 'tabs',
-      interaction_type: 'tab_press'
+      from_screen: "tabs",
+      interaction_type: "tab_press",
     });
-    
-    trackNavigation('tabs', tabName, {
-      navigation_type: 'tab_switch',
-      target_tab: tabName
+
+    trackNavigation("tabs", tabName, {
+      navigation_type: "tab_switch",
+      target_tab: tabName,
     });
   };
 
@@ -128,7 +131,7 @@ export default function TabLayout() {
             ),
           }}
           listeners={{
-            tabPress: () => handleTabPress('profile', profileJiggle),
+            tabPress: () => handleTabPress("profile", profileJiggle),
           }}
         />
         <Tabs.Screen
@@ -155,7 +158,7 @@ export default function TabLayout() {
             ),
           }}
           listeners={{
-            tabPress: () => handleTabPress('index', indexJiggle),
+            tabPress: () => handleTabPress("index", indexJiggle),
           }}
         />
         <Tabs.Screen
@@ -187,7 +190,7 @@ export default function TabLayout() {
             ),
           }}
           listeners={{
-            tabPress: () => handleTabPress('ask-kevin', askKevinJiggle),
+            tabPress: () => handleTabPress("ask-kevin", askKevinJiggle),
           }}
         />
         <Tabs.Screen
@@ -217,7 +220,7 @@ export default function TabLayout() {
             ),
           }}
           listeners={{
-            tabPress: () => handleTabPress('settings', settingsJiggle),
+            tabPress: () => handleTabPress("settings", settingsJiggle),
           }}
         />
       </Tabs>
@@ -243,7 +246,7 @@ const styles = StyleSheet.create({
     minWidth: 108,
   },
   focusedTabBackground: {
-    backgroundColor: "rgba(118, 75, 250, 0.1)",
+    backgroundColor: "#F5F5FF",
   },
   tabBarLabel: {
     fontSize: scaleFontSize(12),

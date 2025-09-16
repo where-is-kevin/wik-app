@@ -5,7 +5,6 @@ import CustomText from "@/components/CustomText";
 import CustomTouchable from "./CustomTouchableOpacity";
 import { useTheme } from "@/contexts/ThemeContext";
 import CategoryTag from "./Tag/CategoryTag";
-import BucketSvg from "./SvgComponents/BucketSvg";
 import OptimizedImage from "./OptimizedImage/OptimizedImage";
 import {
   scaleFontSize,
@@ -13,6 +12,7 @@ import {
   verticalScale,
 } from "@/utilities/scaling";
 import { formatDistance } from "@/utilities/formatDistance";
+import PinBucketSvg from "./SvgComponents/PinBucketSvg";
 
 interface ContentCardProps {
   item: any;
@@ -81,7 +81,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
             style={[styles.actionButton, { backgroundColor: colors.lime }]}
             onPress={handleBucketPress}
           >
-            <BucketSvg stroke={colors.label_dark} />
+            <PinBucketSvg />
           </TouchableOpacity>
         </View>
       </View>
@@ -126,7 +126,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
               )}
             </>
           )}
-          
+
           {!!item.price && (
             <>
               <CustomText style={styles.distance}>{item.price}</CustomText>
@@ -135,7 +135,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
               )}
             </>
           )}
-          
+
           {!!item.distance && (
             <CustomText style={styles.distance}>
               {formatDistance(item.distance)}

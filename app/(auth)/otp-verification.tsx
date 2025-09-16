@@ -46,7 +46,7 @@ const OTPVerificationScreen = () => {
 
   const [value, setValue] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [timeLeft, setTimeLeft] = useState(59);
+  const [timeLeft, setTimeLeft] = useState(30);
   const [canResend, setCanResend] = useState(false);
 
   const AUTH_TOKEN_KEY = "authToken";
@@ -133,7 +133,7 @@ const OTPVerificationScreen = () => {
         },
         onError: (err: any) => {
           console.error("OTP verification error:", err);
-          
+
           logEvent("otp_verify_failed", {
             email: email as string,
             error:
@@ -284,7 +284,7 @@ const OTPVerificationScreen = () => {
                             },
                             onError: (err: any) => {
                               console.error("Resend OTP error:", err);
-                              
+
                               logEvent("resend_otp_failed", {
                                 email: email as string,
                                 error:
@@ -292,7 +292,7 @@ const OTPVerificationScreen = () => {
                                   err?.response?.data?.detail ||
                                   "Resend failed",
                               });
-                              
+
                               // Always show user-friendly error message regardless of server error
                               setErrorMessage(
                                 "Failed to resend code. Please try again."

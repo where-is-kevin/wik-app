@@ -200,54 +200,114 @@ const OnboardingScreen = () => {
     return results.join(" | ");
   }, [selections]);
 
-  // Helper function to create user input for travel users
-  const createTravelUserInput = useCallback((): CreateUserInput => ({
-    firstName: travelName.split(" ")[0] || travelName,
-    lastName: travelName.split(" ").slice(1).join(" ") || "",
-    email: travelEmail,
-    home: "",
-    location: selectedLocation?.fullName || "",
-    description: getSelectedOptionsString(),
-    personalSummary: "",
-    onboardingLikes: swipeLikes,
-    onboardingDislikes: swipeDislikes,
-  }), [travelName, travelEmail, selectedLocation, getSelectedOptionsString, swipeLikes, swipeDislikes]);
+  // Helper function to remove emojis from text (remove emoji at start + any trailing space)
+  const removeEmojis = (text: string): string => {
+    // Remove emoji(s) at the start of the string, including complex emojis with variation selectors and ZWJ sequences
+    return text.replace(/^[\u{1F000}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]+\s*/gu, '');
+  };
 
-  // Helper function to create user input for business users  
-  const createBusinessUserInput = useCallback((): CreateUserInput => {
-    const [firstName, ...lastNameParts] = businessPersonalFormData.fullName.split(" ");
-    const lastName = lastNameParts.join(" ");
-    
-    // Combine business form data for description
-    const businessDescription = [
-      businessWorkFormData.role && `Role: ${businessWorkFormData.role}`,
-      businessWorkFormData.company && `Company: ${businessWorkFormData.company}`,
-      businessWorkFormData.industry.length > 0 && `Industry: ${businessWorkFormData.industry.join(",")}`,
-      businessWorkFormData.stage && `Stage: ${businessWorkFormData.stage}`,
-      businessPersonalFormData.areasOfExpertise.length > 0 && `Expertise: ${businessPersonalFormData.areasOfExpertise.join(", ")}`,
-      getSelectedOptionsString()
-    ].filter(Boolean).join(" | ");
-    
+  // Helper function to create user input for leisure users
+  const createTravelUserInput = useCallback((): CreateUserInput => {
+    // Extract traveling reasons from selections
+    const travelingReasonStep = onboardingSteps.find(step => step.key === 'personalTravelReason');
+    const travelingReasonSelection = selections['personalTravelReason'];
+    const travelingReason = Array.isArray(travelingReasonSelection)
+      ? travelingReasonSelection.map(index => {
+          const option = travelingReasonStep?.options?.[index];
+          return option ? removeEmojis(option) : undefined;
+        }).filter((item): item is string => Boolean(item))
+      : travelingReasonStep?.options?.[travelingReasonSelection as number] ? [removeEmojis(travelingReasonStep.options[travelingReasonSelection as number])] : [];
+
+    // Extract traveling tags from selections (personalTravelFrequency is the tag selection step)
+    const travelingTagsStep = onboardingSteps.find(step => step.key === 'personalTravelFrequency');
+    const travelingTagsSelection = selections['personalTravelFrequency'];
+    const travelingTags = Array.isArray(travelingTagsSelection)
+      ? travelingTagsSelection.map(index => {
+          const tag = travelingTagsStep?.tags?.find(t => t.number === index + 1);
+          return tag?.text; // tag.text doesn't have emojis - emojis are in tag.icon
+        }).filter((item): item is string => Boolean(item))
+      : [];
+
     return {
-      firstName: firstName || "",
-      lastName: lastName || "",
-      email: travelEmail, // Use travel email from the email slide
-      home: "",
-      location: typeof businessPersonalFormData.currentLocation === 'object' 
-        ? businessPersonalFormData.currentLocation?.name || ''
-        : businessPersonalFormData.currentLocation || '',
-      description: businessDescription,
-      personalSummary: "",
+      type: "leisure",
+      travelingReason: travelingReason,
+      travelingTags: travelingTags,
+      minBudget: budgetRange.min,
+      maxBudget: budgetRange.max,
+      currency: "USD",
+      location: selectedLocation?.fullName || "current location",
       onboardingLikes: swipeLikes,
       onboardingDislikes: swipeDislikes,
-      // Add individual business form fields
+      fullName: travelName,
+      email: travelEmail,
+    };
+  }, [travelName, travelEmail, selectedLocation, selections, budgetRange, swipeLikes, swipeDislikes]);
+
+  // Helper function to create user input for business users
+  const createBusinessUserInput = useCallback((): CreateUserInput => {
+    // Extract traveling goals from selections
+    const travelingGoalStep = onboardingSteps.find(step => step.key === 'businessTravelReason');
+    const travelingGoalSelection = selections['businessTravelReason'];
+    const travelingGoal = Array.isArray(travelingGoalSelection)
+      ? travelingGoalSelection.map(index => {
+          const option = travelingGoalStep?.options?.[index];
+          return option ? removeEmojis(option) : undefined;
+        }).filter((item): item is string => Boolean(item))
+      : travelingGoalStep?.options?.[travelingGoalSelection as number] ? [removeEmojis(travelingGoalStep.options[travelingGoalSelection as number])] : [];
+
+    // Extract connection tags from selections
+    const connectionTagsStep = onboardingSteps.find(step => step.key === 'businessConnections');
+    const connectionTagsSelection = selections['businessConnections'];
+    const connectionTags = Array.isArray(connectionTagsSelection)
+      ? connectionTagsSelection.map(index => {
+          const tag = connectionTagsStep?.tags?.find(t => t.number === index + 1);
+          return tag?.text; // tag.text doesn't have emojis - emojis are in tag.icon
+        }).filter((item): item is string => Boolean(item))
+      : [];
+
+    // Extract industry tags from selections
+    const industryTagsStep = onboardingSteps.find(step => step.key === 'businessIndustries');
+    const industryTagsSelection = selections['businessIndustries'];
+    const industryTags = Array.isArray(industryTagsSelection)
+      ? industryTagsSelection.map(index => {
+          const tag = industryTagsStep?.tags?.find(t => t.number === index + 1);
+          return tag?.text; // tag.text doesn't have emojis - emojis are in tag.icon
+        }).filter((item): item is string => Boolean(item))
+      : [];
+
+    // Extract networking style from selections
+    const networkingStyleStep = onboardingSteps.find(step => step.key === 'businessNetworkStyle');
+    const networkingStyleSelection = selections['businessNetworkStyle'];
+    const networkingStyle = Array.isArray(networkingStyleSelection)
+      ? networkingStyleSelection.map(index => {
+          const option = networkingStyleStep?.options?.[index];
+          return option ? removeEmojis(option) : undefined;
+        }).filter((item): item is string => Boolean(item))
+      : networkingStyleStep?.options?.[networkingStyleSelection as number] ? [removeEmojis(networkingStyleStep.options[networkingStyleSelection as number])] : [];
+
+    const currentLocation = typeof businessPersonalFormData.currentLocation === 'object'
+      ? businessPersonalFormData.currentLocation?.name || ''
+      : businessPersonalFormData.currentLocation || '';
+
+    return {
+      type: "business",
+      travelingGoal: travelingGoal,
+      connectionTags: connectionTags,
+      industryTags: industryTags,
+      networkingStyle: networkingStyle,
+      location: selectedLocation?.fullName || currentLocation,
+      onboardingLikes: swipeLikes,
+      onboardingDislikes: swipeDislikes,
+      fullName: businessPersonalFormData.fullName,
+      currentLocation: currentLocation,
+      areasOfExpertise: businessPersonalFormData.areasOfExpertise,
       role: businessWorkFormData.role,
       company: businessWorkFormData.company,
       industry: businessWorkFormData.industry,
       stage: businessWorkFormData.stage,
-      areasOfExpertise: businessPersonalFormData.areasOfExpertise,
+      email: travelEmail,
     };
-  }, [businessPersonalFormData, businessWorkFormData, travelEmail, getSelectedOptionsString, swipeLikes, swipeDislikes]);
+  }, [businessPersonalFormData, businessWorkFormData, travelEmail, selectedLocation, selections, swipeLikes, swipeDislikes]);
 
   // Function to handle code validation
   const handleCodeValidation = useCallback(async () => {
@@ -316,7 +376,8 @@ const OnboardingScreen = () => {
 
   // Function to handle resending verification code
   const handleResendCode = useCallback(async () => {
-    const userInput = createTravelUserInput();
+    // Use appropriate user input based on user type
+    const userInput = userType === 0 ? createBusinessUserInput() : createTravelUserInput();
 
     createUser(userInput, {
       onSuccess: () => {
@@ -328,7 +389,7 @@ const OnboardingScreen = () => {
       },
       onError: (err: any) => {
         console.error("Failed to resend OTP in onboarding", err);
-        
+
         // Always show user-friendly error message regardless of server error
         Alert.alert(
           "Error",
@@ -337,7 +398,7 @@ const OnboardingScreen = () => {
         );
       },
     });
-  }, [createUser, createTravelUserInput]);
+  }, [createUser, createTravelUserInput, createBusinessUserInput, userType]);
 
   // Auto-submit when verification code is complete
   useEffect(() => {

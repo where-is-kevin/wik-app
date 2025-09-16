@@ -33,6 +33,7 @@ type Content = {
   updatedAt: string;
   contentShareUrl?: string;
   image?: string; // fallback image property
+  eventDatetime?: string; // event datetime for events
 };
 
 type Bucket = {

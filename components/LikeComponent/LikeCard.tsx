@@ -11,9 +11,9 @@ import CustomView from "@/components/CustomView";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import CustomText from "@/components/CustomText";
 import ShareButton from "../Button/ShareButton";
-import BucketSvg from "../SvgComponents/BucketSvg";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
 import CategoryTag from "../Tag/CategoryTag";
+import PinBucketSvg from "../SvgComponents/PinBucketSvg";
 
 interface ExperienceCard {
   id: string;
@@ -52,10 +52,8 @@ const LikeCard: React.FC<LikeCardProps> = ({
     return null;
   };
 
-  const cardHeight =
-    item.height === "tall" ? verticalScale(217) : verticalScale(117);
-  const imageHeight =
-    item.height === "tall" ? verticalScale(187) : verticalScale(87);
+  const cardHeight = item.height === "tall" ? 248 : 170;
+  const imageHeight = item.height === "tall" ? 218 : 140;
 
   // Get safe image source
   const validImageUrl = getValidImageUrl(item.foodImage);
@@ -98,11 +96,11 @@ const LikeCard: React.FC<LikeCardProps> = ({
           {/* Bucket SVG icon in bottom right */}
           {item.hasIcon && (
             <CustomTouchable
-              bgColor={colors.label_dark}
+              bgColor={colors.lime}
               onPress={() => onBucketPress(item.id)}
               style={styles.bucketIconContainer}
             >
-              <BucketSvg />
+              <PinBucketSvg />
             </CustomTouchable>
           )}
         </CustomTouchable>
@@ -129,16 +127,17 @@ const LikeCard: React.FC<LikeCardProps> = ({
 
 const styles = StyleSheet.create({
   likeCard: {
-    borderRadius: 14,
+    borderRadius: 5,
     overflow: "hidden",
     position: "relative",
+    width: 160,
     flex: 1,
   },
   container: {
     flex: 1,
   },
   imageContainer: {
-    width: "100%",
+    width: 160,
     borderRadius: 8,
     overflow: "hidden",
     position: "relative", // Added for absolute positioning of overlays

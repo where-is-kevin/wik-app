@@ -2,11 +2,16 @@ import CustomView from "@/components/CustomView";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import AskKevinSection from "@/components/Section/AskKevinSection";
 import { useTheme } from "@/contexts/ThemeContext";
+import ModeHeader from "@/components/Header/ModeHeader";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { StyleSheet, View, TouchableOpacity } from "react-native";
+import { StyleSheet, TouchableOpacity } from "react-native";
 import MasonryGrid, { LikeItem } from "@/components/MansoryGrid";
-import { horizontalScale, verticalScale } from "@/utilities/scaling";
+import {
+  horizontalScale,
+  scaleFontSize,
+  verticalScale,
+} from "@/utilities/scaling";
 import CustomText from "@/components/CustomText";
 import { useLocation } from "@/contexts/LocationContext";
 import {
@@ -17,7 +22,6 @@ import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBo
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import { useInfiniteContent } from "@/hooks/useContent";
 import { StatusBar } from "expo-status-bar";
-import FloatingMapButton from "@/components/FloatingMapButton";
 
 const PaginatedContentList = () => {
   const { query } = useLocalSearchParams();
@@ -116,11 +120,6 @@ const PaginatedContentList = () => {
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Clean refresh handler
-  const handleRefresh = useCallback(() => {
-    refetch();
-  }, [refetch]);
-
   // Bucket functionality handlers
   const handleBucketPress = useCallback((likeItemId?: string) => {
     if (likeItemId) {
@@ -182,7 +181,9 @@ const PaginatedContentList = () => {
 
   // Map navigation handler
   const handleOpenMap = useCallback(() => {
-    router.push(`/map-screen?source=content&query=${encodeURIComponent(searchQuery)}`);
+    router.push(
+      `/map-screen?source=content&query=${encodeURIComponent(searchQuery)}`
+    );
   }, [router, searchQuery]);
 
   const handleItemPress = useCallback(
@@ -203,15 +204,34 @@ const PaginatedContentList = () => {
 
   // Loading state
   const isInitialLoading = isLoading && allItems.length === 0;
-  const isRefreshing = isLoading && !!data;
 
   if (isInitialLoading) {
     return (
       <CustomView bgColor={colors.background} style={styles.container}>
-        <AskKevinSection
-          onSend={handleSend}
-          onInputChange={handleInputChange}
-        />
+        <CustomView
+          style={[
+            styles.headerContainer,
+            { backgroundColor: colors.background },
+          ]}
+        >
+          <ModeHeader />
+
+          <AskKevinSection
+            onSend={handleSend}
+            onInputChange={handleInputChange}
+            onMapPress={handleOpenMap}
+          />
+
+          <CustomView style={styles.titleContainer}>
+            <CustomText
+              fontFamily="Inter-SemiBold"
+              style={[styles.curatedTitle, { color: colors.label_dark }]}
+            >
+              Curated just for you today
+            </CustomText>
+          </CustomView>
+        </CustomView>
+
         <CustomView style={styles.loadingContainer}>
           <AnimatedLoader />
         </CustomView>
@@ -226,6 +246,7 @@ const PaginatedContentList = () => {
         <AskKevinSection
           onSend={handleSend}
           onInputChange={handleInputChange}
+          onMapPress={handleOpenMap}
         />
         <CustomView style={styles.errorContainer}>
           <CustomText style={styles.errorText}>
@@ -234,7 +255,10 @@ const PaginatedContentList = () => {
           <CustomText style={styles.errorSubtext}>
             {error?.message || "Please try again"}
           </CustomText>
-          <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => refetch()}
+          >
             <CustomText style={styles.retryButtonText}>Try Again</CustomText>
           </TouchableOpacity>
         </CustomView>
@@ -246,13 +270,32 @@ const PaginatedContentList = () => {
     <>
       <StatusBar style="dark" />
       <CustomView bgColor={colors.background} style={styles.container}>
-        <AskKevinSection
-          onSend={handleSend}
-          onInputChange={handleInputChange}
-        />
+        <CustomView
+          style={[
+            styles.headerContainer,
+            { backgroundColor: colors.background },
+          ]}
+        >
+          <ModeHeader />
 
-        {transformedData.length > 0 ? (
-          <View style={styles.contentContainer}>
+          <AskKevinSection
+            onSend={handleSend}
+            onInputChange={handleInputChange}
+            onMapPress={handleOpenMap}
+          />
+
+          <CustomView style={styles.titleContainer}>
+            <CustomText
+              fontFamily="Inter-SemiBold"
+              style={[styles.curatedTitle, { color: colors.label_dark }]}
+            >
+              Curated just for you today
+            </CustomText>
+          </CustomView>
+        </CustomView>
+
+        <CustomView style={styles.contentContainer}>
+          {transformedData.length > 0 ? (
             <MasonryGrid
               data={transformedData}
               onBucketPress={handleBucketPress}
@@ -260,22 +303,20 @@ const PaginatedContentList = () => {
               onLoadMore={handleLoadMore}
               hasNextPage={hasNextPage}
               isFetchingNextPage={isFetchingNextPage}
-              refreshing={isRefreshing}
-              onRefresh={handleRefresh}
               showVerticalScrollIndicator={false}
               contentContainerStyle={styles.masonryContentContainer}
             />
-          </View>
-        ) : (
-          <CustomView style={styles.errorContainer}>
-            <CustomText style={styles.errorText}>
-              No results found for "{searchQuery}"
-            </CustomText>
-            <CustomText style={styles.errorSubtext}>
-              Try searching for something else
-            </CustomText>
-          </CustomView>
-        )}
+          ) : (
+            <CustomView style={styles.errorContainer}>
+              <CustomText style={styles.errorText}>
+                No results found for "{searchQuery}"
+              </CustomText>
+              <CustomText style={styles.errorSubtext}>
+                Try searching for something else
+              </CustomText>
+            </CustomView>
+          )}
+        </CustomView>
 
         {/* Bucket Bottom Sheets */}
         <BucketBottomSheet
@@ -291,11 +332,6 @@ const PaginatedContentList = () => {
           onClose={handleCloseCreateBucketBottomSheet}
           onCreateBucket={handleCreateBucket}
         />
-        
-        {/* Floating Map Button */}
-        {allItems.length > 0 && (
-          <FloatingMapButton onPress={handleOpenMap} />
-        )}
       </CustomView>
     </>
   );
@@ -308,12 +344,21 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
   },
+  headerContainer: {
+    backgroundColor: "transparent",
+  },
+  titleContainer: {
+    paddingHorizontal: horizontalScale(24),
+    paddingBottom: verticalScale(8),
+  },
+  curatedTitle: {
+    fontSize: scaleFontSize(16),
+  },
   contentContainer: {
     flex: 1,
   },
   masonryContentContainer: {
-    marginTop: verticalScale(12),
-    paddingHorizontal: horizontalScale(24),
+    paddingTop: verticalScale(8),
   },
   errorContainer: {
     flex: 1,

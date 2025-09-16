@@ -5,7 +5,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import CustomText from "@/components/CustomText";
 import CustomView from "../CustomView";
 import CustomTouchable from "../CustomTouchableOpacity";
-import BucketSvg from "../SvgComponents/BucketSvg";
 import ShareButton from "../Button/ShareButton";
 import CategoryTag from "../Tag/CategoryTag";
 import {
@@ -19,6 +18,7 @@ import { formatDistance } from "@/utilities/formatDistance";
 import SponsoredKevinSvg from "../SvgComponents/SponsoredKevinSvg";
 import SendSvgSmall from "../SvgComponents/SendSvgSmall";
 import RatingStarSvg from "../SvgComponents/RatingStarSvg";
+import PinBucketSvg from "../SvgComponents/PinBucketSvg";
 
 // Format event datetime to "Wed, Sept 4th • 6:00 pm"
 const formatEventDateTime = (dateTimeString?: string): string => {
@@ -236,7 +236,7 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
                   bgColor={colors.lime}
                   onPress={handleBucketPress}
                 >
-                  <BucketSvg stroke={colors.label_dark} />
+                  <PinBucketSvg />
                 </CustomTouchable>
                 <CustomTouchable
                   bgColor={colors.lime}
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
   },
   bucketContainer: {
     width: 30,
@@ -378,6 +378,8 @@ const styles = StyleSheet.create({
     right: 0,
     height: "80%",
     justifyContent: "flex-end",
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   sponsoredOverlay: {
     position: "absolute",
@@ -386,6 +388,8 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: "#0B2E34",
     justifyContent: "flex-end",
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   matchContainer: {
     flexDirection: "row",
