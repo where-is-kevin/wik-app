@@ -13,6 +13,8 @@ import { OnboardingLocationItem, LocationData } from "./OnboardingLocationItem";
 import { useLocationSearch } from "@/hooks/useLocationSearch";
 import { OnboardingSearch } from "./OnboardingSearch";
 import { OnboardingBlurModal } from "./OnboardingModal";
+import { TouchableOpacity } from "react-native";
+import LocationSvg from "../SvgComponents/LocationSvg";
 
 interface OnboardingFormLocationModalProps {
   visible: boolean;
@@ -23,22 +25,29 @@ interface OnboardingFormLocationModalProps {
 
 const DEFAULT_LOCATIONS: LocationData[] = [
   {
+    id: "current_location",
+    name: "Current location",
+    country: "",
+    fullName: "Current location",
+    isCurrentLocation: true, // Special flag to identify current location
+  },
+  {
     id: "lisbon",
     name: "Lisbon, Portugal",
     country: "Portugal",
     fullName: "Lisbon, Portugal",
   },
   {
-    id: "sf",
-    name: "San Francisco, USA",
-    country: "USA",
-    fullName: "San Francisco, USA",
+    id: "london",
+    name: "London, United Kingdom",
+    country: "United Kingdom",
+    fullName: "London, United Kingdom",
   },
   {
-    id: "nyc",
-    name: "New York City, USA",
-    country: "USA",
-    fullName: "New York City, USA",
+    id: "belgrade",
+    name: "Belgrade, Serbia",
+    country: "Serbia",
+    fullName: "Belgrade, Serbia",
   },
   {
     id: "toronto",
@@ -141,25 +150,41 @@ export const OnboardingFormLocationModal: React.FC<
               </CustomView>
             ) : searchQuery.length > 1 ? (
               searchResults.length > 0 ? (
-                searchResults.map((location) => (
+                <>
+                  {/* Current Location option at the top */}
                   <OnboardingLocationItem
-                    key={location.id}
-                    location={location}
+                    key="current_location_search"
+                    location={DEFAULT_LOCATIONS[0]} // Current location is first in array
                     onPress={handleLocationPress}
-                    searchTerm={searchQuery}
                   />
-                ))
+                  {searchResults.map((location) => (
+                    <OnboardingLocationItem
+                      key={location.id}
+                      location={location}
+                      onPress={handleLocationPress}
+                      searchTerm={searchQuery}
+                    />
+                  ))}
+                </>
               ) : (
-                <CustomView style={styles.noResultsContainer}>
-                  <CustomText
-                    style={[
-                      styles.noResultsText,
-                      { color: colors.gray_regular },
-                    ]}
-                  >
-                    No locations found for "{searchQuery}"
-                  </CustomText>
-                </CustomView>
+                <>
+                  {/* Current Location option when no search results */}
+                  <OnboardingLocationItem
+                    key="current_location_no_results"
+                    location={DEFAULT_LOCATIONS[0]} // Current location is first in array
+                    onPress={handleLocationPress}
+                  />
+                  <CustomView style={styles.noResultsContainer}>
+                    <CustomText
+                      style={[
+                        styles.noResultsText,
+                        { color: colors.gray_regular },
+                      ]}
+                    >
+                      No locations found for "{searchQuery}"
+                    </CustomText>
+                  </CustomView>
+                </>
               )
             ) : (
               DEFAULT_LOCATIONS.map((location) => (

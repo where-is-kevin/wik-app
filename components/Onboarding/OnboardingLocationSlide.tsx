@@ -3,6 +3,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableWithoutFeedback,
+  TouchableOpacity,
   Keyboard,
 } from "react-native";
 import CustomView from "../CustomView";
@@ -64,6 +65,7 @@ export const OnboardingLocationSlide: React.FC<
     setSearchQuery(""); // Clear search query when location is selected
     Keyboard.dismiss();
   };
+
 
   const handleSearchChange = (text: string) => {
     setSearchQuery(text);
@@ -147,37 +149,82 @@ export const OnboardingLocationSlide: React.FC<
               </CustomView>
             ) : searchQuery.length > 1 ? (
               searchResults.length > 0 ? (
-                searchResults.map((location) => (
+                <>
+                  {/* Current Location option at the top of search results */}
                   <OnboardingLocationItem
-                    key={location.id}
-                    location={location}
+                    key="current_location_search"
+                    location={{
+                      id: "current_location",
+                      name: "Current location",
+                      country: "",
+                      fullName: "Current location",
+                      isCurrentLocation: true
+                    }}
                     onPress={handleLocationPress}
-                    searchTerm={searchQuery}
                   />
-                ))
+                  
+                  {searchResults.map((location) => (
+                    <OnboardingLocationItem
+                      key={location.id}
+                      location={location}
+                      onPress={handleLocationPress}
+                      searchTerm={searchQuery}
+                    />
+                  ))}
+                </>
               ) : (
-                <CustomView style={styles.noResultsContainer}>
+                <>
+                  {/* Current Location option when no search results */}
+                  <OnboardingLocationItem
+                    key="current_location_no_results"
+                    location={{
+                      id: "current_location",
+                      name: "Current location",
+                      country: "",
+                      fullName: "Current location",
+                      isCurrentLocation: true
+                    }}
+                    onPress={handleLocationPress}
+                  />
+                  
+                  <CustomView style={styles.noResultsContainer}>
+                    <CustomText
+                      style={[
+                        styles.noResultsText,
+                        { color: colors.gray_regular },
+                      ]}
+                    >
+                      No locations found for "{searchQuery}"
+                    </CustomText>
+                  </CustomView>
+                </>
+              )
+            ) : (
+              <>
+                {/* Current Location option when not searching */}
+                <OnboardingLocationItem
+                  key="current_location_default"
+                  location={{
+                    id: "current_location",
+                    name: "Current location",
+                    country: "",
+                    fullName: "Current location",
+                    isCurrentLocation: true
+                  }}
+                  onPress={handleLocationPress}
+                />
+                
+                <CustomView style={styles.instructionContainer}>
                   <CustomText
                     style={[
-                      styles.noResultsText,
+                      styles.instructionText,
                       { color: colors.gray_regular },
                     ]}
                   >
-                    No locations found for "{searchQuery}"
+                    Start typing to search for destinations...
                   </CustomText>
                 </CustomView>
-              )
-            ) : (
-              <CustomView style={styles.instructionContainer}>
-                <CustomText
-                  style={[
-                    styles.instructionText,
-                    { color: colors.gray_regular },
-                  ]}
-                >
-                  Start typing to search for destinations...
-                </CustomText>
-              </CustomView>
+              </>
             )}
           </ScrollView>
         )}

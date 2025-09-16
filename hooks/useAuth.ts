@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createTimedAjax } from "@/utilities/apiUtils";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
@@ -24,6 +25,7 @@ interface AuthResponse {
 // Secure storage keys
 const AUTH_TOKEN_KEY = "authToken";
 const AUTH_USER_KEY = "authUser";
+const FIRST_TIME_USER_KEY = "isFirstTimeUser";
 
 // Auth storage utilities
 const authStorage = {
@@ -73,6 +75,24 @@ const authStorage = {
       ]);
     } catch (error) {
       console.error("Error clearing auth data:", error);
+    }
+  },
+
+  async isFirstTimeUser(): Promise<boolean> {
+    try {
+      const flag = await AsyncStorage.getItem(FIRST_TIME_USER_KEY);
+      return flag === null; // First time if flag doesn't exist
+    } catch (error) {
+      console.error("Error checking first time user:", error);
+      return true; // Default to first time on error
+    }
+  },
+
+  async setNotFirstTimeUser(): Promise<void> {
+    try {
+      await AsyncStorage.setItem(FIRST_TIME_USER_KEY, "false");
+    } catch (error) {
+      console.error("Error setting first time user flag:", error);
     }
   },
 };

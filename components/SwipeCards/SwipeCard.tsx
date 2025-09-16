@@ -21,6 +21,7 @@ interface CardData {
   contentShareUrl: string;
   tags?: string;
   similarity: number;
+  eventDatetime?: string; // For event type items
 }
 
 interface SwipeCardProps {

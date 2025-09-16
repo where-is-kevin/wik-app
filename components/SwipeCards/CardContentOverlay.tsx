@@ -20,6 +20,46 @@ import SponsoredKevinSvg from "../SvgComponents/SponsoredKevinSvg";
 import SendSvgSmall from "../SvgComponents/SendSvgSmall";
 import RatingStarSvg from "../SvgComponents/RatingStarSvg";
 
+// Format event datetime to "Wed, Sept 4th • 6:00 pm"
+const formatEventDateTime = (dateTimeString?: string): string => {
+  if (!dateTimeString) return "";
+
+  try {
+    const date = new Date(dateTimeString);
+    const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
+    const month = date.toLocaleDateString("en-US", { month: "short" });
+    const day = date.getDate();
+    const suffix =
+      day === 1 || day === 21 || day === 31
+        ? "st"
+        : day === 2 || day === 22
+        ? "nd"
+        : day === 3 || day === 23
+        ? "rd"
+        : "th";
+    const time = date
+      .toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      })
+      .toLowerCase();
+
+    return `${dayName}, ${month} ${day}${suffix} • ${time}`;
+  } catch (error) {
+    console.log("Error formatting event datetime:", error);
+    return "";
+  }
+};
+
+// Format price display logic
+const formatPrice = (price?: string): string | null => {
+  if (price === null || price === undefined) return null;
+  if (price === "0" || price === "0.00") return "Free";
+  if (price && price !== "0") return "Ticketed";
+  return null;
+};
+
 interface CardData {
   id: string;
   title: string;
@@ -33,6 +73,7 @@ interface CardData {
   tags?: string;
   similarity: number;
   distance?: number;
+  eventDatetime?: string; // For event type items
 }
 
 interface CardContentOverlayProps {
@@ -71,7 +112,6 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
         </View>
       );
     };
-
     const renderCardContent = () => (
       <View style={styles.cardContent}>
         {item.isSponsored && (
@@ -109,44 +149,64 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
           </CustomText>
         </View>
 
-        {/* Rating, Price, and Address in same row */}
+        {/* Rating, Price, Distance OR Event DateTime */}
         <View style={styles.infoRow}>
-          {item.rating && (
-            <View style={styles.ratingContainer}>
-              <RatingStarSvg />
+          {(item.category === "event" || item.category === "events") &&
+          item.eventDatetime ? (
+            // Show event datetime for events
+            <>
               <CustomText
+                fontFamily="Inter-Medium"
                 style={[styles.infoText, { color: colors.background }]}
               >
-                {item.rating}
+                {formatEventDateTime(item.eventDatetime)}
               </CustomText>
-            </View>
-          )}
+              {formatPrice(item.price) && (
+                <>
+                  <View style={styles.dotSeparator}>
+                    <View style={styles.whiteDot} />
+                  </View>
+                  <CustomText
+                    fontFamily="Inter-Medium"
+                    style={[styles.infoText, { color: colors.legal_green }]}
+                  >
+                    {formatPrice(item.price)}
+                  </CustomText>
+                </>
+              )}
+            </>
+          ) : (
+            // Show rating and distance for venues/experiences (no pricing)
+            <>
+              {item.rating && (
+                <View style={styles.ratingContainer}>
+                  <RatingStarSvg />
+                  <CustomText
+                    style={[styles.infoText, { color: colors.background }]}
+                  >
+                    {item.rating}
+                  </CustomText>
+                </View>
+              )}
 
-          {item.rating && item.price && (
-            <View style={styles.dotSeparator}>
-              <View style={styles.whiteDot} />
-            </View>
-          )}
-
-          {!!item.price && (
-            <CustomText style={[styles.infoText, { color: colors.background }]}>
-              {item.price}
-            </CustomText>
-          )}
-          {(!!item.rating || !!item.price) && !!item.distance && (
-            <View style={styles.dotSeparator}>
-              <View style={styles.whiteDot} />
-            </View>
-          )}
-          {!!item.distance && (
-            <CustomText style={[styles.infoText, { color: colors.background }]}>
-              {formatDistance(item.distance)}
-            </CustomText>
+              {!!item.rating && !!item.distance && (
+                <View style={styles.dotSeparator}>
+                  <View style={styles.whiteDot} />
+                </View>
+              )}
+              {!!item.distance && (
+                <CustomText
+                  style={[styles.infoText, { color: colors.background }]}
+                >
+                  {formatDistance(item.distance)}
+                </CustomText>
+              )}
+            </>
           )}
         </View>
         {item.address && (
           <CustomText
-            fontFamily="Inter-SemiBold"
+            fontFamily="Inter-Medium"
             style={[styles.addressText, { color: colors.background }]}
           >
             {item.address}
@@ -298,11 +358,15 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   tagBubble: {
-    borderWidth: 1,
-    borderColor: "#FFF",
-    borderRadius: 30,
-    paddingHorizontal: horizontalScale(8),
-    paddingVertical: verticalScale(4),
+    display: "flex",
+    paddingHorizontal: horizontalScale(9.35),
+    paddingVertical: verticalScale(4.675),
+    justifyContent: "center",
+    alignItems: "center",
+    gap: horizontalScale(11.687),
+    borderRadius: 35.063,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    overflow: "hidden",
   },
   tagText: {
     fontSize: scaleFontSize(12),

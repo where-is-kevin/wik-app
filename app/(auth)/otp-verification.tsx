@@ -16,7 +16,6 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import CustomView from "@/components/CustomView";
 import CustomText from "@/components/CustomText";
-import LoginLogoSvg from "@/components/SvgComponents/LoginLogoSvg";
 import ArrowLeftSvg from "@/components/SvgComponents/ArrowLeftSvg";
 import NextButton from "@/components/Button/NextButton";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -133,6 +132,8 @@ const OTPVerificationScreen = () => {
           }
         },
         onError: (err: any) => {
+          console.error("OTP verification error:", err);
+          
           logEvent("otp_verify_failed", {
             email: email as string,
             error:
@@ -141,6 +142,7 @@ const OTPVerificationScreen = () => {
               "OTP verification failed",
           });
 
+          // Always show user-friendly error message regardless of server error
           setErrorMessage("Wrong code. Please try again.");
         },
       }
@@ -159,29 +161,32 @@ const OTPVerificationScreen = () => {
             {/* Header with back button and logo */}
             <CustomView style={styles.topSection}>
               <CustomView style={styles.header}>
-                <TouchableOpacity
-                  style={styles.backButton}
-                  onPress={() => router.back()}
-                >
+                <TouchableOpacity onPress={() => router.back()}>
                   <ArrowLeftSvg />
                 </TouchableOpacity>
-
-                <CustomView style={styles.logoContainer}>
-                  <LoginLogoSvg width={151} height={61} />
-                </CustomView>
               </CustomView>
 
               <CustomText
                 fontFamily="Inter-SemiBold"
                 style={[styles.headerStyle, { color: colors.label_dark }]}
               >
-                Enter the 6-digit code sent to
+                Verify your identity
               </CustomText>
 
               <CustomView style={styles.emailContainer}>
                 <CustomText
-                  fontFamily="Inter-SemiBold"
-                  style={[styles.emailText, { color: colors.label_dark }]}
+                  style={[
+                    styles.emailText,
+                    {
+                      color: colors.horizontal_line,
+                      marginBottom: verticalScale(4),
+                    },
+                  ]}
+                >
+                  Enter the 6-digit code sent to
+                </CustomText>
+                <CustomText
+                  style={[styles.emailText, { color: colors.horizontal_line }]}
                 >
                   {email || "email@example.com"}
                 </CustomText>
@@ -278,6 +283,8 @@ const OTPVerificationScreen = () => {
                               setCanResend(false);
                             },
                             onError: (err: any) => {
+                              console.error("Resend OTP error:", err);
+                              
                               logEvent("resend_otp_failed", {
                                 email: email as string,
                                 error:
@@ -285,6 +292,8 @@ const OTPVerificationScreen = () => {
                                   err?.response?.data?.detail ||
                                   "Resend failed",
                               });
+                              
+                              // Always show user-friendly error message regardless of server error
                               setErrorMessage(
                                 "Failed to resend code. Please try again."
                               );
@@ -313,40 +322,6 @@ const OTPVerificationScreen = () => {
                 )}
               </CustomView>
             </CustomView>
-
-            {/* Bottom section like auth screen */}
-            <CustomView style={styles.signUpSection}>
-              <CustomText
-                style={[styles.notMemberText, { color: colors.gray_regular }]}
-              >
-                Not a member?
-              </CustomText>
-
-              <TouchableOpacity
-                onPress={() => {
-                  logEvent("signup_clicked", {
-                    screen: "otp_verification_screen",
-                  });
-                  router.push("/(onboarding)");
-                }}
-                disabled={isPending || isResending}
-                style={[
-                  styles.signUpButton,
-                  { borderColor: colors.lime, backgroundColor: "#FFFFFF" },
-                  (isPending || isResending) && { opacity: 0.7 },
-                ]}
-              >
-                <CustomText
-                  style={[
-                    styles.signUpButtonText,
-                    { color: colors.label_dark },
-                  ]}
-                  fontFamily="Inter-SemiBold"
-                >
-                  Create an account
-                </CustomText>
-              </TouchableOpacity>
-            </CustomView>
           </CustomView>
         </SafeAreaView>
       </TouchableWithoutFeedback>
@@ -373,9 +348,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: verticalScale(40),
   },
-  backButton: {
-    padding: 8,
-  },
   logoContainer: {
     flex: 1,
     alignItems: "center",
@@ -385,12 +357,12 @@ const styles = StyleSheet.create({
     borderRadius: 1,
   },
   headerStyle: {
-    fontSize: scaleFontSize(16),
-    marginBottom: verticalScale(2),
+    fontSize: scaleFontSize(18),
+    marginBottom: verticalScale(4),
     textAlign: "center",
   },
   emailContainer: {
-    marginBottom: verticalScale(32),
+    marginBottom: verticalScale(24),
     alignItems: "center",
   },
   emailText: {

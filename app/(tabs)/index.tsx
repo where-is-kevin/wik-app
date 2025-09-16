@@ -24,6 +24,7 @@ import { CardData, SwipeCards } from "@/components/SwipeCards/SwipeCards";
 import FilterModal, { FilterType } from "@/components/FilterModal/FilterModal";
 import FilterSvg from "@/components/SvgComponents/FilterSvg";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
+import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
 
 const SwipeableCards = () => {
   const { location, permissionStatus } = useLocation();
@@ -65,6 +66,7 @@ const SwipeableCards = () => {
   } = useContent(locationParams, getPermissionStatus());
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { trackSuggestion } = useAnalyticsContext();
 
   const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] =
     useState(false);
@@ -102,6 +104,7 @@ const SwipeableCards = () => {
           tags: item.tags,
           similarity: item.similarity,
           distance: item.distance,
+          eventDatetime: (item as any).eventDatetime, // Add event datetime for events
         }))
       : [];
   }, [content]);
@@ -113,6 +116,17 @@ const SwipeableCards = () => {
         return;
       }
 
+      // Track suggestion analytics
+      trackSuggestion("swipe_right", {
+        suggestion_id: item.id,
+        suggestion_type:
+          (item.category as "venue" | "experience" | "event") || "unknown",
+        category: item.category || "unknown",
+        similarity_score: item.similarity,
+        rating: item.rating ? parseFloat(item.rating) : undefined,
+        price_range: item.price,
+      });
+
       const likeData = {
         contentIds: [item.id],
       };
@@ -123,15 +137,26 @@ const SwipeableCards = () => {
         },
       });
     },
-    [addLikeMutation]
+    [addLikeMutation, trackSuggestion]
   );
 
   const handleDislike = useCallback(
     (item: CardData) => {
       if (!item) {
-        console.error("No item provided to handleLike");
+        console.error("No item provided to handleDislike");
         return;
       }
+
+      // Track suggestion analytics
+      trackSuggestion("swipe_left", {
+        suggestion_id: item.id,
+        suggestion_type:
+          (item.category as "venue" | "experience" | "event") || "venue",
+        category: item.category || "unknown",
+        similarity_score: item.similarity,
+        rating: item.rating ? parseFloat(item.rating) : undefined,
+        price_range: item.price,
+      });
 
       const dislikeData = {
         contentIds: [item.id],
@@ -139,11 +164,11 @@ const SwipeableCards = () => {
 
       dislikeMutation.mutate(dislikeData, {
         onError: (error) => {
-          console.error("Failed to add like:", error);
+          console.error("Failed to add dislike:", error);
         },
       });
     },
-    [dislikeMutation]
+    [dislikeMutation, trackSuggestion]
   );
 
   const handleSwipeLeft = useCallback(
@@ -168,21 +193,35 @@ const SwipeableCards = () => {
     [handleLike]
   );
 
-  const handleSwipeUp = useCallback((item: CardData) => {
-    if (!item) {
-      console.error("No item provided to handleSwipeUp");
-      return;
-    }
+  const handleSwipeUp = useCallback(
+    (item: CardData) => {
+      if (!item) {
+        console.error("No item provided to handleSwipeUp");
+        return;
+      }
 
-    // Check if the item has a website URL and open it
-    if (item?.websiteUrl) {
-      Linking.openURL(item.websiteUrl).catch((err) => {
-        // console.error("Failed to open URL:", err);
+      // Track as save_suggestion (you can change to book_suggestion if this is booking)
+      trackSuggestion("save_suggestion", {
+        suggestion_id: item.id,
+        suggestion_type:
+          (item.category as "venue" | "experience" | "event") || "venue",
+        category: item.category || "unknown",
+        similarity_score: item.similarity,
+        rating: item.rating ? parseFloat(item.rating) : undefined,
+        price_range: item.price,
       });
-    } else {
-      Alert.alert("No Website", "No website is available for this content.");
-    }
-  }, []);
+
+      // Check if the item has a website URL and open it
+      if (item?.websiteUrl) {
+        Linking.openURL(item.websiteUrl).catch((err) => {
+          // console.error("Failed to open URL:", err);
+        });
+      } else {
+        Alert.alert("No Website", "No website is available for this content.");
+      }
+    },
+    [trackSuggestion]
+  );
 
   // Simplified: Just refetch new content when cards are exhausted
   const handleComplete = useCallback(() => {

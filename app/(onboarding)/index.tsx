@@ -4,6 +4,7 @@ import { useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQueryClient } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { OnboardingProgressBar } from "@/components/Onboarding/OnboardingProgressBar";
 import { OnboardingLogoSlide } from "@/components/Onboarding/OnboardingLogoSlide";
@@ -63,6 +64,9 @@ const OnboardingScreen = () => {
   const navigateAfterAuth = useCallback(async () => {
     try {
       console.log("Navigating after onboarding completion...");
+      
+      // Mark user as no longer first-time
+      await AsyncStorage.setItem("isFirstTimeUser", "false");
       
       // Check location permission status
       const { status } = await Location.getForegroundPermissionsAsync();
@@ -286,11 +290,13 @@ const OnboardingScreen = () => {
         }
       },
       onError: (err: any) => {
-        const errorMessage =
-          err?.detail ||
-          err?.message ||
-          "The verification code is incorrect or has expired. Please try again.";
-        Alert.alert("Verification Failed", errorMessage);
+        console.error("Onboarding code verification error:", err);
+        
+        // Always show user-friendly error message regardless of server error
+        Alert.alert(
+          "Verification Failed", 
+          "The verification code is incorrect or has expired. Please try again."
+        );
       },
     });
   }, [verificationCode, travelEmail, validateRegistrationCode, queryClient, navigateAfterAuth]);
@@ -321,7 +327,9 @@ const OnboardingScreen = () => {
         );
       },
       onError: (err: any) => {
-        console.error("Failed to resend OTP", err?.message || "Unknown error");
+        console.error("Failed to resend OTP in onboarding", err);
+        
+        // Always show user-friendly error message regardless of server error
         Alert.alert(
           "Error",
           "Failed to resend verification code. Please try again.",
@@ -340,24 +348,31 @@ const OnboardingScreen = () => {
 
   // Transform content data to match SwipeCards interface (limit to 5 items)
   const transformedCardData: CardData[] = content
-    ? content.slice(0, 5).map((item) => ({
-        id: item.id,
-        title: item.title,
-        imageUrl:
-          item.internalImageUrls && item.internalImageUrls.length > 0
-            ? item.internalImageUrls[0]
-            : item.googlePlacesImageUrl,
-        price: item.price?.toString(),
-        rating: item?.rating?.toString(),
-        category: item.category,
-        websiteUrl: item.websiteUrl || "",
-        address: item.address || "",
-        isSponsored: item.isSponsored,
-        contentShareUrl: item.contentShareUrl,
-        tags: item.tags,
-        similarity: item.similarity,
-        distance: item.distance,
-      }))
+    ? content.slice(0, 5).map((item, index) => {
+        // Hardcoded percentages for onboarding cards
+        const hardcodedPercentages = [0.98, 0.98, 0.97, 0.96, 0.98];
+        const percentage = hardcodedPercentages[index] || 0.98;
+        
+        return {
+          id: item.id,
+          title: item.title,
+          imageUrl:
+            item.internalImageUrls && item.internalImageUrls.length > 0
+              ? item.internalImageUrls[0]
+              : item.googlePlacesImageUrl,
+          price: item.price?.toString(),
+          rating: item?.rating?.toString(),
+          category: item.category,
+          websiteUrl: item.websiteUrl || "",
+          address: item.address || "",
+          isSponsored: item.isSponsored,
+          contentShareUrl: item.contentShareUrl,
+          tags: item.tags,
+          similarity: percentage, // Override with hardcoded percentage for onboarding
+          distance: item.distance,
+          eventDatetime: item.eventDatetime, // Pass through event datetime for events
+        };
+      })
     : [];
 
   // Helper to get selected indices as array

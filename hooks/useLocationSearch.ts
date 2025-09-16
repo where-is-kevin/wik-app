@@ -4,6 +4,14 @@ import Constants from "expo-constants";
 
 const GOOGLE_PLACES_API_KEY = Constants.expoConfig?.extra?.googleMapsApiKey;
 
+// Allowed countries for onboarding location search
+const ALLOWED_COUNTRIES = [
+  'Portugal', 'United Kingdom', 'Serbia', 'Canada'
+];
+
+// Country codes for Google Places API filtering
+const COUNTRY_CODES = 'pt|gb|rs|ca';
+
 interface GooglePlacesPrediction {
   place_id: string;
   description: string;
@@ -45,7 +53,7 @@ export const useLocationSearch = () => {
     }
 
     try {
-      // Try Google Places API first
+      // Try Google Places API first with country restrictions
       const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
         query
       )}&types=(cities)&key=${GOOGLE_PLACES_API_KEY}`;
@@ -71,8 +79,8 @@ export const useLocationSearch = () => {
         throw new Error(`Google Places API error: ${data.status}`);
       }
 
-      const locationResults: LocationData[] = data.predictions.map(
-        (prediction) => {
+      const locationResults: LocationData[] = data.predictions
+        .map((prediction) => {
           const name = prediction.structured_formatting.main_text;
           const country = prediction.structured_formatting.secondary_text;
 
@@ -82,8 +90,14 @@ export const useLocationSearch = () => {
             country: country || "",
             fullName: prediction.description,
           };
-        }
-      );
+        })
+        .filter((location) => {
+          // Additional client-side filtering to ensure only allowed countries
+          return ALLOWED_COUNTRIES.some(allowedCountry => 
+            location.country.toLowerCase().includes(allowedCountry.toLowerCase()) ||
+            location.fullName.toLowerCase().includes(allowedCountry.toLowerCase())
+          );
+        });
 
       setResults(locationResults);
     } catch (err) {

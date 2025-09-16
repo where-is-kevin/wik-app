@@ -9,7 +9,6 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
 import AnimatedLoader from "../Loader/AnimatedLoader";
 import { SwipeFeedback } from "./SwipeFeedback";
 import { SwipeCard } from "./SwipeCard";
@@ -38,6 +37,7 @@ export interface CardData {
   tags?: string;
   similarity: number;
   distance?: number;
+  eventDatetime?: string; // For event type items
 }
 
 export type FilterType = "events" | "venues" | "experiences";
@@ -67,8 +67,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 }) => {
   const { colors } = useTheme();
   const router = useRouter();
-  const { trackSwipe, trackButtonClick, trackContentInteraction } =
-    useAnalyticsContext();
   const [cardIndex, setCardIndex] = useState(0);
 
   // Animation values
@@ -169,35 +167,13 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 
   const handleCardTap = useCallback(
     (item: CardData) => {
-      trackButtonClick("main_card_tap", {
-        item_id: item.id,
-        item_title: item.title,
-        item_category: item.category || "unknown",
-        card_position: cardIndex,
-        total_cards: data.length,
-        is_sponsored: item.isSponsored || false,
-      });
-
-      trackContentInteraction("main_card", item.id, "tap", {
-        position: cardIndex,
-        total: data.length,
-        similarity: item.similarity,
-      });
-
       if (onCardTap) {
         onCardTap(item);
       } else {
         router.push(`/event-details/${item.id}`);
       }
     },
-    [
-      onCardTap,
-      router,
-      trackButtonClick,
-      trackContentInteraction,
-      cardIndex,
-      data.length,
-    ]
+    [onCardTap, router]
   );
 
   const onSwipeComplete = useCallback(
@@ -216,28 +192,7 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 
       if (!item) return;
 
-      // Track swipe analytics
-      const swipeType =
-        direction === "right"
-          ? "like"
-          : direction === "left"
-          ? "dislike"
-          : "save";
-      trackSwipe(direction, "main_card_swipe", {
-        item_id: item.id,
-        item_title: item.title,
-        item_category: item.category || "unknown",
-        swipe_type: swipeType,
-        card_position: cardIndex,
-        total_cards: data.length,
-        is_sponsored: item.isSponsored || false,
-      });
-
-      trackContentInteraction("main_card", item.id, `swipe_${direction}`, {
-        position: cardIndex,
-        total: data.length,
-        similarity: item.similarity,
-      });
+      // Analytics are now handled in parent components (main tabs, onboarding)
 
       try {
         if (direction === "right") {
@@ -289,8 +244,6 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
       onComplete,
       position,
       hideAllFeedback,
-      trackSwipe,
-      trackContentInteraction,
       shouldAdvanceOnSwipeUp,
     ]
   );

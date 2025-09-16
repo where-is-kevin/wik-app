@@ -9,12 +9,14 @@ import {
   verticalScale,
 } from "@/utilities/scaling";
 import LocationPinSvg from "../SvgComponents/LocationPinSvg";
+import LocationSvg from "../SvgComponents/LocationSvg";
 
 export interface LocationData {
   id: string;
   name: string;
   country: string;
   fullName: string;
+  isCurrentLocation?: boolean; // Optional flag for current location
 }
 
 interface OnboardingLocationItemProps {

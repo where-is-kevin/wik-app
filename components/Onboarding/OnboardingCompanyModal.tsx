@@ -20,14 +20,20 @@ import { OnboardingBlurModal } from "./OnboardingModal";
 interface CompanyData {
   id: string;
   name: string;
+  icon: string;
 }
 
 const DEFAULT_COMPANIES: CompanyData[] = [
-  { id: "where-is-kevin", name: "Where is Kevin?" },
-  { id: "company-2", name: "Company 2" },
-  { id: "company-3", name: "Company 3" },
-  { id: "company-4", name: "Company 4" },
-  { id: "company-5", name: "Company 5" },
+  { id: "where-is-kevin", name: "Where is Kevin?", icon: "🗺️" },
+  { id: "apple", name: "Apple", icon: "🏢" },
+  { id: "google", name: "Google", icon: "🏢" },
+  { id: "microsoft", name: "Microsoft", icon: "🏢" },
+  { id: "meta", name: "Meta", icon: "🏢" },
+  { id: "amazon", name: "Amazon", icon: "🏢" },
+  { id: "tesla", name: "Tesla", icon: "🏢" },
+  { id: "netflix", name: "Netflix", icon: "🏢" },
+  { id: "uber", name: "Uber", icon: "🏢" },
+  { id: "airbnb", name: "Airbnb", icon: "🏢" },
 ];
 
 interface OnboardingCompanyItemProps {
@@ -89,7 +95,10 @@ const OnboardingCompanyItem: React.FC<OnboardingCompanyItemProps> = ({
       onPress={() => onPress(company)}
       activeOpacity={0.7}
     >
-      {renderHighlightedText()}
+      <CustomText style={styles.companyIcon}>{company.icon}</CustomText>
+      <CustomView style={styles.companyTextContainer}>
+        {renderHighlightedText()}
+      </CustomView>
     </TouchableOpacity>
   );
 };
@@ -233,6 +242,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginVertical: 15,
+  },
+  companyIcon: {
+    fontSize: scaleFontSize(20),
+    marginRight: 12,
+    width: 24,
+    textAlign: "center",
+    lineHeight: scaleFontSize(20),
+  },
+  companyTextContainer: {
+    flex: 1,
   },
   companyText: {
     fontSize: scaleFontSize(14),

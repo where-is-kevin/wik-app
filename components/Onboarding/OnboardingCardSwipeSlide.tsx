@@ -48,69 +48,50 @@ export const OnboardingCardSwipeSlide: React.FC<
   onRetry,
 }) => {
   const { colors } = useTheme();
-  const { trackSwipe, trackButtonClick, trackContentInteraction } = useAnalyticsContext();
+  const { trackSuggestion } = useAnalyticsContext();
 
   // Enhanced analytics tracking for onboarding swipes
   const handleSwipeLeft = (item: CardData) => {
-    trackSwipe('left', 'onboarding_card_swipe', {
-      item_id: item.id,
-      item_title: item.title,
-      item_category: item.category || 'unknown',
+    trackSuggestion('swipe_left', {
+      suggestion_id: item.id,
+      suggestion_type: (item.category as 'venue' | 'experience' | 'event') || 'venue',
+      category: item.category || 'unknown',
+      similarity_score: item.similarity,
       onboarding_step: stepData.title,
-      swipe_type: 'dislike'
-    });
-    trackContentInteraction('onboarding_card', item.id, 'swipe_left', {
-      step: stepData.title
+      is_onboarding: true
     });
     onSwipeLeft(item);
   };
 
   const handleSwipeRight = (item: CardData) => {
-    trackSwipe('right', 'onboarding_card_swipe', {
-      item_id: item.id,
-      item_title: item.title,
-      item_category: item.category || 'unknown',
+    trackSuggestion('swipe_right', {
+      suggestion_id: item.id,
+      suggestion_type: (item.category as 'venue' | 'experience' | 'event') || 'venue',
+      category: item.category || 'unknown',
+      similarity_score: item.similarity,
       onboarding_step: stepData.title,
-      swipe_type: 'like'
-    });
-    trackContentInteraction('onboarding_card', item.id, 'swipe_right', {
-      step: stepData.title
+      is_onboarding: true
     });
     onSwipeRight(item);
   };
 
   const handleSwipeUp = (item: CardData) => {
-    trackSwipe('up', 'onboarding_card_swipe', {
-      item_id: item.id,
-      item_title: item.title,
-      item_category: item.category || 'unknown',
+    trackSuggestion('save_suggestion', {
+      suggestion_id: item.id,
+      suggestion_type: (item.category as 'venue' | 'experience' | 'event') || 'venue',
+      category: item.category || 'unknown',
+      similarity_score: item.similarity,
       onboarding_step: stepData.title,
-      swipe_type: 'save'
-    });
-    trackContentInteraction('onboarding_card', item.id, 'swipe_up', {
-      step: stepData.title
+      is_onboarding: true
     });
     onSwipeUp(item);
   };
 
   const handleCardTap = (item: CardData) => {
-    trackButtonClick('onboarding_card_tap', {
-      item_id: item.id,
-      item_title: item.title,
-      item_category: item.category || 'unknown',
-      onboarding_step: stepData.title
-    });
-    trackContentInteraction('onboarding_card', item.id, 'tap', {
-      step: stepData.title
-    });
     onCardTap(item);
   };
 
   const handleRetry = () => {
-    trackButtonClick('onboarding_retry_button', {
-      onboarding_step: stepData.title,
-      error_context: error ? 'content_load_error' : 'empty_state'
-    });
     onRetry();
   };
 

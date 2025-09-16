@@ -1,11 +1,12 @@
 // app/index.tsx
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, ActivityIndicator } from "react-native";
 import { useLocationPermissionGuard } from "@/hooks/useLocationPermissionGuard";
 import { verticalScale, scaleFontSize } from "@/utilities/scaling";
 import CustomView from "@/components/CustomView";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function IndexScreen() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -22,14 +23,27 @@ export default function IndexScreen() {
           // User is authenticated, proceed with location check and navigation
           await checkAndNavigate();
         } else {
-          // User is not authenticated, redirect to auth screen
-          router.replace("/(auth)");
+          // User is not authenticated, check if first time
+          try {
+            const isFirstTime = await AsyncStorage.getItem("isFirstTimeUser");
+            if (isFirstTime === null) {
+              // First time user - go to onboarding
+              router.replace("/(onboarding)");
+            } else {
+              // Returning user - go to auth
+              router.replace("/(auth)");
+            }
+          } catch (error) {
+            console.error("Error checking first time user:", error);
+            // Default to auth on error
+            router.replace("/(auth)");
+          }
         }
       }
     };
 
     handleInitialNavigation();
-  }, [isLoading, isAuthenticated]);
+  }, [isLoading, isAuthenticated, checkAndNavigate, router]);
 
   // Show loading screen while checking auth
   return (

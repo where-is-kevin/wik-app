@@ -1,7 +1,6 @@
 import CustomText from "@/components/CustomText";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import CustomView from "@/components/CustomView";
-import LoginLogoSvg from "@/components/SvgComponents/LoginLogoSvg";
 import { OnboardingSearch } from "@/components/Onboarding/OnboardingSearch";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useUXCam } from "@/contexts/UXCamContext"; // Add this import
@@ -12,7 +11,7 @@ import {
 } from "@/utilities/scaling";
 import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
-import { Platform, StyleSheet } from "react-native";
+import { Platform, StyleSheet, Image } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
@@ -23,7 +22,9 @@ interface SignInScreenProps {
 }
 
 const SignInScreen: React.FC<SignInScreenProps> = () => {
-  const [email, setEmail] = useState<string>(__DEV__ ? "user@example.com" : "");
+  const [email, setEmail] = useState<string>(
+    __DEV__ ? "marko.trifunovic135@gmail.com" : ""
+  );
   const { colors } = useTheme();
   const router = useRouter();
   const { mutate: requestOTP, isPending } = useOTPRequest();
@@ -99,7 +100,11 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
       >
         <CustomView style={styles.content}>
           <CustomView style={styles.logoContainer}>
-            <LoginLogoSvg />
+            <Image
+              source={require("@/assets/images/login-logo.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
           </CustomView>
           {/* Form */}
           <CustomView style={styles.form}>
@@ -137,11 +142,15 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
             </CustomView>
 
             <CustomView style={styles.signUpSection}>
-              <CustomText
-                style={[styles.notMemberText, { color: colors.gray_regular }]}
-              >
-                Not a member?
-              </CustomText>
+              <CustomView style={styles.orContainer}>
+                <CustomView style={[styles.horizontalLine, { backgroundColor: colors.input_border }]} />
+                <CustomText
+                  style={[styles.notMemberText, { color: colors.gray_regular }]}
+                >
+                  or
+                </CustomText>
+                <CustomView style={[styles.horizontalLine, { backgroundColor: colors.input_border }]} />
+              </CustomView>
 
               <CustomTouchable
                 onPress={handleSignUp}
@@ -189,7 +198,6 @@ const styles = StyleSheet.create({
   form: {
     width: "100%",
     flex: 1,
-    justifyContent: "space-between",
   },
   topSection: {
     width: "100%",
@@ -212,10 +220,19 @@ const styles = StyleSheet.create({
   signUpSection: {
     paddingBottom: verticalScale(20),
   },
+  orContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: verticalScale(16),
+  },
+  horizontalLine: {
+    flex: 1,
+    height: 0.5,
+  },
   notMemberText: {
     fontSize: scaleFontSize(14),
     textAlign: "center",
-    marginBottom: verticalScale(16),
+    paddingHorizontal: horizontalScale(16),
   },
   signUpButton: {
     paddingVertical: verticalScale(12),
@@ -243,7 +260,11 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignSelf: "center",
-    marginBottom: verticalScale(60),
+    marginBottom: verticalScale(50),
+  },
+  logo: {
+    width: horizontalScale(181),
+    height: verticalScale(74),
   },
   inputContainer: {
     gap: verticalScale(12),
