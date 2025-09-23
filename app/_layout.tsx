@@ -93,6 +93,22 @@ export default function RootLayout() {
                         options={{ headerShown: false }}
                       />
                       <Stack.Screen
+                        name="business-events/[businessEventId]"
+                        options={{ headerShown: false }}
+                      />
+                      <Stack.Screen
+                        name="major-events-nearby"
+                        options={{ headerShown: false }}
+                      />
+                      <Stack.Screen
+                        name="worldwide-major-events"
+                        options={{ headerShown: false }}
+                      />
+                      <Stack.Screen
+                        name="worldwide-business-events"
+                        options={{ headerShown: false }}
+                      />
+                      <Stack.Screen
                         name="map-screen"
                         options={{ headerShown: false }}
                       />

@@ -23,39 +23,6 @@ interface OnboardingFormLocationModalProps {
   selectedLocation?: LocationData;
 }
 
-const DEFAULT_LOCATIONS: LocationData[] = [
-  {
-    id: "current_location",
-    name: "Current location",
-    country: "",
-    fullName: "Current location",
-    isCurrentLocation: true, // Special flag to identify current location
-  },
-  {
-    id: "lisbon",
-    name: "Lisbon, Portugal",
-    country: "Portugal",
-    fullName: "Lisbon, Portugal",
-  },
-  {
-    id: "london",
-    name: "London, United Kingdom",
-    country: "United Kingdom",
-    fullName: "London, United Kingdom",
-  },
-  {
-    id: "belgrade",
-    name: "Belgrade, Serbia",
-    country: "Serbia",
-    fullName: "Belgrade, Serbia",
-  },
-  {
-    id: "toronto",
-    name: "Toronto, Canada",
-    country: "Canada",
-    fullName: "Toronto, Canada",
-  },
-];
 
 export const OnboardingFormLocationModal: React.FC<
   OnboardingFormLocationModalProps
@@ -66,10 +33,19 @@ export const OnboardingFormLocationModal: React.FC<
     results: searchResults,
     loading,
     error,
+    apiMessage,
     searchLocations,
     clearResults,
+    loadAllLocations,
   } = useLocationSearch();
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load all locations when modal opens
+  useEffect(() => {
+    if (visible) {
+      loadAllLocations();
+    }
+  }, [visible]);
 
   useEffect(() => {
     if (searchTimeoutRef.current) {
@@ -80,8 +56,9 @@ export const OnboardingFormLocationModal: React.FC<
       searchTimeoutRef.current = setTimeout(() => {
         searchLocations(searchQuery);
       }, 400);
-    } else {
-      clearResults();
+    } else if (searchQuery.length === 0) {
+      // Load all locations when search is cleared
+      loadAllLocations();
     }
 
     return () => {
@@ -92,6 +69,10 @@ export const OnboardingFormLocationModal: React.FC<
   }, [searchQuery]);
 
   const handleLocationPress = (location: LocationData) => {
+    // Don't allow selection of header items
+    if (location.isHeader) {
+      return;
+    }
     onLocationSelect(location);
     setSearchQuery("");
     Keyboard.dismiss();
@@ -148,32 +129,19 @@ export const OnboardingFormLocationModal: React.FC<
                   {error}
                 </CustomText>
               </CustomView>
-            ) : searchQuery.length > 1 ? (
-              searchResults.length > 0 ? (
-                <>
-                  {/* Current Location option at the top */}
+            ) : searchResults.length > 0 ? (
+              // Display grouped search results
+              <>
+                {searchResults.map((location) => (
                   <OnboardingLocationItem
-                    key="current_location_search"
-                    location={DEFAULT_LOCATIONS[0]} // Current location is first in array
+                    key={location.id}
+                    location={location}
                     onPress={handleLocationPress}
+                    searchTerm={searchQuery}
                   />
-                  {searchResults.map((location) => (
-                    <OnboardingLocationItem
-                      key={location.id}
-                      location={location}
-                      onPress={handleLocationPress}
-                      searchTerm={searchQuery}
-                    />
-                  ))}
-                </>
-              ) : (
-                <>
-                  {/* Current Location option when no search results */}
-                  <OnboardingLocationItem
-                    key="current_location_no_results"
-                    location={DEFAULT_LOCATIONS[0]} // Current location is first in array
-                    onPress={handleLocationPress}
-                  />
+                ))}
+                {/* Show API message if available (e.g., "We're not there yet.") */}
+                {apiMessage && searchResults.length === 1 && searchResults[0].isCurrentLocation && (
                   <CustomView style={styles.noResultsContainer}>
                     <CustomText
                       style={[
@@ -181,19 +149,26 @@ export const OnboardingFormLocationModal: React.FC<
                         { color: colors.gray_regular },
                       ]}
                     >
-                      No locations found for "{searchQuery}"
+                      {apiMessage}
                     </CustomText>
                   </CustomView>
-                </>
-              )
+                )}
+              </>
             ) : (
-              DEFAULT_LOCATIONS.map((location) => (
-                <OnboardingLocationItem
-                  key={location.id}
-                  location={location}
-                  onPress={handleLocationPress}
-                />
-              ))
+              // No results yet - showing loading or empty state
+              <CustomView style={styles.noResultsContainer}>
+                <CustomText
+                  style={[
+                    styles.noResultsText,
+                    { color: colors.gray_regular },
+                  ]}
+                >
+                  {apiMessage || (searchQuery.length > 1
+                    ? `No locations found for "${searchQuery}"`
+                    : "Loading locations..."
+                  )}
+                </CustomText>
+              </CustomView>
             )}
           </ScrollView>
         </CustomView>

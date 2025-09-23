@@ -3,13 +3,8 @@ import { StyleSheet, TouchableOpacity, Text } from "react-native";
 import CustomView from "../CustomView";
 import CustomText from "../CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
-import {
-  horizontalScale,
-  scaleFontSize,
-  verticalScale,
-} from "@/utilities/scaling";
+import { scaleFontSize, verticalScale } from "@/utilities/scaling";
 import LocationPinSvg from "../SvgComponents/LocationPinSvg";
-import LocationSvg from "../SvgComponents/LocationSvg";
 
 export interface LocationData {
   id: string;
@@ -17,6 +12,7 @@ export interface LocationData {
   country: string;
   fullName: string;
   isCurrentLocation?: boolean; // Optional flag for current location
+  isHeader?: boolean; // Flag for country headers
 }
 
 interface OnboardingLocationItemProps {
@@ -32,7 +28,49 @@ export const OnboardingLocationItem: React.FC<OnboardingLocationItemProps> = ({
 }) => {
   const { colors } = useTheme();
 
+  // Render country header
+  if (location.isHeader) {
+    return (
+      <CustomView style={styles.headerContainer}>
+        <CustomText
+          fontFamily="Inter-SemiBold"
+          style={[styles.headerText, { color: colors.event_gray }]}
+        >
+          {location.name}
+        </CustomText>
+      </CustomView>
+    );
+  }
+
+  // Render current location
+  if (location.isCurrentLocation) {
+    return (
+      <TouchableOpacity
+        style={[styles.container]}
+        onPress={() => onPress(location)}
+        activeOpacity={0.7}
+      >
+        <CustomView
+          style={[
+            styles.iconContainer,
+            { backgroundColor: colors.tag_gray_text || "#3C62FA" },
+          ]}
+        >
+          <LocationPinSvg />
+        </CustomView>
+        <CustomText
+          fontFamily="Inter-Medium"
+          style={[styles.locationText, { color: colors.label_dark }]}
+        >
+          Current Location
+        </CustomText>
+      </TouchableOpacity>
+    );
+  }
+
   const renderHighlightedText = () => {
+    const displayText = location.name; // Only show city name, not full name with country
+
     if (!searchTerm || searchTerm.length === 0) {
       return (
         <CustomText
@@ -40,7 +78,7 @@ export const OnboardingLocationItem: React.FC<OnboardingLocationItemProps> = ({
           numberOfLines={1}
           ellipsizeMode="tail"
         >
-          {location.fullName}
+          {displayText}
         </CustomText>
       );
     }
@@ -49,7 +87,7 @@ export const OnboardingLocationItem: React.FC<OnboardingLocationItemProps> = ({
       `(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
       "gi"
     );
-    const parts = location.fullName.split(regex);
+    const parts = displayText.split(regex);
 
     return (
       <Text
@@ -72,9 +110,10 @@ export const OnboardingLocationItem: React.FC<OnboardingLocationItemProps> = ({
     );
   };
 
+  // Render regular city item
   return (
     <TouchableOpacity
-      style={[styles.container]}
+      style={[styles.container, styles.cityItem]}
       onPress={() => onPress(location)}
       activeOpacity={0.7}
     >
@@ -96,7 +135,16 @@ const styles = StyleSheet.create({
     width: "100%",
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 15,
+    paddingTop: verticalScale(12),
+  },
+  cityItem: {},
+  headerContainer: {
+    width: "100%",
+    paddingTop: verticalScale(12),
+    // paddingBottom: verticalScale(8),
+  },
+  headerText: {
+    fontSize: scaleFontSize(15),
   },
   iconContainer: {
     paddingHorizontal: 10,

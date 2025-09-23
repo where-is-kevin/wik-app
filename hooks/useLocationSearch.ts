@@ -1,107 +1,179 @@
 import { useState } from "react";
 import { LocationData } from "@/components/Onboarding/OnboardingLocationItem";
+import { createTimedAjax } from "@/utilities/apiUtils";
 import Constants from "expo-constants";
 
-const GOOGLE_PLACES_API_KEY = Constants.expoConfig?.extra?.googleMapsApiKey;
+const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
 
-// Allowed countries for onboarding location search
-const ALLOWED_COUNTRIES = [
-  'Portugal', 'United Kingdom', 'Serbia', 'Canada'
-];
+// API response type
+type CountryGroup = {
+  country: string;
+  cities: string[];
+};
 
-// Country codes for Google Places API filtering
-const COUNTRY_CODES = 'pt|gb|rs|ca';
+type LocationSearchResponse = {
+  groups?: CountryGroup[];
+  results?: any[]; // For when the API returns empty results
+  count: number;
+  exact?: boolean;
+  message?: string;
+};
 
-interface GooglePlacesPrediction {
-  place_id: string;
-  description: string;
-  structured_formatting: {
-    main_text: string;
-    secondary_text: string;
-  };
-  terms: {
-    offset: number;
-    value: string;
-  }[];
-}
+// Search locations function
+const searchLocations = async (
+  query?: string
+): Promise<LocationSearchResponse> => {
+  try {
+    const url = query
+      ? `${API_URL}/locations/search?q=${encodeURIComponent(query)}`
+      : `${API_URL}/locations/search`;
 
-interface GooglePlacesResponse {
-  predictions: GooglePlacesPrediction[];
-  status: string;
-}
+    return await createTimedAjax<LocationSearchResponse>({
+      url,
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+      responseType: "json",
+    });
+  } catch (error) {
+    console.error("Error searching locations:", error);
+    throw error;
+  }
+};
 
 export const useLocationSearch = () => {
   const [results, setResults] = useState<LocationData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [apiMessage, setApiMessage] = useState<string | null>(null);
 
-  const searchLocations = async (query: string) => {
-    if (!query || query.length < 2) {
+  const processLocationGroups = (
+    groups: CountryGroup[],
+    includeCurrentLocation = true
+  ): LocationData[] => {
+    const locationResults: LocationData[] = [];
+
+    // Add current location as first item only if requested
+    if (includeCurrentLocation) {
+      locationResults.push({
+        id: "current_location",
+        name: "Current Location",
+        country: "",
+        fullName: "Current Location",
+        isCurrentLocation: true,
+      });
+    }
+
+    // Process each country group
+    groups.forEach((group, groupIndex) => {
+      // Add country header
+      locationResults.push({
+        id: `header_${groupIndex}`,
+        name: `${group.country}:`,
+        country: group.country,
+        fullName: group.country,
+        isHeader: true,
+      });
+
+      // Add cities under this country
+      group.cities.forEach((city, cityIndex) => {
+        locationResults.push({
+          id: `${group.country}_${cityIndex}`,
+          name: city,
+          country: group.country,
+          fullName: `${city}, ${group.country}`,
+        });
+      });
+    });
+
+    return locationResults;
+  };
+
+  const loadAllLocations = async () => {
+    setLoading(true);
+    setError(null);
+    setApiMessage(null);
+
+    try {
+      const response = await searchLocations(); // No query = get all locations
+
+      // Always set the message if it exists
+      if (response.message) {
+        setApiMessage(response.message);
+      }
+
+      // Check if we have groups with locations
+      if (response.groups && response.groups.length > 0) {
+        const locationResults = processLocationGroups(response.groups);
+        setResults(locationResults);
+      } else {
+        // No locations, just show Current Location
+        const locationResults = [
+          {
+            id: "current_location",
+            name: "Current Location",
+            country: "",
+            fullName: "Current Location",
+            isCurrentLocation: true,
+          },
+        ];
+        setResults(locationResults);
+      }
+    } catch (err) {
+      console.error("Failed to load locations:", err);
+      setError("No results available. Please try again.");
       setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const searchLocationsHandler = async (query: string) => {
+    if (!query || query.length < 2) {
+      // Load all locations when search is cleared
+      await loadAllLocations();
       return;
     }
 
     setLoading(true);
     setError(null);
-
-    if (!GOOGLE_PLACES_API_KEY) {
-      console.warn("Google Places API key not found");
-      setError("Location search is not available");
-      setResults([]);
-      setLoading(false);
-      return;
-    }
+    setApiMessage(null);
 
     try {
-      // Try Google Places API first with country restrictions
-      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
-        query
-      )}&types=(cities)&key=${GOOGLE_PLACES_API_KEY}`;
+      const response = await searchLocations(query);
 
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Always set the message if it exists
+      if (response.message) {
+        setApiMessage(response.message);
+      } else {
+        setApiMessage(null);
       }
 
-      const data: GooglePlacesResponse = await response.json();
+      // Check if we have groups with locations
+      if (response.groups && response.groups.length > 0) {
+        const locationResults = processLocationGroups(response.groups);
+        setResults(locationResults);
+      } else {
+        // No locations, just show Current Location
+        const locationResults = [
+          {
+            id: "current_location",
+            name: "Current Location",
+            country: "",
+            fullName: "Current Location",
+            isCurrentLocation: true,
+          },
+        ];
+        setResults(locationResults);
 
-      if (data.status === "REQUEST_DENIED") {
-        throw new Error("Google Places API key invalid or restricted");
+        // Set a default message if none provided
+        if (!response.message) {
+          setApiMessage(`No locations found for "${query}"`);
+        }
       }
-
-      if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-        throw new Error(`Google Places API error: ${data.status}`);
-      }
-
-      const locationResults: LocationData[] = data.predictions
-        .map((prediction) => {
-          const name = prediction.structured_formatting.main_text;
-          const country = prediction.structured_formatting.secondary_text;
-
-          return {
-            id: prediction.place_id,
-            name: name,
-            country: country || "",
-            fullName: prediction.description,
-          };
-        })
-        .filter((location) => {
-          // Additional client-side filtering to ensure only allowed countries
-          return ALLOWED_COUNTRIES.some(allowedCountry => 
-            location.country.toLowerCase().includes(allowedCountry.toLowerCase()) ||
-            location.fullName.toLowerCase().includes(allowedCountry.toLowerCase())
-          );
-        });
-
-      setResults(locationResults);
     } catch (err) {
-      console.error("Google Places API failed:", err);
+      console.error("Location search failed:", err);
       setError("No results available. Please try again.");
       setResults([]);
     } finally {
@@ -112,6 +184,7 @@ export const useLocationSearch = () => {
   const clearResults = () => {
     setResults([]);
     setError(null);
+    setApiMessage(null);
     setLoading(false);
   };
 
@@ -119,7 +192,9 @@ export const useLocationSearch = () => {
     results,
     loading,
     error,
-    searchLocations,
+    apiMessage,
+    searchLocations: searchLocationsHandler,
+    loadAllLocations,
     clearResults,
   };
 };

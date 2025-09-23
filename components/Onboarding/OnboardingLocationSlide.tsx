@@ -35,10 +35,17 @@ export const OnboardingLocationSlide: React.FC<
     results: searchResults,
     loading,
     error,
+    apiMessage,
     searchLocations,
+    loadAllLocations,
     clearResults,
   } = useLocationSearch();
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load all locations when component mounts
+  useEffect(() => {
+    loadAllLocations();
+  }, []);
 
   useEffect(() => {
     if (searchTimeoutRef.current) {
@@ -49,6 +56,9 @@ export const OnboardingLocationSlide: React.FC<
       searchTimeoutRef.current = setTimeout(() => {
         searchLocations(searchQuery);
       }, 400);
+    } else if (searchQuery.length === 0) {
+      // When search is cleared, reload all locations
+      loadAllLocations();
     } else {
       clearResults();
     }
@@ -65,7 +75,6 @@ export const OnboardingLocationSlide: React.FC<
     setSearchQuery(""); // Clear search query when location is selected
     Keyboard.dismiss();
   };
-
 
   const handleSearchChange = (text: string) => {
     setSearchQuery(text);
@@ -101,7 +110,7 @@ export const OnboardingLocationSlide: React.FC<
         <OnboardingSearch
           value={searchQuery}
           onChangeText={handleSearchChange}
-          placeholder="Search for a destination..."
+          placeholder="Search for a city..."
           autoFocus={false}
           autoCorrect={false}
           spellCheck={false}
@@ -147,22 +156,10 @@ export const OnboardingLocationSlide: React.FC<
                   {error}
                 </CustomText>
               </CustomView>
-            ) : searchQuery.length > 1 ? (
+            ) : searchQuery.length > 1 || (!searchQuery && searchResults.length > 0) ? (
               searchResults.length > 0 ? (
                 <>
-                  {/* Current Location option at the top of search results */}
-                  <OnboardingLocationItem
-                    key="current_location_search"
-                    location={{
-                      id: "current_location",
-                      name: "Current location",
-                      country: "",
-                      fullName: "Current location",
-                      isCurrentLocation: true
-                    }}
-                    onPress={handleLocationPress}
-                  />
-                  
+                  {/* Display search results - Current Location is already included */}
                   {searchResults.map((location) => (
                     <OnboardingLocationItem
                       key={location.id}
@@ -171,22 +168,22 @@ export const OnboardingLocationSlide: React.FC<
                       searchTerm={searchQuery}
                     />
                   ))}
+                  {/* Show API message when only Current Location exists */}
+                  {apiMessage && searchResults.length === 1 && searchResults[0].isCurrentLocation && (
+                    <CustomView style={styles.noResultsContainer}>
+                      <CustomText
+                        style={[
+                          styles.noResultsText,
+                          { color: colors.gray_regular },
+                        ]}
+                      >
+                        {apiMessage}
+                      </CustomText>
+                    </CustomView>
+                  )}
                 </>
               ) : (
                 <>
-                  {/* Current Location option when no search results */}
-                  <OnboardingLocationItem
-                    key="current_location_no_results"
-                    location={{
-                      id: "current_location",
-                      name: "Current location",
-                      country: "",
-                      fullName: "Current location",
-                      isCurrentLocation: true
-                    }}
-                    onPress={handleLocationPress}
-                  />
-                  
                   <CustomView style={styles.noResultsContainer}>
                     <CustomText
                       style={[
@@ -194,37 +191,31 @@ export const OnboardingLocationSlide: React.FC<
                         { color: colors.gray_regular },
                       ]}
                     >
-                      No locations found for "{searchQuery}"
+                      {apiMessage || `No locations found for "${searchQuery}"`}
                     </CustomText>
                   </CustomView>
                 </>
               )
-            ) : (
-              <>
-                {/* Current Location option when not searching */}
+            ) : searchResults.length > 0 ? (
+              // Show all locations when not searching
+              searchResults.map((location) => (
                 <OnboardingLocationItem
-                  key="current_location_default"
-                  location={{
-                    id: "current_location",
-                    name: "Current location",
-                    country: "",
-                    fullName: "Current location",
-                    isCurrentLocation: true
-                  }}
+                  key={location.id}
+                  location={location}
                   onPress={handleLocationPress}
                 />
-                
-                <CustomView style={styles.instructionContainer}>
-                  <CustomText
-                    style={[
-                      styles.instructionText,
-                      { color: colors.gray_regular },
-                    ]}
-                  >
-                    Start typing to search for destinations...
-                  </CustomText>
-                </CustomView>
-              </>
+              ))
+            ) : (
+              <CustomView style={styles.instructionContainer}>
+                <CustomText
+                  style={[
+                    styles.instructionText,
+                    { color: colors.gray_regular },
+                  ]}
+                >
+                  Loading locations...
+                </CustomText>
+              </CustomView>
             )}
           </ScrollView>
         )}

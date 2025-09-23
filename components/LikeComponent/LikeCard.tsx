@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: horizontalScale(2),
   },
   title: {
-    fontSize: scaleFontSize(12.5),
+    fontSize: scaleFontSize(14),
     width: "80%",
   },
 });

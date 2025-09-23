@@ -1,11 +1,15 @@
 import CustomView from "@/components/CustomView";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import AskKevinSection from "@/components/Section/AskKevinSection";
+import { MajorEventsSection } from "@/components/Section/MajorEventsSection";
+import { MajorEventData } from "@/components/Cards/MajorEventsCard";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useMode } from "@/contexts/ModeContext";
 import ModeHeader from "@/components/Header/ModeHeader";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { StyleSheet, TouchableOpacity } from "react-native";
+import { StyleSheet, TouchableOpacity, Animated } from "react-native";
+import { useScrollDirection } from "@/hooks/useScrollDirection";
 import MasonryGrid, { LikeItem } from "@/components/MansoryGrid";
 import {
   horizontalScale,
@@ -26,6 +30,7 @@ import { StatusBar } from "expo-status-bar";
 const PaginatedContentList = () => {
   const { query } = useLocalSearchParams();
   const { colors } = useTheme();
+  const { mode } = useMode();
   const router = useRouter();
   const { location: contextLocation } = useLocation();
 
@@ -40,6 +45,31 @@ const PaginatedContentList = () => {
   // State management
   const [searchQuery, setSearchQuery] = useState(normalizeQuery(query));
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Use scroll direction hook with smooth animation
+  const { isHeaderVisible, handleScroll } = useScrollDirection({
+    threshold: 5,
+    initialVisible: true,
+    disabled: mode !== "business",
+  });
+
+  // Track scroll position for Major Events visibility
+  const [scrollY, setScrollY] = useState(0);
+
+  // Combined scroll handler
+  const handleCombinedScroll = useCallback(
+    (event: any) => {
+      if (mode === "business") {
+        handleScroll(event);
+        setScrollY(event.nativeEvent.contentOffset.y);
+      }
+    },
+    [mode, handleScroll]
+  );
+
+  // Check if Major Events should be visible
+  const shouldShowMajorEvents =
+    mode === "business" && isHeaderVisible && scrollY <= 10;
 
   // Bucket functionality state
   const [selectedLikeItemId, setSelectedLikeItemId] = useState<string | null>(
@@ -91,6 +121,40 @@ const PaginatedContentList = () => {
     contentShareUrl: item.contentShareUrl,
     height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall",
   }));
+
+  // Sample major events data for business mode with state
+  const [majorEvents, setMajorEvents] = useState<MajorEventData[]>([
+    {
+      id: "web-summit-2025",
+      title: "WebSummit",
+      location: "Lisbon",
+      dateRange: "November 11 - 14, 2025",
+      eventCount: "100+ Events",
+      imageUrl:
+        "https://images.unsplash.com/photo-1515187029135-18ee286d815b?q=80&w=1000",
+      isLiked: true,
+    },
+    {
+      id: "tech-crunch-disrupt",
+      title: "TechCrunch Disrupt",
+      location: "San Francisco",
+      dateRange: "October 28 - 30, 2025",
+      eventCount: "50+ Events",
+      imageUrl:
+        "https://images.unsplash.com/photo-1531058020387-3be344556be6?q=80&w=1000",
+      isLiked: true,
+    },
+    {
+      id: "ces-2026",
+      title: "CES 2026",
+      location: "Las Vegas",
+      dateRange: "January 7 - 10, 2026",
+      eventCount: "200+ Events",
+      imageUrl:
+        "https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?q=80&w=1000",
+      isLiked: false,
+    },
+  ]);
 
   // Handle input change with debounce
   const handleInputChange = useCallback((text: string) => {
@@ -193,6 +257,27 @@ const PaginatedContentList = () => {
     [router]
   );
 
+  // Major events handlers
+  const handleMajorEventPress = useCallback(
+    (event: MajorEventData) => {
+      router.push(`/business-events/${event.id}`);
+    },
+    [router]
+  );
+
+  const handleMajorEventLike = useCallback((event: MajorEventData) => {
+    setMajorEvents((prevEvents) =>
+      prevEvents.map((e) =>
+        e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
+      )
+    );
+  }, []);
+
+  const handleViewAllMajorEvents = useCallback(() => {
+    // TODO: Navigate to all major events page
+    console.log("View all major events");
+  }, []);
+
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
@@ -221,15 +306,6 @@ const PaginatedContentList = () => {
             onInputChange={handleInputChange}
             onMapPress={handleOpenMap}
           />
-
-          <CustomView style={styles.titleContainer}>
-            <CustomText
-              fontFamily="Inter-SemiBold"
-              style={[styles.curatedTitle, { color: colors.label_dark }]}
-            >
-              Curated just for you today
-            </CustomText>
-          </CustomView>
         </CustomView>
 
         <CustomView style={styles.loadingContainer}>
@@ -270,6 +346,7 @@ const PaginatedContentList = () => {
     <>
       <StatusBar style="dark" />
       <CustomView bgColor={colors.background} style={styles.container}>
+        {/* Fixed header for both modes */}
         <CustomView
           style={[
             styles.headerContainer,
@@ -277,14 +354,23 @@ const PaginatedContentList = () => {
           ]}
         >
           <ModeHeader />
-
           <AskKevinSection
             onSend={handleSend}
             onInputChange={handleInputChange}
             onMapPress={handleOpenMap}
           />
 
-          <CustomView style={styles.titleContainer}>
+          {/* Major Events Section - Only show in business mode with smooth animation */}
+          {shouldShowMajorEvents && (
+            <MajorEventsSection
+              events={majorEvents}
+              onEventPress={handleMajorEventPress}
+              onLikePress={handleMajorEventLike}
+              onViewAllPress={handleViewAllMajorEvents}
+            />
+          )}
+
+          <CustomView style={[styles.titleContainer]}>
             <CustomText
               fontFamily="Inter-SemiBold"
               style={[styles.curatedTitle, { color: colors.label_dark }]}
@@ -294,6 +380,7 @@ const PaginatedContentList = () => {
           </CustomView>
         </CustomView>
 
+        {/* Content grid */}
         <CustomView style={styles.contentContainer}>
           {transformedData.length > 0 ? (
             <MasonryGrid
@@ -305,6 +392,7 @@ const PaginatedContentList = () => {
               isFetchingNextPage={isFetchingNextPage}
               showVerticalScrollIndicator={false}
               contentContainerStyle={styles.masonryContentContainer}
+              onScroll={mode === "business" ? handleCombinedScroll : undefined}
             />
           ) : (
             <CustomView style={styles.errorContainer}>
@@ -349,7 +437,7 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     paddingHorizontal: horizontalScale(24),
-    paddingBottom: verticalScale(8),
+    paddingBottom: verticalScale(4),
   },
   curatedTitle: {
     fontSize: scaleFontSize(16),

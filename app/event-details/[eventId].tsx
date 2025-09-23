@@ -456,7 +456,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
             // KEY ANDROID OPTIMIZATIONS:
             initialNumToRender={Math.min(images.length, 3)} // Start with 3 images
             maxToRenderPerBatch={Math.min(images.length, 5)} // Batch render up to 5
-            windowSize={images.length <= 5 ? images.length : 5} // Dynamic window size
+            windowSize={Math.max(1, images.length <= 5 ? images.length : 5)} // Dynamic window size, minimum 1
             removeClippedSubviews={false} // Keep images rendered for smooth scrolling
             // Helps FlatList calculate positions efficiently
             getItemLayout={(data, index) => ({
