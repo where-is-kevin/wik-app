@@ -59,25 +59,25 @@ const OnboardingScreen = () => {
     useValidateRegistrationCode();
   const queryClient = useQueryClient();
   const { colors } = useTheme();
-  
+
   // Simple navigation function - no complex auth checks during onboarding
   const navigateAfterAuth = useCallback(async () => {
     try {
       console.log("Navigating after onboarding completion...");
-      
+
       // Mark user as no longer first-time
       await AsyncStorage.setItem("isFirstTimeUser", "false");
-      
+
       // Check location permission status
       const { status } = await Location.getForegroundPermissionsAsync();
       console.log("Location permission status:", status);
-      
+
       if (status === Location.PermissionStatus.GRANTED) {
         // Permission already granted, go directly to tabs
         console.log("Permission granted, going to tabs");
         router.push("/(tabs)");
       } else {
-        // Permission needed, show permission screen  
+        // Permission needed, show permission screen
         console.log("Permission needed, showing permission screen");
         router.push("/(auth)/location-permission");
       }
@@ -114,17 +114,19 @@ const OnboardingScreen = () => {
   const [travelEmail, setTravelEmail] = useState<string>("");
   const [travelName, setTravelName] = useState<string>("");
   const [verificationCode, setVerificationCode] = useState<string>("");
-  const [businessPersonalFormData, setBusinessPersonalFormData] = useState<BusinessPersonalFormData>({
-    fullName: "",
-    currentLocation: "",
-    areasOfExpertise: [],
-  });
-  const [businessWorkFormData, setBusinessWorkFormData] = useState<BusinessWorkFormData>({
-    role: "",
-    company: "",
-    industry: [],
-    stage: "",
-  });
+  const [businessPersonalFormData, setBusinessPersonalFormData] =
+    useState<BusinessPersonalFormData>({
+      fullName: "",
+      currentLocation: "",
+      areasOfExpertise: [],
+    });
+  const [businessWorkFormData, setBusinessWorkFormData] =
+    useState<BusinessWorkFormData>({
+      role: "",
+      company: "",
+      industry: [],
+      stage: "",
+    });
 
   const {
     data: content,
@@ -136,18 +138,18 @@ const OnboardingScreen = () => {
   // Reusable function to get selected options as string for user description
   const getSelectedOptionsString = useCallback(() => {
     console.log("All selections for description:", selections);
-    
+
     const results = Object.entries(selections)
       .map(([key, value]) => {
         const step = onboardingSteps.find((s) => s.key === key);
-        console.log(`Processing step ${key}:`, { 
-          step: step?.title, 
-          value, 
+        console.log(`Processing step ${key}:`, {
+          step: step?.title,
+          value,
           type: step?.type,
           hasOptions: step?.options?.length,
-          hasTags: step?.tags?.length 
+          hasTags: step?.tags?.length,
         });
-        
+
         if (!step || value === undefined) return null;
 
         // Handle budget selection
@@ -156,27 +158,33 @@ const OnboardingScreen = () => {
         }
 
         // Skip location selection - it's sent as separate location field
-        if (
-          typeof value === "object" &&
-          "id" in value &&
-          "fullName" in value
-        ) {
+        if (typeof value === "object" && "id" in value && "fullName" in value) {
           return null;
         }
 
         // Handle tag selections (step.tags)
-        if ((step.type === "tag-selection" || step.type === "business-tag-selection") && step.tags && Array.isArray(value)) {
-          console.log(`🏷️ Processing tag selection for ${key}:`, { 
-            value, 
+        if (
+          (step.type === "tag-selection" ||
+            step.type === "business-tag-selection") &&
+          step.tags &&
+          Array.isArray(value)
+        ) {
+          console.log(`🏷️ Processing tag selection for ${key}:`, {
+            value,
             stepTags: step.tags?.length,
-            stepType: step.type 
+            stepType: step.type,
           });
-          const selectedTags = value.map(tagIndex => {
-            // tagIndex is zero-based, but tag.number is 1-based
-            const tag = step.tags?.find(t => t.number === tagIndex + 1);
-            console.log(`Looking for tag with number ${tagIndex + 1}, found:`, tag?.text);
-            return tag ? tag.text : null;
-          }).filter(Boolean);
+          const selectedTags = value
+            .map((tagIndex) => {
+              // tagIndex is zero-based, but tag.number is 1-based
+              const tag = step.tags?.find((t) => t.number === tagIndex + 1);
+              console.log(
+                `Looking for tag with number ${tagIndex + 1}, found:`,
+                tag?.text
+              );
+              return tag ? tag.text : null;
+            })
+            .filter(Boolean);
           console.log(`Selected tags result:`, selectedTags);
           return selectedTags.length > 0 ? selectedTags.join(" | ") : null;
         }
@@ -184,8 +192,12 @@ const OnboardingScreen = () => {
         // Handle steps with options (regular option selections)
         if (step.options && step.options.length > 0) {
           if (Array.isArray(value)) {
-            const selectedOptions = value.map((i) => step.options[i]).filter(Boolean);
-            return selectedOptions.length > 0 ? selectedOptions.join(" | ") : null;
+            const selectedOptions = value
+              .map((i) => step.options[i])
+              .filter(Boolean);
+            return selectedOptions.length > 0
+              ? selectedOptions.join(" | ")
+              : null;
           }
           if (typeof value === "number" && step.options[value]) {
             return step.options[value];
@@ -195,7 +207,7 @@ const OnboardingScreen = () => {
         return null;
       })
       .filter(Boolean);
-      
+
     console.log("Description parts:", results);
     return results.join(" | ");
   }, [selections]);
@@ -203,29 +215,48 @@ const OnboardingScreen = () => {
   // Helper function to remove emojis from text (remove emoji at start + any trailing space)
   const removeEmojis = (text: string): string => {
     // Remove emoji(s) at the start of the string, including complex emojis with variation selectors and ZWJ sequences
-    return text.replace(/^[\u{1F000}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]+\s*/gu, '');
+    return text.replace(
+      /^[\u{1F000}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]+\s*/gu,
+      ""
+    );
   };
 
   // Helper function to create user input for leisure users
   const createTravelUserInput = useCallback((): CreateUserInput => {
     // Extract traveling reasons from selections
-    const travelingReasonStep = onboardingSteps.find(step => step.key === 'personalTravelReason');
-    const travelingReasonSelection = selections['personalTravelReason'];
+    const travelingReasonStep = onboardingSteps.find(
+      (step) => step.key === "personalTravelReason"
+    );
+    const travelingReasonSelection = selections["personalTravelReason"];
     const travelingReason = Array.isArray(travelingReasonSelection)
-      ? travelingReasonSelection.map(index => {
-          const option = travelingReasonStep?.options?.[index];
-          return option ? removeEmojis(option) : undefined;
-        }).filter((item): item is string => Boolean(item))
-      : travelingReasonStep?.options?.[travelingReasonSelection as number] ? [removeEmojis(travelingReasonStep.options[travelingReasonSelection as number])] : [];
+      ? travelingReasonSelection
+          .map((index) => {
+            const option = travelingReasonStep?.options?.[index];
+            return option ? removeEmojis(option) : undefined;
+          })
+          .filter((item): item is string => Boolean(item))
+      : travelingReasonStep?.options?.[travelingReasonSelection as number]
+      ? [
+          removeEmojis(
+            travelingReasonStep.options[travelingReasonSelection as number]
+          ),
+        ]
+      : [];
 
     // Extract traveling tags from selections (personalTravelFrequency is the tag selection step)
-    const travelingTagsStep = onboardingSteps.find(step => step.key === 'personalTravelFrequency');
-    const travelingTagsSelection = selections['personalTravelFrequency'];
+    const travelingTagsStep = onboardingSteps.find(
+      (step) => step.key === "personalTravelFrequency"
+    );
+    const travelingTagsSelection = selections["personalTravelFrequency"];
     const travelingTags = Array.isArray(travelingTagsSelection)
-      ? travelingTagsSelection.map(index => {
-          const tag = travelingTagsStep?.tags?.find(t => t.number === index + 1);
-          return tag?.text; // tag.text doesn't have emojis - emojis are in tag.icon
-        }).filter((item): item is string => Boolean(item))
+      ? travelingTagsSelection
+          .map((index) => {
+            const tag = travelingTagsStep?.tags?.find(
+              (t) => t.number === index + 1
+            );
+            return tag?.text; // tag.text doesn't have emojis - emojis are in tag.icon
+          })
+          .filter((item): item is string => Boolean(item))
       : [];
 
     return {
@@ -241,53 +272,94 @@ const OnboardingScreen = () => {
       fullName: travelName,
       email: travelEmail,
     };
-  }, [travelName, travelEmail, selectedLocation, selections, budgetRange, swipeLikes, swipeDislikes]);
+  }, [
+    travelName,
+    travelEmail,
+    selectedLocation,
+    selections,
+    budgetRange,
+    swipeLikes,
+    swipeDislikes,
+  ]);
 
   // Helper function to create user input for business users
   const createBusinessUserInput = useCallback((): CreateUserInput => {
     // Extract traveling goals from selections
-    const travelingGoalStep = onboardingSteps.find(step => step.key === 'businessTravelReason');
-    const travelingGoalSelection = selections['businessTravelReason'];
+    const travelingGoalStep = onboardingSteps.find(
+      (step) => step.key === "businessTravelReason"
+    );
+    const travelingGoalSelection = selections["businessTravelReason"];
     const travelingGoal = Array.isArray(travelingGoalSelection)
-      ? travelingGoalSelection.map(index => {
-          const option = travelingGoalStep?.options?.[index];
-          return option ? removeEmojis(option) : undefined;
-        }).filter((item): item is string => Boolean(item))
-      : travelingGoalStep?.options?.[travelingGoalSelection as number] ? [removeEmojis(travelingGoalStep.options[travelingGoalSelection as number])] : [];
+      ? travelingGoalSelection
+          .map((index) => {
+            const option = travelingGoalStep?.options?.[index];
+            return option ? removeEmojis(option) : undefined;
+          })
+          .filter((item): item is string => Boolean(item))
+      : travelingGoalStep?.options?.[travelingGoalSelection as number]
+      ? [
+          removeEmojis(
+            travelingGoalStep.options[travelingGoalSelection as number]
+          ),
+        ]
+      : [];
 
     // Extract connection tags from selections
-    const connectionTagsStep = onboardingSteps.find(step => step.key === 'businessConnections');
-    const connectionTagsSelection = selections['businessConnections'];
+    const connectionTagsStep = onboardingSteps.find(
+      (step) => step.key === "businessConnections"
+    );
+    const connectionTagsSelection = selections["businessConnections"];
     const connectionTags = Array.isArray(connectionTagsSelection)
-      ? connectionTagsSelection.map(index => {
-          const tag = connectionTagsStep?.tags?.find(t => t.number === index + 1);
-          return tag?.text; // tag.text doesn't have emojis - emojis are in tag.icon
-        }).filter((item): item is string => Boolean(item))
+      ? connectionTagsSelection
+          .map((index) => {
+            const tag = connectionTagsStep?.tags?.find(
+              (t) => t.number === index + 1
+            );
+            return tag?.text; // tag.text doesn't have emojis - emojis are in tag.icon
+          })
+          .filter((item): item is string => Boolean(item))
       : [];
 
     // Extract industry tags from selections
-    const industryTagsStep = onboardingSteps.find(step => step.key === 'businessIndustries');
-    const industryTagsSelection = selections['businessIndustries'];
+    const industryTagsStep = onboardingSteps.find(
+      (step) => step.key === "businessIndustries"
+    );
+    const industryTagsSelection = selections["businessIndustries"];
     const industryTags = Array.isArray(industryTagsSelection)
-      ? industryTagsSelection.map(index => {
-          const tag = industryTagsStep?.tags?.find(t => t.number === index + 1);
-          return tag?.text; // tag.text doesn't have emojis - emojis are in tag.icon
-        }).filter((item): item is string => Boolean(item))
+      ? industryTagsSelection
+          .map((index) => {
+            const tag = industryTagsStep?.tags?.find(
+              (t) => t.number === index + 1
+            );
+            return tag?.text; // tag.text doesn't have emojis - emojis are in tag.icon
+          })
+          .filter((item): item is string => Boolean(item))
       : [];
 
     // Extract networking style from selections
-    const networkingStyleStep = onboardingSteps.find(step => step.key === 'businessNetworkStyle');
-    const networkingStyleSelection = selections['businessNetworkStyle'];
+    const networkingStyleStep = onboardingSteps.find(
+      (step) => step.key === "businessNetworkStyle"
+    );
+    const networkingStyleSelection = selections["businessNetworkStyle"];
     const networkingStyle = Array.isArray(networkingStyleSelection)
-      ? networkingStyleSelection.map(index => {
-          const option = networkingStyleStep?.options?.[index];
-          return option ? removeEmojis(option) : undefined;
-        }).filter((item): item is string => Boolean(item))
-      : networkingStyleStep?.options?.[networkingStyleSelection as number] ? [removeEmojis(networkingStyleStep.options[networkingStyleSelection as number])] : [];
+      ? networkingStyleSelection
+          .map((index) => {
+            const option = networkingStyleStep?.options?.[index];
+            return option ? removeEmojis(option) : undefined;
+          })
+          .filter((item): item is string => Boolean(item))
+      : networkingStyleStep?.options?.[networkingStyleSelection as number]
+      ? [
+          removeEmojis(
+            networkingStyleStep.options[networkingStyleSelection as number]
+          ),
+        ]
+      : [];
 
-    const currentLocation = typeof businessPersonalFormData.currentLocation === 'object'
-      ? businessPersonalFormData.currentLocation?.name || ''
-      : businessPersonalFormData.currentLocation || '';
+    const currentLocation =
+      typeof businessPersonalFormData.currentLocation === "object"
+        ? businessPersonalFormData.currentLocation?.name || ""
+        : businessPersonalFormData.currentLocation || "";
 
     return {
       type: "business",
@@ -307,12 +379,20 @@ const OnboardingScreen = () => {
       stage: businessWorkFormData.stage,
       email: travelEmail,
     };
-  }, [businessPersonalFormData, businessWorkFormData, travelEmail, selectedLocation, selections, swipeLikes, swipeDislikes]);
+  }, [
+    businessPersonalFormData,
+    businessWorkFormData,
+    travelEmail,
+    selectedLocation,
+    selections,
+    swipeLikes,
+    swipeDislikes,
+  ]);
 
   // Function to handle code validation
   const handleCodeValidation = useCallback(async () => {
     if (verificationCode.length !== 6) return;
-    
+
     const validationInput: ValidateRegistrationCodeInput = {
       email: travelEmail,
       otpCode: verificationCode,
@@ -321,7 +401,7 @@ const OnboardingScreen = () => {
     validateRegistrationCode(validationInput, {
       onSuccess: async (response) => {
         console.log("Code verification successful, response:", response);
-        
+
         try {
           // Store auth data in secure storage and query cache (like login does)
           if (response?.accessToken && response?.user) {
@@ -334,15 +414,18 @@ const OnboardingScreen = () => {
             // Store in secure storage
             await Promise.all([
               SecureStore.setItemAsync("authToken", authData.accessToken),
-              SecureStore.setItemAsync("authUser", JSON.stringify(authData.user)),
+              SecureStore.setItemAsync(
+                "authUser",
+                JSON.stringify(authData.user)
+              ),
             ]);
 
             // Update query cache
             queryClient.setQueryData(["auth"], authData);
-            
+
             console.log("Authentication data stored successfully");
           }
-          
+
           await navigateAfterAuth();
         } catch (error) {
           console.error("Error storing auth data:", error);
@@ -351,15 +434,21 @@ const OnboardingScreen = () => {
       },
       onError: (err: any) => {
         console.error("Onboarding code verification error:", err);
-        
+
         // Always show user-friendly error message regardless of server error
         Alert.alert(
-          "Verification Failed", 
+          "Verification Failed",
           "The verification code is incorrect or has expired. Please try again."
         );
       },
     });
-  }, [verificationCode, travelEmail, validateRegistrationCode, queryClient, navigateAfterAuth]);
+  }, [
+    verificationCode,
+    travelEmail,
+    validateRegistrationCode,
+    queryClient,
+    navigateAfterAuth,
+  ]);
 
   const stepData = currentFlow[currentStepIndex];
   const currentSelection = stepData ? selections[stepData.key] : undefined;
@@ -377,7 +466,8 @@ const OnboardingScreen = () => {
   // Function to handle resending verification code
   const handleResendCode = useCallback(async () => {
     // Use appropriate user input based on user type
-    const userInput = userType === 0 ? createBusinessUserInput() : createTravelUserInput();
+    const userInput =
+      userType === 0 ? createBusinessUserInput() : createTravelUserInput();
 
     createUser(userInput, {
       onSuccess: () => {
@@ -413,19 +503,22 @@ const OnboardingScreen = () => {
         // Hardcoded percentages for onboarding cards
         const hardcodedPercentages = [0.98, 0.98, 0.97, 0.96, 0.98];
         const percentage = hardcodedPercentages[index] || 0.98;
-        
+
         return {
           id: item.id,
           title: item.title,
           imageUrl:
-            item.internalImageUrls && item.internalImageUrls.length > 0
+            item.internalImageUrls &&
+            Array.isArray(item.internalImageUrls) &&
+            item.internalImageUrls.length > 0
               ? item.internalImageUrls[0]
               : item.googlePlacesImageUrl,
-          price: item.price?.toString(),
+          price:
+            typeof item.price === "number" ? item.price.toString() : item.price,
           rating: item?.rating?.toString(),
           category: item.category,
           websiteUrl: item.websiteUrl || "",
-          address: item.address || "",
+          address: item.addressShort || item.address || "",
           isSponsored: item.isSponsored,
           contentShareUrl: item.contentShareUrl,
           tags: item.tags,
@@ -496,7 +589,10 @@ const OnboardingScreen = () => {
         return false; // Allow default back action (exit onboarding)
       };
 
-      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress
+      );
       return () => subscription.remove();
     }, [currentStepIndex])
   );
@@ -688,12 +784,12 @@ const OnboardingScreen = () => {
   };
 
   const handleNext = async () => {
-
     // If we're on travel-email step, call createUser to send OTP before moving to code verification
     if (stepData?.type === "travel-email") {
       try {
         // Use appropriate user input based on user type
-        const userInput = userType === 0 ? createBusinessUserInput() : createTravelUserInput();
+        const userInput =
+          userType === 0 ? createBusinessUserInput() : createTravelUserInput();
 
         createUser(userInput, {
           onSuccess: () => {
@@ -853,14 +949,18 @@ const OnboardingScreen = () => {
   const renderBusinessPersonalForm = () => {
     if (!stepData) return null;
 
-    const handleBusinessPersonalFormChange = (data: BusinessPersonalFormData) => {
+    const handleBusinessPersonalFormChange = (
+      data: BusinessPersonalFormData
+    ) => {
       setBusinessPersonalFormData(data);
-      
-      const locationValue = typeof data.currentLocation === 'object' 
-        ? data.currentLocation?.name || ''
-        : data.currentLocation || '';
-      const isFormValid = data.fullName.trim() !== "" && locationValue.trim() !== "";
-      
+
+      const locationValue =
+        typeof data.currentLocation === "object"
+          ? data.currentLocation?.name || ""
+          : data.currentLocation || "";
+      const isFormValid =
+        data.fullName.trim() !== "" && locationValue.trim() !== "";
+
       if (stepData) {
         setSelections((prev) => ({
           ...prev,
@@ -884,9 +984,13 @@ const OnboardingScreen = () => {
 
     const handleBusinessWorkFormChange = (data: BusinessWorkFormData) => {
       setBusinessWorkFormData(data);
-      
-      const isFormValid = data.role.trim() !== "" && data.company.trim() !== "" && data.industry.length > 0 && data.stage.trim() !== "";
-      
+
+      const isFormValid =
+        data.role.trim() !== "" &&
+        data.company.trim() !== "" &&
+        data.industry.length > 0 &&
+        data.stage.trim() !== "";
+
       if (stepData) {
         setSelections((prev) => ({
           ...prev,
@@ -1076,15 +1180,21 @@ const OnboardingScreen = () => {
 
     // For business personal form step, require full name and location
     if (stepData?.type === "business-personal-form") {
-      const locationValue = typeof businessPersonalFormData.currentLocation === 'object' 
-        ? businessPersonalFormData.currentLocation?.name || ''
-        : businessPersonalFormData.currentLocation || '';
+      const locationValue =
+        typeof businessPersonalFormData.currentLocation === "object"
+          ? businessPersonalFormData.currentLocation?.name || ""
+          : businessPersonalFormData.currentLocation || "";
       return !businessPersonalFormData.fullName.trim() || !locationValue.trim();
     }
 
     // For business work form step, require all fields
     if (stepData?.type === "business-work-form") {
-      return !businessWorkFormData.role.trim() || !businessWorkFormData.company.trim() || !businessWorkFormData.industry.length || !businessWorkFormData.stage.trim();
+      return (
+        !businessWorkFormData.role.trim() ||
+        !businessWorkFormData.company.trim() ||
+        !businessWorkFormData.industry.length ||
+        !businessWorkFormData.stage.trim()
+      );
     }
 
     // For code verification step, require 6-digit code
@@ -1141,7 +1251,7 @@ const OnboardingScreen = () => {
                     step.type === "option-list" ||
                     step.type === "budget-selection" ||
                     step.type === "tag-selection" ||
-                  step.type === "business-tag-selection" ||
+                    step.type === "business-tag-selection" ||
                     step.type === "location-selection"
                 ).length - 1
             }
@@ -1152,7 +1262,7 @@ const OnboardingScreen = () => {
       {renderStepContent()}
 
       <LinearGradient
-        colors={['#FFFFFF', 'rgba(255, 255, 255, 0)']}
+        colors={["#FFFFFF", "rgba(255, 255, 255, 0)"]}
         locations={[0, 1]}
         style={[
           commonOnboardingStyles.footer,

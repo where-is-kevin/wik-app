@@ -20,7 +20,7 @@ interface CardData {
   isSponsored?: boolean;
   contentShareUrl: string;
   tags?: string;
-  similarity: number;
+  similarity: number | string;
   eventDatetime?: string; // For event type items
 }
 
@@ -87,7 +87,7 @@ export const SwipeCard = React.memo<SwipeCardProps>(function SwipeCard({
             fontFamily="Inter-SemiBold"
             style={[styles.cardTitle, { color: colors.background }]}
           >
-            {item.title}
+            {item.title || item.address || item.category || 'Unknown'}
           </CustomText>
         </View>
       </LinearGradient>
@@ -118,6 +118,7 @@ export const SwipeCard = React.memo<SwipeCardProps>(function SwipeCard({
         fallbackImage={STATIC_IMAGES.PLACEHOLDER_IMAGE}
         onLoad={handleImageLoad}
         onError={handleImageError}
+        borderRadius={16}
       >
         {renderCardContent()}
       </OptimizedImageBackground>

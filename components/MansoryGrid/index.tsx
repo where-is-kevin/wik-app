@@ -1,13 +1,15 @@
 import React, { useCallback, useMemo } from "react";
 import { FlatList, RefreshControl, ListRenderItem, View } from "react-native";
-import CustomView from "@/components/CustomView";
 import LikeCard from "@/components/LikeComponent/LikeCard";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { horizontalScale, verticalScale } from "@/utilities/scaling";
 
-interface LikeItem {
+// Placeholder image - moved outside component to prevent re-creation
+const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+
+export interface LikeItem {
   id: string;
-  title: string;
+  title: string | null;
   foodImage: string | any;
   landscapeImage: string;
   hasIcon?: boolean;
@@ -47,8 +49,6 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
   contentContainerStyle,
   onScroll,
 }) => {
-  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
-
   // Process data to ensure all items have valid images
   const processedData = useMemo(
     () =>
@@ -75,7 +75,7 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
   const renderColumn = useCallback(
     (columnData: LikeItem[]) => (
       <View style={styles.columnContainer}>
-        {columnData.map((item, index) => (
+        {columnData.map((item) => (
           <View key={item.id}>
             <LikeCard
               onBucketPress={() => onBucketPress(item.id)}
@@ -181,4 +181,4 @@ const styles = {
 };
 
 export default MasonryGrid;
-export type { LikeItem, MasonryGridProps };
+export type { MasonryGridProps };

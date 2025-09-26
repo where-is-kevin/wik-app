@@ -9,6 +9,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useToast } from "@/contexts/ToastContext";
 
 interface HeartButtonProps {
   isLiked: boolean;
@@ -17,6 +18,7 @@ interface HeartButtonProps {
   color?: string;
   style?: ViewStyle;
   showFlyingAnimation?: boolean;
+  hasTabBar?: boolean;
 }
 
 export const HeartButton: React.FC<HeartButtonProps> = ({
@@ -26,8 +28,10 @@ export const HeartButton: React.FC<HeartButtonProps> = ({
   color,
   style,
   showFlyingAnimation = true,
+  hasTabBar = true,
 }) => {
   const { colors } = useTheme();
+  const { showToast } = useToast();
   const likeAnimation = useRef(new Animated.Value(1)).current;
   const flyingHeartOpacity = useRef(new Animated.Value(0)).current;
   const flyingHeartY = useRef(new Animated.Value(0)).current;
@@ -57,6 +61,9 @@ export const HeartButton: React.FC<HeartButtonProps> = ({
 
     // Flying heart animation only when liking (not unliking)
     if (!isLiked && showFlyingAnimation) {
+      // Show toast message when liking
+      showToast("Interested! Finding you recommendations nearby.", "success", hasTabBar);
+
       // Reset flying heart position
       flyingHeartY.setValue(0);
       flyingHeartScale.setValue(1.2);

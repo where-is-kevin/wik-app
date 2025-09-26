@@ -33,6 +33,10 @@ import EmptyData from "@/components/EmptyData";
 import { useLikes } from "@/hooks/useLikes";
 import { Ionicons } from "@expo/vector-icons";
 import FloatingMapButton from "@/components/FloatingMapButton";
+import { ErrorScreen } from "@/components/ErrorScreen";
+
+// Constants - moved outside component to prevent re-creation
+const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
 interface LocalBucketItem {
   id: string;
@@ -110,8 +114,6 @@ const ProfileListsScreen = () => {
   const addBucketMutation = useAddBucket();
   const createBucketMutation = useCreateBucket();
 
-  // Constants
-  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
   // Flatten paginated data
   const buckets = useMemo(() => {
@@ -125,26 +127,41 @@ const ProfileListsScreen = () => {
   // Transform data
   const transformedBucketsData = useMemo(() => {
     return buckets.map((bucket: any) => {
-      const images =
-        bucket.content
-          ?.filter(
-            (item: any) =>
-              item.internalImageUrls?.length > 0 || item.googlePlacesImageUrl
-          )
-          .slice(0, 3)
-          .map(
-            (item: any) =>
-              item.internalImageUrls?.[0] || item.googlePlacesImageUrl
-          ) || [];
+      // Filter valid items with proper null checks
+      const validItems =
+        bucket.content?.filter((item: any) => {
+          const hasInternalImage =
+            item.internalImageUrls &&
+            Array.isArray(item.internalImageUrls) &&
+            item.internalImageUrls.length > 0;
+          const hasGoogleImage =
+            item.googlePlacesImageUrl &&
+            typeof item.googlePlacesImageUrl === "string" &&
+            item.googlePlacesImageUrl.trim() !== "";
+          return hasInternalImage || hasGoogleImage;
+        }) || [];
 
-      while (images.length < 3) {
-        images.push(PLACEHOLDER_IMAGE);
+      const images = validItems.slice(0, 3).map((item: any) => {
+        if (
+          item.internalImageUrls &&
+          Array.isArray(item.internalImageUrls) &&
+          item.internalImageUrls.length > 0
+        ) {
+          return item.internalImageUrls[0];
+        }
+        return item.googlePlacesImageUrl;
+      });
+
+      // Create stable array reference
+      const finalImages = [...images];
+      while (finalImages.length < 3) {
+        finalImages.push(PLACEHOLDER_IMAGE);
       }
 
       return {
         id: bucket.bucketId,
         title: bucket.bucketName,
-        safeImages: images,
+        safeImages: finalImages,
         bucketShareUrl: bucket.bucketShareUrl,
       };
     });
@@ -317,6 +334,49 @@ const ProfileListsScreen = () => {
       !!bucketsQuery.data) ||
     (activeTab === "likes" && likesQuery.isLoading && !!likesQuery.data);
 
+  // Error states
+  const hasError =
+    (activeTab === "buckets" && bucketsQuery.isError) ||
+    (activeTab === "likes" && likesQuery.isError);
+
+  const handleRetry = () => {
+    if (activeTab === "buckets") {
+      bucketsQuery.refetch();
+    } else {
+      likesQuery.refetch();
+    }
+  };
+
+  // Show initial loading
+  if (isInitialLoading) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
+        <BackHeader transparent={true} />
+        <CustomView style={styles.loadingContainer}>
+          <AnimatedLoader />
+        </CustomView>
+      </SafeAreaView>
+    );
+  }
+
+  // Show error state
+  if (hasError) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
+        <BackHeader transparent={true} />
+        <ErrorScreen
+          title={`Failed to load ${activeTab}`}
+          message="Please check your connection and try again"
+          onRetry={handleRetry}
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -421,6 +481,7 @@ const ProfileListsScreen = () => {
                 onLoadMore={handleLoadMore}
                 hasNextPage={likesQuery.hasNextPage}
                 isFetchingNextPage={likesQuery.isFetchingNextPage}
+                contentContainerStyle={{ paddingBottom: verticalScale(80) }}
               />
             ) : (
               <EmptyData type="likes" />
@@ -467,7 +528,7 @@ const ProfileListsScreen = () => {
         onClose={handleCloseCreateBucketBottomSheet}
         onCreateBucket={handleCreateBucket}
       />
-      
+
       {/* Floating Map Button - Only show for likes tab */}
       {activeTab === "likes" && hasLikesContent && (
         <FloatingMapButton onPress={handleOpenLikesMap} hasTabBar={false} />
@@ -519,6 +580,11 @@ const styles = StyleSheet.create({
   },
   footerLoader: {
     paddingVertical: verticalScale(20),
+    alignItems: "center",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
   },
 });

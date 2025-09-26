@@ -28,6 +28,7 @@ import CustomTouchable from "@/components/CustomTouchableOpacity";
 import CustomView from "@/components/CustomView";
 import { useContentById } from "@/hooks/useContent";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
+import { ErrorScreen } from "@/components/ErrorScreen";
 import {
   BucketBottomSheet,
   BucketItem,
@@ -43,6 +44,9 @@ import RatingStarSvg from "@/components/SvgComponents/RatingStarSvg";
 import MapView, { Marker } from "react-native-maps";
 import { formatSimilarity } from "@/utilities/formatSimilarity";
 import { formatDistance } from "@/utilities/formatDistance";
+
+// Default placeholder image for events without images
+const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -191,6 +195,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   const getImages = () => {
     if (
       contentData?.internalImageUrls &&
+      Array.isArray(contentData.internalImageUrls) &&
       contentData.internalImageUrls.length > 0
     ) {
       return contentData.internalImageUrls;
@@ -198,7 +203,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
     if (contentData?.googlePlacesImageUrl) {
       return [contentData.googlePlacesImageUrl];
     }
-    return []; // Fallback to default image
+    return [PLACEHOLDER_IMAGE]; // Return placeholder image when no images available
   };
 
   const images = useMemo(() => getImages(), [contentData]);
@@ -279,9 +284,10 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   };
 
   // Helper function to format price
-  const formatPrice = (price: number | null) => {
-    if (price === null) return "Price on request";
-    return `${price}`;
+  const formatPrice = (price: number | string | null) => {
+    if (price === null || price === undefined) return "Price on request";
+    if (typeof price === "string") return price; // Already formatted
+    return `€${price}`;
   };
 
   // Helper function to extract coordinates from Google Maps URL
@@ -319,10 +325,16 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
       console.log("Extracted coordinates:", lat, lng);
 
       if (Platform.OS === "ios") {
-        // For iOS, try Apple Maps first
+        // For iOS, try Apple Maps first with location name - prefer addressShort if available
+        const locationName = encodeURIComponent(
+          contentData.addressShort ||
+            contentData.title ||
+            contentData.address ||
+            ""
+        );
         const appleMapsUrls = [
-          `maps://?q=${lat},${lng}`,
-          `http://maps.apple.com/?q=${lat},${lng}`,
+          `maps://?q=${locationName}&ll=${lat},${lng}`,
+          `http://maps.apple.com/?q=${locationName}&ll=${lat},${lng}`,
         ];
 
         for (const url of appleMapsUrls) {
@@ -341,17 +353,24 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
         // Fallback to Google Maps
         try {
-          const googleUrl = `https://maps.google.com/?q=${lat},${lng}`;
+          const googleUrl = `https://maps.google.com/?q=${locationName}&ll=${lat},${lng}`;
           await Linking.openURL(googleUrl);
           console.log("Opened Google Maps web fallback");
         } catch (error) {
           console.error("All map options failed:", error);
         }
       } else {
-        // For Android, use geo intent
+        // For Android, use geo intent with location name - prefer addressShort if available
+        const locationName = encodeURIComponent(
+          contentData.addressShort ||
+            contentData.title ||
+            contentData.address ||
+            ""
+        );
         const androidUrls = [
-          `geo:${lat},${lng}?q=${lat},${lng}`,
-          `https://maps.google.com/?q=${lat},${lng}`,
+          `geo:${lat},${lng}?q=${lat},${lng}(${locationName})`,
+          `https://maps.google.com/?q=${locationName}&ll=${lat},${lng}`,
+          `geo:0,0?q=${lat},${lng}(${locationName})`,
         ];
 
         for (const url of androidUrls) {
@@ -385,24 +404,12 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
     return (
       <CustomView style={styles.container}>
         <View style={styles.errorContainer}>
-          <CustomText
-            style={[styles.errorText, { color: colors.gray_regular }]}
-          >
-            Failed to load event details
-          </CustomText>
-          <CustomTouchable
-            style={[
-              styles.retryButton,
-              { backgroundColor: colors.gray_regular },
-            ]}
-            onPress={() => router.back()}
-          >
-            <CustomText
-              style={[styles.retryButtonText, { color: colors.gray_regular }]}
-            >
-              Go Back
-            </CustomText>
-          </CustomTouchable>
+          <ErrorScreen
+            title="Failed to load event details"
+            message="Please check your connection and try again"
+            buttonText="Go Back"
+            onRetry={() => router.back()}
+          />
         </View>
       </CustomView>
     );
@@ -413,22 +420,12 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
     return (
       <CustomView style={styles.container}>
         <View style={styles.errorContainer}>
-          <CustomText style={[styles.errorText, { color: colors.label_dark }]}>
-            Event not found
-          </CustomText>
-          <CustomTouchable
-            style={[
-              styles.retryButton,
-              { backgroundColor: colors.gray_regular },
-            ]}
-            onPress={() => router.back()}
-          >
-            <CustomText
-              style={[styles.retryButtonText, { color: colors.text_white }]}
-            >
-              Go Back
-            </CustomText>
-          </CustomTouchable>
+          <ErrorScreen
+            title="Event not found"
+            message="This event may have been removed or doesn't exist"
+            buttonText="Go Back"
+            onRetry={() => router.back()}
+          />
         </View>
       </CustomView>
     );
@@ -558,7 +555,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                     fontFamily="Inter-SemiBold"
                     style={[styles.title, { color: colors.label_dark }]}
                   >
-                    {contentData.title}
+                    {contentData.title || "Unknown"}
                   </CustomText>
                 </CustomTouchable>
 
@@ -681,7 +678,12 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                         coordinate={extractCoordinatesFromUrl(
                           contentData.googleMapsUrl
                         )}
-                        title={contentData.title}
+                        title={
+                          contentData.title ||
+                          contentData.address ||
+                          contentData.category ||
+                          "Location"
+                        }
                       />
                     </MapView>
                     <TouchableOpacity
@@ -914,19 +916,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: horizontalScale(20),
-  },
-  errorText: {
-    fontSize: scaleFontSize(16),
-    textAlign: "center",
-    marginBottom: verticalScale(16),
-  },
-  retryButton: {
-    paddingHorizontal: horizontalScale(24),
-    paddingVertical: verticalScale(12),
-    borderRadius: 12,
-  },
-  retryButtonText: {
-    fontSize: scaleFontSize(14),
   },
   // Fixed Bottom Bar Styles
   fixedBottomBar: {

@@ -15,15 +15,19 @@ import OptimizedImage from "../OptimizedImage/OptimizedImage";
 import CategoryTag from "../Tag/CategoryTag";
 import PinBucketSvg from "../SvgComponents/PinBucketSvg";
 
+// Local placeholder image - moved outside component to prevent re-creation
+const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+
 interface ExperienceCard {
   id: string;
-  title: string;
+  title: string | null;
   foodImage: string;
   landscapeImage: string;
   hasIcon?: boolean;
   height?: "short" | "tall";
   category?: string;
   contentShareUrl: string;
+  address?: string;
 }
 
 interface LikeCardProps {
@@ -40,9 +44,6 @@ const LikeCard: React.FC<LikeCardProps> = ({
   style,
 }) => {
   const { colors } = useTheme();
-
-  // Local placeholder image
-  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
   // Helper function to get valid image URL
   const getValidImageUrl = (imageUrl: string): string | null => {
@@ -82,6 +83,7 @@ const LikeCard: React.FC<LikeCardProps> = ({
             priority="normal"
             showLoadingIndicator={true}
             fallbackImage={PLACEHOLDER_IMAGE}
+            borderRadius={8}
           />
 
           {/* Experience tag in top left */}
@@ -112,11 +114,11 @@ const LikeCard: React.FC<LikeCardProps> = ({
             style={[styles.title, { color: colors.label_dark }]}
             numberOfLines={1}
           >
-            {item.title}
+            {item.title || item.address || item.category || 'Unknown'}
           </CustomText>
           <ShareButton
-            title={item.title}
-            message={`Check out this ${item.category}: ${item.title}`}
+            title={item.title || item.address || item.category || 'Unknown'}
+            message={`Check out this ${item.category}: ${item.title || item.address || item.category || 'Unknown'}`}
             url={item.contentShareUrl || ""}
           />
         </CustomView>

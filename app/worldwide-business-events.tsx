@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -33,6 +33,7 @@ import { CategoryCard, CategoryData } from "@/components/Cards/CategoryCard";
 import { LinearGradient } from "expo-linear-gradient";
 import BackSvg from "@/components/SvgComponents/BackSvg";
 import { SectionHeader } from "@/components/Section/SectionHeader";
+import FloatingMapButton from "@/components/FloatingMapButton";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 interface WorldwideBusinessEventsScreenProps {}
@@ -43,6 +44,12 @@ const WorldwideBusinessEventsScreen: React.FC<
   const { colors } = useTheme();
   const router = useRouter();
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Dynamic height measurements for precise animations
+  const [majorEventsSectionHeight, setMajorEventsSectionHeight] = useState(0);
+  const [citiesSectionHeight, setCitiesSectionHeight] = useState(0);
+  const [localEventsSectionHeight, setLocalEventsSectionHeight] = useState(0);
+  const [categoriesSectionHeight, setCategoriesSectionHeight] = useState(0);
   const insets = useSafeAreaInsets();
 
   // Mock data for worldwide major events
@@ -143,8 +150,8 @@ const WorldwideBusinessEventsScreen: React.FC<
       pathname: `/major-events-nearby` as any,
       params: {
         cityName: city.name,
-        type: 'city',
-        id: city.id
+        type: "city",
+        id: city.id,
       },
     });
   };
@@ -155,10 +162,15 @@ const WorldwideBusinessEventsScreen: React.FC<
       pathname: `/major-events-nearby` as any,
       params: {
         categoryName: category.name,
-        type: 'category',
-        id: category.id
+        type: "category",
+        id: category.id,
       },
     });
+  };
+
+  const handleMapPress = () => {
+    // TODO: Navigate to map screen
+    console.log("Map button pressed");
   };
 
   const handleLocalEventPress = (event: LocalEventData) => {
@@ -179,43 +191,35 @@ const WorldwideBusinessEventsScreen: React.FC<
   const HEADER_SCROLL_DISTANCE = HEADER_HEIGHT - NAVBAR_HEIGHT;
   const NAVBAR_BACKGROUND_HEIGHT = insets.top + NAVBAR_HEIGHT;
 
-  // Calculate section positions dynamically
-  const MAJOR_EVENTS_CARD_HEIGHT = verticalScale(100);
-  const SECTION_TITLE_HEIGHT = verticalScale(40);
+  // Calculate section positions using measured heights
   const SECTION_GAP = verticalScale(20);
-  const CONTENT_AREA_TOP = verticalScale(-40); // The content area starts with marginTop: -40
-  const CONTENT_PADDING_TOP = verticalScale(25); // The content area has paddingTop: 25
-
-  // Adjust for the actual content start position
+  const CONTENT_AREA_TOP = verticalScale(-40);
+  const CONTENT_PADDING_TOP = verticalScale(25);
   const CONTENT_START = HEADER_HEIGHT + CONTENT_AREA_TOP + CONTENT_PADDING_TOP;
 
-  // Major events section
-  const MAJOR_EVENTS_SECTION_HEIGHT =
-    majorEvents.length > 0
-      ? SECTION_TITLE_HEIGHT +
-        MAJOR_EVENTS_CARD_HEIGHT * majorEvents.length +
-        verticalScale(10)
-      : 0;
+  // Calculate transition points using measured heights with safety checks
+  const CITIES_SECTION_START = Math.max(
+    CONTENT_START + majorEventsSectionHeight + SECTION_GAP,
+    CONTENT_START + 100 // Minimum fallback
+  );
+  const LOCAL_EVENTS_SECTION_START = Math.max(
+    CITIES_SECTION_START + citiesSectionHeight + SECTION_GAP,
+    CITIES_SECTION_START + 100 // Ensure it's always after cities
+  );
+  const CATEGORIES_SECTION_START = Math.max(
+    LOCAL_EVENTS_SECTION_START + localEventsSectionHeight + SECTION_GAP,
+    LOCAL_EVENTS_SECTION_START + 100 // Ensure it's always after local events
+  );
 
-  // Cities section (horizontal scroll, fixed height)
-  const CITIES_SECTION_HEIGHT =
-    SECTION_TITLE_HEIGHT + verticalScale(80) + verticalScale(12);
-
-  // Local events section
-  const LOCAL_EVENTS_SECTION_HEIGHT =
-    localEvents.length > 0
-      ? SECTION_TITLE_HEIGHT +
-        verticalScale(80) * localEvents.length +
-        verticalScale(20)
-      : 0;
-
-  // Calculate transition points (relative to actual scroll position)
-  const CITIES_SECTION_START =
-    CONTENT_START + MAJOR_EVENTS_SECTION_HEIGHT + SECTION_GAP;
-  const LOCAL_EVENTS_SECTION_START =
-    CITIES_SECTION_START + CITIES_SECTION_HEIGHT + SECTION_GAP;
-  const CATEGORIES_SECTION_START =
-    LOCAL_EVENTS_SECTION_START + LOCAL_EVENTS_SECTION_HEIGHT + SECTION_GAP;
+  // Helper function to ensure monotonic inputRange
+  const createMonotonicInputRange = (
+    baseValue: number,
+    offset: number = 50
+  ) => {
+    const start = Math.max(baseValue - offset, 0);
+    const end = baseValue;
+    return start < end ? [start, end] : [start, start + 1]; // Ensure end > start
+  };
 
   // Header parallax effect
   const headerTranslateY = scrollY.interpolate({
@@ -258,22 +262,16 @@ const WorldwideBusinessEventsScreen: React.FC<
     extrapolate: "clamp",
   });
 
-  // Icon opacity for white icons
+  // Icon opacity for white icons - sync with navbar background
   const whiteIconOpacity = scrollY.interpolate({
-    inputRange: [
-      HEADER_HEIGHT - NAVBAR_HEIGHT - 40,
-      HEADER_HEIGHT - NAVBAR_HEIGHT - 10,
-    ],
+    inputRange: [0, 40],
     outputRange: [1, 0],
     extrapolate: "clamp",
   });
 
-  // Icon opacity for black icons
+  // Icon opacity for black icons - sync with navbar background
   const blackIconOpacity = scrollY.interpolate({
-    inputRange: [
-      HEADER_HEIGHT - NAVBAR_HEIGHT - 40,
-      HEADER_HEIGHT - NAVBAR_HEIGHT - 10,
-    ],
+    inputRange: [0, 40],
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
@@ -288,15 +286,15 @@ const WorldwideBusinessEventsScreen: React.FC<
     extrapolate: "clamp",
   });
 
-  // Sticky header opacities for each section
+  // Sticky header opacities for each section - smooth like business events with monotonic inputRanges
   const majorEventsStickyOpacity =
     majorEvents.length > 0
       ? scrollY.interpolate({
           inputRange: [
-            HEADER_HEIGHT - NAVBAR_HEIGHT - 10,
-            HEADER_HEIGHT - NAVBAR_HEIGHT,
-            CITIES_SECTION_START - NAVBAR_HEIGHT - verticalScale(60),
-            CITIES_SECTION_START - NAVBAR_HEIGHT - verticalScale(50),
+            50,
+            100,
+            Math.max(CITIES_SECTION_START - NAVBAR_HEIGHT - 50, 150),
+            Math.max(CITIES_SECTION_START - NAVBAR_HEIGHT, 200),
           ],
           outputRange: [0, 1, 1, 0],
           extrapolate: "clamp",
@@ -305,10 +303,10 @@ const WorldwideBusinessEventsScreen: React.FC<
 
   const citiesStickyOpacity = scrollY.interpolate({
     inputRange: [
-      CITIES_SECTION_START - NAVBAR_HEIGHT - verticalScale(50),
-      CITIES_SECTION_START - NAVBAR_HEIGHT - verticalScale(40),
-      LOCAL_EVENTS_SECTION_START - NAVBAR_HEIGHT - verticalScale(60),
-      LOCAL_EVENTS_SECTION_START - NAVBAR_HEIGHT - verticalScale(50),
+      Math.max(CITIES_SECTION_START - NAVBAR_HEIGHT - 50, 150),
+      Math.max(CITIES_SECTION_START - NAVBAR_HEIGHT, 200),
+      Math.max(LOCAL_EVENTS_SECTION_START - NAVBAR_HEIGHT - 50, 250),
+      Math.max(LOCAL_EVENTS_SECTION_START - NAVBAR_HEIGHT, 300),
     ],
     outputRange: [0, 1, 1, 0],
     extrapolate: "clamp",
@@ -316,10 +314,10 @@ const WorldwideBusinessEventsScreen: React.FC<
 
   const localEventsStickyOpacity = scrollY.interpolate({
     inputRange: [
-      LOCAL_EVENTS_SECTION_START - NAVBAR_HEIGHT - verticalScale(50),
-      LOCAL_EVENTS_SECTION_START - NAVBAR_HEIGHT - verticalScale(40),
-      CATEGORIES_SECTION_START - NAVBAR_HEIGHT - verticalScale(60),
-      CATEGORIES_SECTION_START - NAVBAR_HEIGHT - verticalScale(50),
+      Math.max(LOCAL_EVENTS_SECTION_START - NAVBAR_HEIGHT - 50, 250),
+      Math.max(LOCAL_EVENTS_SECTION_START - NAVBAR_HEIGHT, 300),
+      Math.max(CATEGORIES_SECTION_START - NAVBAR_HEIGHT - 50, 350),
+      Math.max(CATEGORIES_SECTION_START - NAVBAR_HEIGHT, 400),
     ],
     outputRange: [0, 1, 1, 0],
     extrapolate: "clamp",
@@ -327,9 +325,9 @@ const WorldwideBusinessEventsScreen: React.FC<
 
   const categoriesStickyOpacity = scrollY.interpolate({
     inputRange: [
-      CATEGORIES_SECTION_START - NAVBAR_HEIGHT - verticalScale(50),
-      CATEGORIES_SECTION_START - NAVBAR_HEIGHT - verticalScale(40),
-      CATEGORIES_SECTION_START + 1000,
+      Math.max(CATEGORIES_SECTION_START - NAVBAR_HEIGHT - 50, 350),
+      Math.max(CATEGORIES_SECTION_START - NAVBAR_HEIGHT, 400),
+      Math.max(CATEGORIES_SECTION_START - NAVBAR_HEIGHT + 1000, 1400),
     ],
     outputRange: [0, 1, 1],
     extrapolate: "clamp",
@@ -340,6 +338,33 @@ const WorldwideBusinessEventsScreen: React.FC<
     inputRange: [
       HEADER_HEIGHT - NAVBAR_HEIGHT - 20,
       HEADER_HEIGHT - NAVBAR_HEIGHT,
+    ],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+
+  const originalLocalEventsOpacity = scrollY.interpolate({
+    inputRange: [
+      LOCAL_EVENTS_SECTION_START - NAVBAR_HEIGHT - 1,
+      LOCAL_EVENTS_SECTION_START - NAVBAR_HEIGHT,
+    ],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+
+  const originalCategoriesOpacity = scrollY.interpolate({
+    inputRange: [
+      CATEGORIES_SECTION_START - NAVBAR_HEIGHT - 1,
+      CATEGORIES_SECTION_START - NAVBAR_HEIGHT,
+    ],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+
+  const originalCitiesOpacity = scrollY.interpolate({
+    inputRange: [
+      CITIES_SECTION_START - NAVBAR_HEIGHT - 1,
+      CITIES_SECTION_START - NAVBAR_HEIGHT,
     ],
     outputRange: [1, 0],
     extrapolate: "clamp",
@@ -422,11 +447,8 @@ const WorldwideBusinessEventsScreen: React.FC<
             styles.navBarBackground,
             {
               opacity: scrollY.interpolate({
-                inputRange: [
-                  HEADER_HEIGHT - NAVBAR_HEIGHT - 50,
-                  HEADER_HEIGHT - NAVBAR_HEIGHT - 20,
-                ],
-                outputRange: [0, 0.95],
+                inputRange: [0, 15, 40],
+                outputRange: [0, 0.7, 0.95],
                 extrapolate: "clamp",
               }),
               backgroundColor: "#fff",
@@ -529,24 +551,6 @@ const WorldwideBusinessEventsScreen: React.FC<
                   <Animated.View
                     style={{ opacity: whiteIconOpacity, position: "absolute" }}
                   >
-                    <Ionicons name="map-outline" size={25} color="white" />
-                  </Animated.View>
-                  {/* Black icon */}
-                  <Animated.View style={{ opacity: blackIconOpacity }}>
-                    <Ionicons
-                      name="map-outline"
-                      size={25}
-                      color={colors.label_dark}
-                    />
-                  </Animated.View>
-                </View>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.iconButton}>
-                <View style={{ position: "relative" }}>
-                  {/* White icon */}
-                  <Animated.View
-                    style={{ opacity: whiteIconOpacity, position: "absolute" }}
-                  >
                     <Ionicons name="search" size={25} color="white" />
                   </Animated.View>
                   {/* Black icon */}
@@ -584,7 +588,13 @@ const WorldwideBusinessEventsScreen: React.FC<
         {/* White background content area */}
         <View style={[styles.contentArea, { backgroundColor: "#ffffff" }]}>
           {/* Major Events Section */}
-          <View style={styles.section}>
+          <View
+            style={styles.section}
+            onLayout={(event) => {
+              const { height } = event.nativeEvent.layout;
+              setMajorEventsSectionHeight(height);
+            }}
+          >
             <Animated.View style={{ opacity: originalMajorEventsOpacity }}>
               <SectionHeader
                 title="Major events"
@@ -602,19 +612,28 @@ const WorldwideBusinessEventsScreen: React.FC<
                   onPress={handleEventPress}
                   onLikePress={handleLikePress}
                   style={styles.fullWidthCard}
+                  hasTabBar={false}
                 />
               ))}
             </View>
           </View>
 
           {/* Cities Section */}
-          <View style={styles.section}>
-            <SectionHeader
-              title="Cities"
-              showViewAll={true}
-              onViewAllPress={() => console.log("View all cities")}
-              containerStyle={{ marginBottom: verticalScale(12) }}
-            />
+          <View
+            style={styles.section}
+            onLayout={(event) => {
+              const { height } = event.nativeEvent.layout;
+              setCitiesSectionHeight(height);
+            }}
+          >
+            <Animated.View style={{ opacity: originalCitiesOpacity }}>
+              <SectionHeader
+                title="Cities"
+                showViewAll={true}
+                onViewAllPress={() => console.log("View all cities")}
+                containerStyle={{ marginBottom: verticalScale(12) }}
+              />
+            </Animated.View>
 
             <ScrollView
               horizontal
@@ -629,13 +648,21 @@ const WorldwideBusinessEventsScreen: React.FC<
           </View>
 
           {/* Local Events Section */}
-          <View style={styles.section}>
-            <SectionHeader
-              title="Popular local events"
-              showViewAll={true}
-              onViewAllPress={() => console.log("View all local events")}
-              containerStyle={{ marginBottom: verticalScale(12) }}
-            />
+          <View
+            style={styles.section}
+            onLayout={(event) => {
+              const { height } = event.nativeEvent.layout;
+              setLocalEventsSectionHeight(height);
+            }}
+          >
+            <Animated.View style={{ opacity: originalLocalEventsOpacity }}>
+              <SectionHeader
+                title="Popular local events"
+                showViewAll={true}
+                onViewAllPress={() => console.log("View all local events")}
+                containerStyle={{ marginBottom: verticalScale(12) }}
+              />
+            </Animated.View>
 
             <View style={styles.localEventsGrid}>
               {localEvents.map((event) => (
@@ -644,19 +671,28 @@ const WorldwideBusinessEventsScreen: React.FC<
                   event={event}
                   onPress={handleLocalEventPress}
                   onLikePress={handleLocalEventLike}
+                  hasTabBar={false}
                 />
               ))}
             </View>
           </View>
 
           {/* Categories Section */}
-          <View style={styles.section}>
-            <SectionHeader
-              title="Categories"
-              showViewAll={true}
-              onViewAllPress={() => console.log("View all categories")}
-              containerStyle={{ marginBottom: verticalScale(12) }}
-            />
+          <View
+            style={styles.section}
+            onLayout={(event) => {
+              const { height } = event.nativeEvent.layout;
+              setCategoriesSectionHeight(height);
+            }}
+          >
+            <Animated.View style={{ opacity: originalCategoriesOpacity }}>
+              <SectionHeader
+                title="Categories"
+                showViewAll={true}
+                onViewAllPress={() => console.log("View all categories")}
+                containerStyle={{ marginBottom: verticalScale(12) }}
+              />
+            </Animated.View>
 
             <ScrollView
               horizontal
@@ -675,6 +711,9 @@ const WorldwideBusinessEventsScreen: React.FC<
           </View>
         </View>
       </Animated.ScrollView>
+
+      {/* Floating Map Button */}
+      <FloatingMapButton onPress={handleMapPress} hasTabBar={false} />
     </View>
   );
 };
@@ -773,7 +812,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: verticalScale(25),
-    paddingBottom: verticalScale(20),
+    paddingBottom: verticalScale(110),
     minHeight: "100%",
   },
   headerSubtitle: {

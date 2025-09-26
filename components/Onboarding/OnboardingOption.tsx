@@ -1,7 +1,6 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import SuccessSvg from "../SvgComponents/SuccessSvg";
-import PlusSvg from "../SvgComponents/PlusSvg";
 import CheckboxSvg from "../SvgComponents/CheckboxSvg";
 import CustomTouchable from "../CustomTouchableOpacity";
 import CustomText from "../CustomText";

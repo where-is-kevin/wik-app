@@ -38,7 +38,7 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
         return (
           <Ionicons
             name={category.icon as any}
-            size={24}
+            size={20}
             color="#fff"
             style={styles.icon}
           />
@@ -57,6 +57,8 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
           <CustomText
             fontFamily="Inter-SemiBold"
             style={[styles.categoryName, { color: "#fff" }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
           >
             {category.name}
           </CustomText>
@@ -69,8 +71,8 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    width: 145,
-    height: 100,
+    width: horizontalScale(145),
+    height: verticalScale(90),
     borderRadius: 8,
     overflow: "hidden",
     marginRight: horizontalScale(10),
@@ -86,7 +88,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   icon: {
-    // marginLeft: horizontalScale(8),
+    marginLeft: horizontalScale(6),
+    flexShrink: 0,
   },
   categoryName: {
     fontSize: scaleFontSize(14),

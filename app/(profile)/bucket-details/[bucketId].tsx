@@ -27,6 +27,7 @@ import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { bucketsHaveContent } from "@/utilities/hasContent";
 import EmptyData from "@/components/EmptyData";
 import FloatingMapButton from "@/components/FloatingMapButton";
+import { ErrorScreen } from "@/components/ErrorScreen";
 
 // Enhanced custom hook for debounced search with reset capability
 const useDebounce = (value: string, delay: number) => {
@@ -236,11 +237,12 @@ const BucketDetailsScreen = () => {
       <SafeAreaView
         style={[styles.container, { backgroundColor: colors.background }]}
       >
-        <CustomView style={styles.loadingContainer}>
-          <CustomText style={{ color: colors.label_dark }}>
-            {bucketError ? "Error loading bucket" : "Bucket not found"}
-          </CustomText>
-        </CustomView>
+        <BackHeader transparent={true} />
+        <ErrorScreen
+          title={bucketError ? "Failed to load bucket" : "Bucket not found"}
+          message={bucketError ? "Please check your connection and try again" : "This bucket may have been deleted or doesn't exist"}
+          onRetry={bucketError ? refetchBucket : undefined}
+        />
       </SafeAreaView>
     );
   }
@@ -272,6 +274,7 @@ const BucketDetailsScreen = () => {
           onItemPress={handleBucketItemPress}
           refreshing={isBucketLoading}
           onRefresh={refetchBucket}
+          contentContainerStyle={{ paddingBottom: verticalScale(80) }}
         />
       )}
 

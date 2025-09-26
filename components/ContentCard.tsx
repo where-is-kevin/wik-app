@@ -14,6 +14,9 @@ import {
 import { formatDistance } from "@/utilities/formatDistance";
 import PinBucketSvg from "./SvgComponents/PinBucketSvg";
 
+// Local placeholder image - moved outside component to prevent re-creation
+const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+
 interface ContentCardProps {
   item: any;
   width: number;
@@ -30,9 +33,6 @@ const ContentCard: React.FC<ContentCardProps> = ({
   onBucketPress,
 }) => {
   const { colors } = useTheme();
-
-  // Local placeholder image
-  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
   const handleBucketPress = () => {
     if (onBucketPress && item.id) {
@@ -63,6 +63,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
           priority="normal"
           showLoadingIndicator={true}
           fallbackImage={PLACEHOLDER_IMAGE}
+          borderRadius={10}
         />
 
         {/* Top Row with Category Tag and Bucket Button */}

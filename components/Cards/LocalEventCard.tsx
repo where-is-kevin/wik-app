@@ -30,6 +30,7 @@ interface LocalEventCardProps {
   onPress: (event: LocalEventData) => void;
   onLikePress?: (event: LocalEventData) => void;
   style?: any;
+  hasTabBar?: boolean;
 }
 
 export const LocalEventCard: React.FC<LocalEventCardProps> = ({
@@ -37,6 +38,7 @@ export const LocalEventCard: React.FC<LocalEventCardProps> = ({
   onPress,
   onLikePress,
   style,
+  hasTabBar = true,
 }) => {
   const { colors } = useTheme();
 
@@ -58,12 +60,7 @@ export const LocalEventCard: React.FC<LocalEventCardProps> = ({
         end={{ x: 1, y: 1 }}
         style={styles.borderGradient}
       >
-        <LinearGradient
-          colors={["#0B2E34", "#3C62FA", "#244897"]}
-          start={{ x: 0, y: 0.1 }}
-          end={{ x: 1, y: 0.9 }}
-          style={styles.backgroundGradient}
-        >
+        <View style={[styles.backgroundGradient, { backgroundColor: "#0B2E34" }]}>
           {/* Heart button */}
           {onLikePress && (
             <View style={styles.heartContainer}>
@@ -72,6 +69,7 @@ export const LocalEventCard: React.FC<LocalEventCardProps> = ({
                 onPress={handleLikePress}
                 size={24}
                 color={colors.lime}
+                hasTabBar={hasTabBar}
               />
             </View>
           )}
@@ -126,7 +124,7 @@ export const LocalEventCard: React.FC<LocalEventCardProps> = ({
               </View>
             </View>
           </View>
-        </LinearGradient>
+        </View>
       </LinearGradient>
     </TouchableOpacity>
   );

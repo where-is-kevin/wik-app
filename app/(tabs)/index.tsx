@@ -3,6 +3,7 @@ import React, { useState, useCallback, useMemo } from "react";
 import { useAddLike } from "@/hooks/useLikes";
 import { getErrorMessage } from "@/utilities/errorUtils";
 import { StyleSheet, TouchableOpacity, Linking, Alert } from "react-native";
+import { ErrorScreen } from "@/components/ErrorScreen";
 import CustomView from "@/components/CustomView";
 import { horizontalScale, verticalScale } from "@/utilities/scaling";
 import {
@@ -26,6 +27,7 @@ import FilterSvg from "@/components/SvgComponents/FilterSvg";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
 import ModeHeader from "@/components/Header/ModeHeader";
+import { useToast } from "@/contexts/ToastContext";
 
 const SwipeableCards = () => {
   const { location, permissionStatus } = useLocation();
@@ -68,6 +70,7 @@ const SwipeableCards = () => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { trackSuggestion } = useAnalyticsContext();
+  const { showToast } = useToast();
 
   const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] =
     useState(false);
@@ -92,14 +95,14 @@ const SwipeableCards = () => {
           id: item.id,
           title: item.title,
           imageUrl:
-            item.internalImageUrls && item.internalImageUrls.length > 0
+            item.internalImageUrls && Array.isArray(item.internalImageUrls) && item.internalImageUrls.length > 0
               ? item.internalImageUrls[0]
               : item.googlePlacesImageUrl,
-          price: item.price ? item.price.toString() : undefined,
+          price: item.price ? (typeof item.price === 'number' ? item.price.toString() : item.price) : undefined,
           rating: item?.rating ? item.rating.toString() : undefined,
           category: item.category,
           websiteUrl: item.websiteUrl || "",
-          address: item.address || "",
+          address: item.addressShort || item.address || "",
           isSponsored: item.isSponsored,
           contentShareUrl: item.contentShareUrl,
           tags: item.tags,
@@ -135,10 +138,11 @@ const SwipeableCards = () => {
       addLikeMutation.mutate(likeData, {
         onError: (error) => {
           console.error("Failed to add like:", error);
+          showToast("Failed to save your interest", "error");
         },
       });
     },
-    [addLikeMutation, trackSuggestion]
+    [addLikeMutation, trackSuggestion, showToast]
   );
 
   const handleDislike = useCallback(
@@ -295,11 +299,12 @@ const SwipeableCards = () => {
     const errorMessage = getErrorMessage(error);
     return (
       <CustomView style={styles.errorContainer}>
-        <CustomText style={styles.errorTitle}>{errorMessage.title}</CustomText>
-        <CustomText style={styles.errorText}>{errorMessage.message}</CustomText>
-        <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
-          <CustomText style={styles.retryButtonText}>Check Again</CustomText>
-        </TouchableOpacity>
+        <ErrorScreen
+          title={errorMessage.title}
+          message={errorMessage.message}
+          buttonText="Check Again"
+          onRetry={refetch}
+        />
       </CustomView>
     );
   }
@@ -341,23 +346,15 @@ const SwipeableCards = () => {
 
           <CustomView style={styles.errorContainer}>
             {selectedFilters.length < 3 ? (
-              <>
-                <CustomText style={styles.errorTitle}>
-                  No results for your filters
-                </CustomText>
-                <CustomText style={styles.errorText}>
-                  Try changing your filters to see more content in your area.
-                </CustomText>
-              </>
+              <ErrorScreen
+                title="No results for your filters"
+                message="Try changing your filters to see more content in your area."
+              />
             ) : (
-              <>
-                <CustomText style={styles.errorTitle}>
-                  You're on the edge of something amazing.
-                </CustomText>
-                <CustomText style={styles.errorText}>
-                  {`We're not live in your area just yet, but as soon as we reach 5000 signed up nearby we'll launch. To help us reach our goal, tell your friends so you can all be part of launching something amazing in your area.`}
-                </CustomText>
-              </>
+              <ErrorScreen
+                title="You're on the edge of something amazing."
+                message="We're not live in your area just yet, but as soon as we reach 5000 signed up nearby we'll launch. To help us reach our goal, tell your friends so you can all be part of launching something amazing in your area."
+              />
             )}
           </CustomView>
         </CustomView>
@@ -453,59 +450,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-  },
-  errorTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  errorText: {
-    color: "#666",
-    fontSize: 16,
-    marginBottom: 30,
-    textAlign: "center",
-    lineHeight: 24,
-    paddingHorizontal: 20,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    padding: 20,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 30,
-    textAlign: "center",
-    lineHeight: 24,
-    paddingHorizontal: 20,
-  },
-  retryButton: {
-    backgroundColor: "#6C63FF",
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
-  retryButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
   },
   content: {
     flex: 1,

@@ -5,6 +5,7 @@ import { verticalScale } from "@/utilities/scaling";
 import { MajorEventData } from "@/components/Cards/MajorEventsCard";
 import { HeaderWithIcons } from "@/components/Header/HeaderWithIcons";
 import { EventsList } from "@/components/List/EventsList";
+import FloatingMapButton from "@/components/FloatingMapButton";
 
 const WorldwideMajorEventsScreen: React.FC = () => {
   const router = useRouter();
@@ -74,6 +75,11 @@ const WorldwideMajorEventsScreen: React.FC = () => {
     );
   };
 
+  const handleMapPress = () => {
+    // TODO: Navigate to map screen
+    console.log("Map button pressed");
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar
@@ -87,7 +93,7 @@ const WorldwideMajorEventsScreen: React.FC = () => {
         title="Major events"
         subtitle="Worldwide"
         onBackPress={handleBackPress}
-        showMapIcon={true}
+        showMapIcon={false}
         showSearchIcon={true}
       />
 
@@ -105,6 +111,9 @@ const WorldwideMajorEventsScreen: React.FC = () => {
           gap={verticalScale(10)}
         />
       </ScrollView>
+
+      {/* Floating Map Button */}
+      <FloatingMapButton onPress={handleMapPress} hasTabBar={false} />
     </View>
   );
 };
@@ -118,7 +127,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingBottom: verticalScale(20),
+    paddingBottom: verticalScale(110),
     paddingTop: verticalScale(20),
   },
 });

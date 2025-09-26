@@ -1,10 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
   FlatList,
 } from "react-native";
 import CustomView from "../CustomView";
@@ -18,6 +16,9 @@ import { useTheme } from "@/contexts/ThemeContext";
 import CustomTouchable from "../CustomTouchableOpacity";
 import ShareButton from "../Button/ShareButton";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
+
+// Local placeholder image - moved outside component to prevent re-creation
+const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
 interface BucketItem {
   id?: string;
@@ -68,7 +69,7 @@ const getSafeImages = (images: (string | number)[]): (string | null)[] => {
   ];
 };
 
-export const ImageBucket: React.FC<ImageBucketProps> = ({
+const ImageBucketComponent: React.FC<ImageBucketProps> = ({
   title,
   images,
   onPress,
@@ -77,11 +78,8 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
 }) => {
   const { colors } = useTheme();
 
-  // Local placeholder image
-  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
-
-  // Get safe images with validation
-  const safeImages = getSafeImages(images);
+  // Get safe images with validation - memoized to prevent re-renders
+  const safeImages = React.useMemo(() => getSafeImages(images), [images]);
 
   return (
     <CustomView style={styles.container}>
@@ -150,6 +148,48 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
   );
 };
 
+// Custom comparison function for React.memo
+const arePropsEqual = (prevProps: ImageBucketProps, nextProps: ImageBucketProps) => {
+  console.log('🔍 ImageBucket arePropsEqual check:', {
+    titleChanged: prevProps.title !== nextProps.title,
+    bucketShareUrlChanged: prevProps.bucketShareUrl !== nextProps.bucketShareUrl,
+    imagesLengthChanged: prevProps.images.length !== nextProps.images.length,
+    prevTitle: prevProps.title,
+    nextTitle: nextProps.title,
+    prevImages: prevProps.images,
+    nextImages: nextProps.images
+  });
+
+  // Check if title, bucketShareUrl changed
+  if (prevProps.title !== nextProps.title ||
+      prevProps.bucketShareUrl !== nextProps.bucketShareUrl) {
+    console.log('❌ ImageBucket re-rendering due to title/bucketShareUrl change');
+    return false;
+  }
+
+  // Check if images array changed (deep comparison)
+  if (prevProps.images.length !== nextProps.images.length) {
+    console.log('❌ ImageBucket re-rendering due to images length change');
+    return false;
+  }
+
+  for (let i = 0; i < prevProps.images.length; i++) {
+    if (prevProps.images[i] !== nextProps.images[i]) {
+      console.log('❌ ImageBucket re-rendering due to image change at index', i, {
+        prev: prevProps.images[i],
+        next: nextProps.images[i]
+      });
+      return false;
+    }
+  }
+
+  console.log('✅ ImageBucket skipping re-render - props are equal');
+  // Don't compare onPress/onMorePress functions - they can change
+  return true;
+};
+
+export const ImageBucket = React.memo(ImageBucketComponent, arePropsEqual);
+
 // Buckets section component with horizontal FlatList
 const BucketsSection: React.FC<BucketsSectionProps> = ({
   buckets = [],
@@ -205,7 +245,6 @@ const BucketsSection: React.FC<BucketsSectionProps> = ({
   );
 };
 
-const { width } = Dimensions.get("window");
 
 const styles = StyleSheet.create({
   container: {

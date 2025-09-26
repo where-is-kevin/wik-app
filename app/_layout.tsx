@@ -12,6 +12,7 @@ import { UXCamProvider } from "@/contexts/UXCamContext";
 import { AnalyticsProvider } from "@/contexts/AnalyticsContext";
 import { PortalProvider } from "@gorhom/portal";
 import { ModeProvider } from "@/contexts/ModeContext";
+import { ToastProvider } from "@/contexts/ToastContext";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -58,8 +59,9 @@ export default function RootLayout() {
               <LocationProvider>
                 <PortalProvider>
                   <ModeProvider>
-                    <StatusBar style="dark" />
-                    <Stack>
+                    <ToastProvider>
+                      <StatusBar style="dark" />
+                      <Stack>
                       {/* Root index handles auth routing */}
                       <Stack.Screen
                         name="index"
@@ -112,9 +114,19 @@ export default function RootLayout() {
                         name="map-screen"
                         options={{ headerShown: false }}
                       />
+                      {/* Create modal screen */}
+                      <Stack.Screen
+                        name="create"
+                        options={{
+                          presentation: 'modal',
+                          headerShown: false,
+                          animation: 'slide_from_bottom',
+                        }}
+                      />
                       {/* Fallback screen for undefined routes */}
                       <Stack.Screen name="+not-found" />
                     </Stack>
+                    </ToastProvider>
                   </ModeProvider>
                 </PortalProvider>
               </LocationProvider>

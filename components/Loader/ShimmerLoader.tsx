@@ -21,7 +21,7 @@ const ShimmerLoader: React.FC<ShimmerLoaderProps> = ({
     const animation = Animated.loop(
       Animated.timing(animatedValue, {
         toValue: 1,
-        duration: 1500,
+        duration: 1200, // Faster animation - more responsive feel
         useNativeDriver: true,
       })
     );
@@ -35,7 +35,7 @@ const ShimmerLoader: React.FC<ShimmerLoaderProps> = ({
 
   const translateX = animatedValue.interpolate({
     inputRange: [0, 1],
-    outputRange: [-300, 300],
+    outputRange: [-400, 400], // Wider sweep for smoother effect
   });
 
   return (
@@ -46,7 +46,7 @@ const ShimmerLoader: React.FC<ShimmerLoaderProps> = ({
           width,
           height,
           borderRadius,
-          backgroundColor: colors.border_gray || "#E5E5E5",
+          backgroundColor: colors.border_gray || "#F0F0F0",
         },
       ]}
     >
@@ -61,9 +61,11 @@ const ShimmerLoader: React.FC<ShimmerLoaderProps> = ({
         <LinearGradient
           colors={[
             "rgba(255, 255, 255, 0)",
-            "rgba(255, 255, 255, 0.4)",
+            "rgba(255, 255, 255, 0.2)",
+            "rgba(255, 255, 255, 0.5)",
             "rgba(255, 255, 255, 0.8)",
-            "rgba(255, 255, 255, 0.4)",
+            "rgba(255, 255, 255, 0.5)",
+            "rgba(255, 255, 255, 0.2)",
             "rgba(255, 255, 255, 0)",
           ]}
           start={{ x: 0, y: 0 }}
@@ -82,12 +84,12 @@ const styles = StyleSheet.create({
   shimmerOverlay: {
     position: "absolute",
     top: 0,
-    left: -100,
-    right: -100,
+    left: -150,
+    right: -150,
     bottom: 0,
   },
   gradient: {
-    width: 200,
+    width: 300,
     height: "100%",
   },
 });

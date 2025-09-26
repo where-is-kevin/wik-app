@@ -5,8 +5,6 @@ import CustomText from "../CustomText";
 import CustomTouchable from "../CustomTouchableOpacity";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
-  horizontalScale,
-  scaleFontSize,
   verticalScale,
 } from "@/utilities/scaling";
 import { SwipeCards, CardData } from "../SwipeCards/SwipeCards";
@@ -15,6 +13,7 @@ import AnimatedLoader from "../Loader/AnimatedLoader";
 import { commonOnboardingStyles } from "./OnboardingStyles";
 import { OnboardingStep } from "@/constants/onboardingSlides";
 import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
+import { ErrorScreen } from "@/components/ErrorScreen";
 
 interface OnboardingCardSwipeSlideProps {
   stepData: OnboardingStep;
@@ -52,37 +51,40 @@ export const OnboardingCardSwipeSlide: React.FC<
 
   // Enhanced analytics tracking for onboarding swipes
   const handleSwipeLeft = (item: CardData) => {
-    trackSuggestion('swipe_left', {
+    trackSuggestion("swipe_left", {
       suggestion_id: item.id,
-      suggestion_type: (item.category as 'venue' | 'experience' | 'event') || 'venue',
-      category: item.category || 'unknown',
+      suggestion_type:
+        (item.category as "venue" | "experience" | "event") || "venue",
+      category: item.category || "unknown",
       similarity_score: item.similarity,
       onboarding_step: stepData.title,
-      is_onboarding: true
+      is_onboarding: true,
     });
     onSwipeLeft(item);
   };
 
   const handleSwipeRight = (item: CardData) => {
-    trackSuggestion('swipe_right', {
+    trackSuggestion("swipe_right", {
       suggestion_id: item.id,
-      suggestion_type: (item.category as 'venue' | 'experience' | 'event') || 'venue',
-      category: item.category || 'unknown',
+      suggestion_type:
+        (item.category as "venue" | "experience" | "event") || "venue",
+      category: item.category || "unknown",
       similarity_score: item.similarity,
       onboarding_step: stepData.title,
-      is_onboarding: true
+      is_onboarding: true,
     });
     onSwipeRight(item);
   };
 
   const handleSwipeUp = (item: CardData) => {
-    trackSuggestion('save_suggestion', {
+    trackSuggestion("save_suggestion", {
       suggestion_id: item.id,
-      suggestion_type: (item.category as 'venue' | 'experience' | 'event') || 'venue',
-      category: item.category || 'unknown',
+      suggestion_type:
+        (item.category as "venue" | "experience" | "event") || "venue",
+      category: item.category || "unknown",
       similarity_score: item.similarity,
       onboarding_step: stepData.title,
-      is_onboarding: true
+      is_onboarding: true,
     });
     onSwipeUp(item);
   };
@@ -106,45 +108,31 @@ export const OnboardingCardSwipeSlide: React.FC<
     );
   }
 
-  // Show error state if content failed to load
+  // Show error state if content failed to load - use same design as main tab
   if (error) {
     return (
       <CustomView style={commonOnboardingStyles.content}>
         <CustomView style={styles.swipeContainer}>
-          <CustomText
-            style={[styles.errorText, { color: colors.gray_regular }]}
-          >
-            Failed to load content. Please try again.
-          </CustomText>
-          <CustomTouchable
-            style={styles.retryButton}
-            onPress={handleRetry}
-            bgColor={colors.lime}
-          >
-            <CustomText style={styles.retryButtonText}>Retry</CustomText>
-          </CustomTouchable>
+          <ErrorScreen
+            title="Failed to load content"
+            message="No internet connection available"
+            onRetry={handleRetry}
+          />
         </CustomView>
       </CustomView>
     );
   }
 
-  // Show empty state if no content available
+  // Show empty state if no content available - use same design as main tab
   if (!cardData.length) {
     return (
       <CustomView style={commonOnboardingStyles.content}>
         <CustomView style={styles.swipeContainer}>
-          <CustomText
-            style={[styles.emptyText, { color: colors.gray_regular }]}
-          >
-            No content available at the moment.
-          </CustomText>
-          <CustomTouchable
-            style={styles.retryButton}
-            onPress={handleRetry}
-            bgColor={colors.lime}
-          >
-            <CustomText style={styles.retryButtonText}>Refresh</CustomText>
-          </CustomTouchable>
+          <ErrorScreen
+            title="No content available"
+            message="No internet connection available"
+            onRetry={handleRetry}
+          />
         </CustomView>
       </CustomView>
     );
@@ -198,25 +186,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: verticalScale(12),
-  },
-  errorText: {
-    fontSize: scaleFontSize(16),
-    textAlign: "center",
-    marginBottom: verticalScale(16),
-  },
-  emptyText: {
-    fontSize: scaleFontSize(16),
-    textAlign: "center",
-    marginBottom: verticalScale(16),
-  },
-  retryButton: {
-    paddingVertical: verticalScale(12),
-    paddingHorizontal: horizontalScale(24),
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    fontSize: scaleFontSize(14),
-    color: "#fff",
-    textAlign: "center",
   },
 });

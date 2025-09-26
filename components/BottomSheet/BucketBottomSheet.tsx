@@ -27,6 +27,9 @@ import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { useQueryClient } from "@tanstack/react-query";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
 
+// Placeholder image for buckets without images - moved outside component to prevent re-creation
+const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+
 // Define the BucketItem interface directly in this file
 export interface BucketItem {
   id: string;
@@ -70,8 +73,6 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
     20 // standard page size
   );
 
-  // Placeholder image for buckets without images
-  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
   // Helper function to safely get image URL
   const getBucketImage = (bucket: any): string => {

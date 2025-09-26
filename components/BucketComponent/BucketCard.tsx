@@ -10,6 +10,8 @@ import CustomText from "@/components/CustomText";
 import ShareButton from "../Button/ShareButton";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
 
+// Local placeholder image - moved outside component to prevent re-creation
+const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
 interface ExperienceCard {
   id: string;
@@ -27,9 +29,6 @@ interface BucketCardProps {
 
 const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
   const { colors } = useTheme();
-
-  // Local placeholder image
-  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
   // ✅ REMOVED imageErrors state - OptimizedImage handles this internally
 
@@ -58,6 +57,7 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
             priority="normal"
             showLoadingIndicator={true}
             fallbackImage={PLACEHOLDER_IMAGE}
+            borderRadius={9}
           />
         </CustomView>
 
@@ -76,6 +76,7 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
               priority="normal"
               showLoadingIndicator={true}
               fallbackImage={PLACEHOLDER_IMAGE}
+              borderRadius={9}
             />
           </CustomView>
 
@@ -94,6 +95,7 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
               priority="normal"
               showLoadingIndicator={true}
               fallbackImage={PLACEHOLDER_IMAGE}
+              borderRadius={9}
             />
           </CustomView>
         </CustomView>
@@ -106,11 +108,11 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
           style={[styles.title, { color: colors.label_dark }]}
           numberOfLines={1}
         >
-          {item.title}
+          {item.title || 'Unnamed Bucket'}
         </CustomText>
         <ShareButton
-          title={item.title}
-          message={`Check out this bucket: ${item.title}`}
+          title={item.title || 'Unnamed Bucket'}
+          message={`Check out this bucket: ${item.title || 'Unnamed Bucket'}`}
           url={item.bucketShareUrl || ""}
         />
       </CustomView>

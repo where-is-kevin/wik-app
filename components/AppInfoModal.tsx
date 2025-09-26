@@ -25,6 +25,7 @@ const AppInfoModal: React.FC<AppInfoModalProps> = ({ visible, onClose }) => {
       transparent={true}
       animationType="fade"
       onRequestClose={onClose}
+      statusBarTranslucent={true}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
         <CustomView

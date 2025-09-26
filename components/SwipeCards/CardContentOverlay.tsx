@@ -53,10 +53,22 @@ const formatEventDateTime = (dateTimeString?: string): string => {
 };
 
 // Format price display logic
-const formatPrice = (price?: string): string | null => {
+const formatPrice = (price?: string | number): string | null => {
   if (price === null || price === undefined) return null;
-  if (price === "0" || price === "0.00") return "Free";
-  if (price && price !== "0") return "Ticketed";
+
+  // Handle string prices (new API format like "€10.00 - €25.00")
+  if (typeof price === 'string') {
+    if (price === "0" || price === "0.00") return "Free";
+    if (price.includes('€') || price.includes('$')) return price; // Already formatted price range
+    if (price && price !== "0") return "Ticketed";
+  }
+
+  // Handle number prices (old format)
+  if (typeof price === 'number') {
+    if (price === 0) return "Free";
+    if (price > 0) return "Ticketed";
+  }
+
   return null;
 };
 
@@ -71,7 +83,7 @@ interface CardData {
   isSponsored?: boolean;
   contentShareUrl: string;
   tags?: string;
-  similarity: number;
+  similarity: number | string;
   distance?: number;
   eventDatetime?: string; // For event type items
 }
@@ -204,12 +216,12 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
             </>
           )}
         </View>
-        {item.address && (
+        {(item.addressShort || item.address) && (
           <CustomText
             fontFamily="Inter-Medium"
             style={[styles.addressText, { color: colors.background }]}
           >
-            {item.address}
+            {item.addressShort || item.address}
           </CustomText>
         )}
 

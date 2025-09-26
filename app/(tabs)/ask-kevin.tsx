@@ -6,10 +6,10 @@ import { MajorEventData } from "@/components/Cards/MajorEventsCard";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useMode } from "@/contexts/ModeContext";
 import ModeHeader from "@/components/Header/ModeHeader";
+import FloatingMapButton from "@/components/FloatingMapButton";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { StyleSheet, TouchableOpacity, Animated } from "react-native";
-import { useScrollDirection } from "@/hooks/useScrollDirection";
+import { StyleSheet, Animated } from "react-native";
 import MasonryGrid, { LikeItem } from "@/components/MansoryGrid";
 import {
   horizontalScale,
@@ -26,6 +26,7 @@ import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBo
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import { useInfiniteContent } from "@/hooks/useContent";
 import { StatusBar } from "expo-status-bar";
+import { ErrorScreen } from "@/components/ErrorScreen";
 
 const PaginatedContentList = () => {
   const { query } = useLocalSearchParams();
@@ -45,31 +46,34 @@ const PaginatedContentList = () => {
   // State management
   const [searchQuery, setSearchQuery] = useState(normalizeQuery(query));
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [majorEventsHeight, setMajorEventsHeight] = useState(0);
 
-  // Use scroll direction hook with smooth animation
-  const { isHeaderVisible, handleScroll } = useScrollDirection({
-    threshold: 5,
-    initialVisible: true,
-    disabled: mode !== "business",
+  // Animated scroll value for smooth animations
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Major Events visibility with smooth animation
+  const majorEventsOpacity = scrollY.interpolate({
+    inputRange: [0, 50, 100],
+    outputRange: [1, 1, 0],
+    extrapolate: "clamp",
   });
 
-  // Track scroll position for Major Events visibility
-  const [scrollY, setScrollY] = useState(0);
+  // Major Events height animation to prevent gap
+  const majorEventsScaleY = scrollY.interpolate({
+    inputRange: [0, 50, 100],
+    outputRange: [1, 1, 0],
+    extrapolate: "clamp",
+  });
 
-  // Combined scroll handler
-  const handleCombinedScroll = useCallback(
-    (event: any) => {
-      if (mode === "business") {
-        handleScroll(event);
-        setScrollY(event.nativeEvent.contentOffset.y);
-      }
-    },
-    [mode, handleScroll]
-  );
+  // Major Events margin animation - use measured height
+  const majorEventsMarginAnim = scrollY.interpolate({
+    inputRange: [0, 50, 100],
+    outputRange: [0, 0, -majorEventsHeight], // Negative margin equal to actual height
+    extrapolate: "clamp",
+  });
 
-  // Check if Major Events should be visible
-  const shouldShowMajorEvents =
-    mode === "business" && isHeaderVisible && scrollY <= 10;
+  // Check if Major Events should be visible (only for business mode)
+  const shouldShowMajorEvents = mode === "business";
 
   // Bucket functionality state
   const [selectedLikeItemId, setSelectedLikeItemId] = useState<string | null>(
@@ -100,7 +104,7 @@ const PaginatedContentList = () => {
     query: searchQuery,
     latitude: contextLocation?.lat,
     longitude: contextLocation?.lon,
-    limit: 20,
+    limit: 12,
     enabled: true,
   });
 
@@ -304,7 +308,6 @@ const PaginatedContentList = () => {
           <AskKevinSection
             onSend={handleSend}
             onInputChange={handleInputChange}
-            onMapPress={handleOpenMap}
           />
         </CustomView>
 
@@ -322,22 +325,15 @@ const PaginatedContentList = () => {
         <AskKevinSection
           onSend={handleSend}
           onInputChange={handleInputChange}
-          onMapPress={handleOpenMap}
         />
-        <CustomView style={styles.errorContainer}>
-          <CustomText style={styles.errorText}>
-            Failed to load content
-          </CustomText>
-          <CustomText style={styles.errorSubtext}>
-            {error?.message || "Please try again"}
-          </CustomText>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={() => refetch()}
-          >
-            <CustomText style={styles.retryButtonText}>Try Again</CustomText>
-          </TouchableOpacity>
-        </CustomView>
+        <ErrorScreen
+          title="Failed to load content"
+          message={error?.message || "Please try again"}
+          onRetry={() => refetch()}
+        />
+
+        {/* Floating Map Button */}
+        <FloatingMapButton onPress={handleOpenMap} hasTabBar={true} />
       </CustomView>
     );
   }
@@ -357,17 +353,29 @@ const PaginatedContentList = () => {
           <AskKevinSection
             onSend={handleSend}
             onInputChange={handleInputChange}
-            onMapPress={handleOpenMap}
           />
 
           {/* Major Events Section - Only show in business mode with smooth animation */}
           {shouldShowMajorEvents && (
-            <MajorEventsSection
-              events={majorEvents}
-              onEventPress={handleMajorEventPress}
-              onLikePress={handleMajorEventLike}
-              onViewAllPress={handleViewAllMajorEvents}
-            />
+            <Animated.View
+              style={{
+                opacity: majorEventsOpacity,
+                transform: [{ scaleY: majorEventsScaleY }],
+                marginBottom: majorEventsMarginAnim,
+                overflow: "hidden",
+              }}
+              onLayout={(event) => {
+                const { height } = event.nativeEvent.layout;
+                setMajorEventsHeight(height);
+              }}
+            >
+              <MajorEventsSection
+                events={majorEvents}
+                onEventPress={handleMajorEventPress}
+                onLikePress={handleMajorEventLike}
+                onViewAllPress={handleViewAllMajorEvents}
+              />
+            </Animated.View>
           )}
 
           <CustomView style={[styles.titleContainer]}>
@@ -392,17 +400,20 @@ const PaginatedContentList = () => {
               isFetchingNextPage={isFetchingNextPage}
               showVerticalScrollIndicator={false}
               contentContainerStyle={styles.masonryContentContainer}
-              onScroll={mode === "business" ? handleCombinedScroll : undefined}
+              onScroll={
+                mode === "business"
+                  ? Animated.event(
+                      [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                      { useNativeDriver: false }
+                    )
+                  : undefined
+              }
             />
           ) : (
-            <CustomView style={styles.errorContainer}>
-              <CustomText style={styles.errorText}>
-                No results found for "{searchQuery}"
-              </CustomText>
-              <CustomText style={styles.errorSubtext}>
-                Try searching for something else
-              </CustomText>
-            </CustomView>
+            <ErrorScreen
+              title={`No results found for "${searchQuery}"`}
+              message="Try searching for something else"
+            />
           )}
         </CustomView>
 
@@ -420,6 +431,9 @@ const PaginatedContentList = () => {
           onClose={handleCloseCreateBucketBottomSheet}
           onCreateBucket={handleCreateBucket}
         />
+
+        {/* Floating Map Button */}
+        <FloatingMapButton onPress={handleOpenMap} hasTabBar={true} />
       </CustomView>
     </>
   );
@@ -447,38 +461,7 @@ const styles = StyleSheet.create({
   },
   masonryContentContainer: {
     paddingTop: verticalScale(8),
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  errorText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  errorSubtext: {
-    fontSize: 16,
-    color: "#999",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: "#6C63FF",
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  retryButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-    textAlign: "center",
+    paddingBottom: verticalScale(20),
   },
 });
 

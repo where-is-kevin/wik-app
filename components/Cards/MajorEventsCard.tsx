@@ -30,6 +30,7 @@ interface MajorEventsCardProps {
   onPress: (event: MajorEventData) => void;
   onLikePress?: (event: MajorEventData) => void;
   style?: any;
+  hasTabBar?: boolean;
 }
 
 export const MajorEventsCard: React.FC<MajorEventsCardProps> = ({
@@ -37,6 +38,7 @@ export const MajorEventsCard: React.FC<MajorEventsCardProps> = ({
   onPress,
   onLikePress,
   style,
+  hasTabBar = true,
 }) => {
   const { colors } = useTheme();
 
@@ -65,6 +67,7 @@ export const MajorEventsCard: React.FC<MajorEventsCardProps> = ({
               onPress={handleLikePress}
               size={25}
               color={colors.lime}
+              hasTabBar={hasTabBar}
             />
           </View>
         )}
@@ -90,7 +93,7 @@ export const MajorEventsCard: React.FC<MajorEventsCardProps> = ({
               fontFamily="Inter-Bold"
               style={[styles.titleText, { color: colors.text_white }]}
             >
-              {event.title}
+              {event.title || event.location || 'Event'}
             </CustomText>
 
             {/* Location and count */}

@@ -9,31 +9,34 @@ import Constants from "expo-constants";
 type Content = {
   id: string;
   category: string;
-  title: string;
+  title: string | null;
   rating: number;
-  price: number | null;
+  price: number | string | null;
+  internalPrice?: string | null;
   phone: string | null;
   latitude: number;
   longitude: number;
   googleMapsUrl: string;
-  googlePlacesImageUrl: string;
-  internalImages: string[];
+  googlePlacesImageUrl: string | null;
+  internalImages: string[] | null;
   bookingUrl: string | null;
   websiteUrl: string | null;
   description: string | null;
   reviews: string | null;
   tags: string;
-  createdAt: string;
-  updatedAt: string;
-  internalImageUrls: string[];
+  createdAt?: string;
+  updatedAt?: string;
+  internalImageUrls: string[] | null;
   address: string;
+  addressShort?: string;
+  addressLong?: string;
   userLiked?: boolean;
   userDisliked?: boolean;
   isSponsored: boolean;
   contentShareUrl: string;
-  similarity: number;
+  similarity: number | string;
   distance?: number;
-  eventDatetime?: string;
+  eventDatetime?: string | null;
 };
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
@@ -64,7 +67,9 @@ const fetchContent = async (
   // Add query parameters if provided
   if (
     params &&
-    (params.latitude !== undefined || params.longitude !== undefined || params.category_filter !== undefined)
+    (params.latitude !== undefined ||
+      params.longitude !== undefined ||
+      params.category_filter !== undefined)
   ) {
     const cleanParams: Record<string, string> = {};
     if (params.latitude !== undefined)
@@ -176,7 +181,7 @@ export function useInfiniteContent({
   query,
   latitude,
   longitude,
-  limit = 20,
+  limit = 12,
   enabled = true,
 }: InfiniteContentParams) {
   const queryClient = useQueryClient();
@@ -212,7 +217,10 @@ export function useInfiniteContent({
 }
 
 // For basic content (SwipeableCards) - JWT optional
-export function useContent(params?: BasicContentParams, locationPermissionStatus?: 'granted' | 'denied' | 'undetermined' | null) {
+export function useContent(
+  params?: BasicContentParams,
+  locationPermissionStatus?: "granted" | "denied" | "undetermined" | null
+) {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken || null;
@@ -221,15 +229,15 @@ export function useContent(params?: BasicContentParams, locationPermissionStatus
   const shouldFetch = () => {
     // If no permission status provided, fetch immediately (old behavior)
     if (!locationPermissionStatus) return true;
-    
+
     // If permission is denied, fetch without waiting for coordinates
-    if (locationPermissionStatus === 'denied') return true;
-    
+    if (locationPermissionStatus === "denied") return true;
+
     // If permission is granted, wait until we have coordinates
-    if (locationPermissionStatus === 'granted') {
+    if (locationPermissionStatus === "granted") {
       return params?.latitude !== undefined && params?.longitude !== undefined;
     }
-    
+
     // If undetermined, don't fetch yet
     return false;
   };

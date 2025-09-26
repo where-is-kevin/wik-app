@@ -5,6 +5,7 @@ import {
   StatusBar,
   TouchableOpacity,
   Animated,
+  Platform,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
@@ -35,6 +36,9 @@ import {
 } from "@/components/BottomSheet/BucketBottomSheet";
 import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
+import FloatingMapButton from "@/components/FloatingMapButton";
+import { useToast } from "@/contexts/ToastContext";
+import * as Haptics from "expo-haptics";
 
 const BusinessEventDetailsScreen = () => {
   const { colors } = useTheme();
@@ -110,6 +114,10 @@ const BusinessEventDetailsScreen = () => {
   // Mutation hooks for bucket functionality
   const addBucketMutation = useAddBucket();
   const createBucketMutation = useCreateBucket();
+  const { showToast } = useToast();
+
+  // State for interested button
+  const [isInterested, setIsInterested] = useState(false);
 
   const handleBackPress = () => {
     router.back();
@@ -175,6 +183,29 @@ const BusinessEventDetailsScreen = () => {
     [selectedItemId, createBucketMutation]
   );
 
+  const handleInterestedPress = async () => {
+    // Trigger haptic feedback
+    if (Platform.OS !== "web") {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    setIsInterested(!isInterested);
+
+    if (!isInterested) {
+      // Show toast when marking as interested
+      showToast(
+        "Interested! Finding you recommendations nearby.",
+        "success",
+        false
+      );
+    }
+  };
+
+  const handleMapPress = () => {
+    // TODO: Navigate to map screen
+    console.log("Map button pressed");
+  };
+
   const handleLocalEventPress = (event: LocalEventData) => {
     router.push(`/event-details/${event.id}`);
   };
@@ -233,22 +264,16 @@ const BusinessEventDetailsScreen = () => {
     extrapolate: "clamp",
   });
 
-  // Icon opacity for white icons
+  // Icon opacity for white icons - sync with navbar background
   const whiteIconOpacity = scrollY.interpolate({
-    inputRange: [
-      HEADER_HEIGHT - NAVBAR_HEIGHT - 40,
-      HEADER_HEIGHT - NAVBAR_HEIGHT - 10,
-    ],
+    inputRange: [0, 40],
     outputRange: [1, 0],
     extrapolate: "clamp",
   });
 
-  // Icon opacity for black icons
+  // Icon opacity for black icons - sync with navbar background
   const blackIconOpacity = scrollY.interpolate({
-    inputRange: [
-      HEADER_HEIGHT - NAVBAR_HEIGHT - 40,
-      HEADER_HEIGHT - NAVBAR_HEIGHT - 10,
-    ],
+    inputRange: [0, 40],
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
@@ -299,9 +324,9 @@ const BusinessEventDetailsScreen = () => {
           colors={[
             "rgba(217, 217, 217, 0.00)",
             "rgba(236, 236, 236, 0.50)",
-            "#000",
+            "#FFF",
           ]}
-          locations={[0, 0.3089, 0.82]}
+          locations={[0, 0.3089, 0.8089]}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={styles.headerGradient}
@@ -325,7 +350,7 @@ const BusinessEventDetailsScreen = () => {
 
           <CustomText
             fontFamily="Inter-SemiBold"
-            style={[styles.eventSubtitle, { color: colors.text_white }]}
+            style={[styles.eventSubtitle, { color: colors.label_dark }]}
           >
             Events happening during
           </CustomText>
@@ -343,7 +368,7 @@ const BusinessEventDetailsScreen = () => {
         >
           <CustomText
             fontFamily="Inter-Bold"
-            style={[styles.largeTitle, { color: colors.text_white }]}
+            style={[styles.largeTitle, { color: colors.light_blue }]}
           >
             {eventData.title}
           </CustomText>
@@ -358,14 +383,11 @@ const BusinessEventDetailsScreen = () => {
             styles.navBarBackground,
             {
               opacity: scrollY.interpolate({
-                inputRange: [
-                  HEADER_HEIGHT - NAVBAR_HEIGHT - 50,
-                  HEADER_HEIGHT - NAVBAR_HEIGHT - 20,
-                ],
-                outputRange: [0, 0.95],
+                inputRange: [0, 15, 40],
+                outputRange: [0, 0.7, 0.95],
                 extrapolate: "clamp",
               }),
-              backgroundColor: "#000",
+              backgroundColor: "#fff",
               height: NAVBAR_BACKGROUND_HEIGHT,
             },
           ]}
@@ -386,7 +408,7 @@ const BusinessEventDetailsScreen = () => {
                 </Animated.View>
                 {/* White icon for black navbar */}
                 <Animated.View style={{ opacity: blackIconOpacity }}>
-                  <BackSvg />
+                  <BackSvg stroke="#000" />
                 </Animated.View>
               </View>
             </TouchableOpacity>
@@ -398,7 +420,7 @@ const BusinessEventDetailsScreen = () => {
               >
                 <CustomText
                   fontFamily="Inter-Bold"
-                  style={[styles.stickyTitleText, { color: colors.text_white }]}
+                  style={[styles.stickyTitleText, { color: colors.label_dark }]}
                 >
                   {eventData.title}
                 </CustomText>
@@ -490,10 +512,10 @@ const BusinessEventDetailsScreen = () => {
                 <Ionicons
                   name="location-outline"
                   size={16}
-                  color={colors.text_white}
+                  color={colors.event_gray}
                 />
                 <CustomText
-                  style={[styles.metaText, { color: colors.text_white }]}
+                  style={[styles.metaText, { color: colors.label_dark }]}
                 >
                   {eventData.location}
                 </CustomText>
@@ -502,10 +524,10 @@ const BusinessEventDetailsScreen = () => {
                 <Ionicons
                   name="calendar-outline"
                   size={16}
-                  color={colors.text_white}
+                  color={colors.event_gray}
                 />
                 <CustomText
-                  style={[styles.metaText, { color: colors.text_white }]}
+                  style={[styles.metaText, { color: colors.label_dark }]}
                 >
                   {eventData.dateRange}
                 </CustomText>
@@ -513,7 +535,10 @@ const BusinessEventDetailsScreen = () => {
             </View>
 
             <CustomText
-              style={[styles.description, { color: colors.event_gray }]}
+              style={[
+                styles.description,
+                { color: colors.onboarding_option_dark },
+              ]}
             >
               {eventData.description}
             </CustomText>
@@ -523,10 +548,15 @@ const BusinessEventDetailsScreen = () => {
                 styles.interestedButton,
                 { backgroundColor: colors.lime },
               ]}
+              onPress={handleInterestedPress}
             >
-              <Ionicons name="heart-outline" size={18} color="#000" />
+              <Ionicons
+                name={isInterested ? "heart" : "heart-outline"}
+                size={18}
+                color="#000"
+              />
               <CustomText fontFamily="Inter-SemiBold" style={styles.buttonText}>
-                Interested
+                {isInterested ? "Interested" : "Interested"}
               </CustomText>
             </TouchableOpacity>
 
@@ -535,15 +565,15 @@ const BusinessEventDetailsScreen = () => {
 
             <CustomText
               fontFamily="Inter-Bold"
-              style={[styles.sectionTitle, { color: colors.text_white }]}
+              style={[styles.sectionTitle, { color: colors.label_dark }]}
             >
-              What's happening near you...
+              What's happening near you
             </CustomText>
 
             <View style={styles.dateHeader}>
               <CustomText
                 fontFamily="Inter-SemiBold"
-                style={[styles.dateText, { color: colors.text_white }]}
+                style={[styles.dateText, { color: colors.label_dark }]}
               >
                 September 2
               </CustomText>
@@ -561,12 +591,16 @@ const BusinessEventDetailsScreen = () => {
                   event={event}
                   onPress={handleLocalEventPress}
                   onLikePress={handleLocalEventLike}
+                  hasTabBar={false}
                 />
               ))}
             </View>
           </View>
         </View>
       </Animated.ScrollView>
+
+      {/* Floating Map Button */}
+      <FloatingMapButton onPress={handleMapPress} hasTabBar={false} />
 
       {/* Bucket Bottom Sheets */}
       <BucketBottomSheet
@@ -588,7 +622,7 @@ const BusinessEventDetailsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#fff",
   },
   animatedHeader: {
     position: "absolute",
@@ -704,13 +738,13 @@ const styles = StyleSheet.create({
   },
   scrollContentContainer: {
     backgroundColor: "transparent",
-    paddingBottom: verticalScale(30),
+    paddingBottom: verticalScale(110),
   },
   headerSpacer: {
     height: verticalScale(220),
   },
   contentArea: {
-    backgroundColor: "#000",
+    backgroundColor: "#fff",
     minHeight: "100%",
   },
   section: {
@@ -751,7 +785,7 @@ const styles = StyleSheet.create({
   },
   dividerLine: {
     height: 0.5,
-    backgroundColor: "#6F6F76",
+    backgroundColor: "#E5E5E6",
     marginVertical: verticalScale(20),
     marginHorizontal: 0, // Keep within section padding
   },
@@ -763,7 +797,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "baseline",
     gap: horizontalScale(8),
-    marginBottom: verticalScale(16),
+    marginBottom: verticalScale(8),
   },
   dateText: {
     fontSize: scaleFontSize(16),

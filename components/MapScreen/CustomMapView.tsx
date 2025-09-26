@@ -23,7 +23,8 @@ interface CustomMapViewProps {
 const MemoizedMarker = React.memo(({ item, index, isSelected, onPress }: any) => {
   const color = getMarkerColor(item.category);
   const IconComponent = getMarkerIcon(item.category);
-  const similarity = item.similarity ? Math.round(item.similarity * 100) : 0;
+  const numSimilarity = typeof item.similarity === 'string' ? parseFloat(item.similarity) : item.similarity;
+  const similarity = numSimilarity ? Math.round(numSimilarity * 100) : 0;
 
   return (
     <Marker

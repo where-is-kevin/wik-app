@@ -4,7 +4,7 @@ import {
   scaleFontSize,
   verticalScale,
 } from "@/utilities/scaling";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState, useRef, useEffect } from "react";
 import {
   Keyboard,
@@ -18,7 +18,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomView from "../CustomView";
-import StarSvg from "../SvgComponents/StarSvg";
+import NavStarSvg from "../SvgComponents/NavStarSvg";
 import SendSvgSmall from "../SvgComponents/SendSvgSmall";
 import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
 import CustomTouchable from "../CustomTouchableOpacity";
@@ -26,14 +26,9 @@ import CustomTouchable from "../CustomTouchableOpacity";
 type AskKevinSectionProps = {
   onSend?: (message: string) => void;
   onInputChange?: (text: string) => void;
-  onMapPress?: () => void;
 };
 
-const AskKevinSection = ({
-  onSend,
-  onInputChange,
-  onMapPress,
-}: AskKevinSectionProps) => {
+const AskKevinSection = ({ onSend, onInputChange }: AskKevinSectionProps) => {
   const { colors } = useTheme();
   const { trackButtonClick, trackCustomEvent, trackSearch } =
     useAnalyticsContext();
@@ -138,10 +133,10 @@ const AskKevinSection = ({
       bgColor={colors.background}
       style={[styles.askKevinHeader, { marginTop: verticalScale(15) }]}
     >
-      <CustomView style={styles.inputRow}>
+      <CustomView bgColor={colors.background} style={styles.inputRow}>
         {/* Input Container with lime green border */}
         <View style={styles.inputContainer}>
-          <StarSvg color={colors.light_blue} style={styles.starIcon} />
+          <NavStarSvg color={colors.light_blue} style={styles.starIcon} />
           <TextInput
             ref={inputRef}
             style={[
@@ -159,14 +154,6 @@ const AskKevinSection = ({
             multiline={false}
           />
         </View>
-
-        {/* Map Button */}
-        <TouchableOpacity
-          style={[styles.mapButton, { backgroundColor: colors.light_blue }]}
-          onPress={onMapPress}
-        >
-          <Ionicons name="map-outline" size={20} color="#fff" />
-        </TouchableOpacity>
       </CustomView>
     </CustomView>
   );
@@ -177,10 +164,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: horizontalScale(24),
     justifyContent: "space-between",
     width: "100%",
-    paddingBottom: verticalScale(20),
+    marginBottom: verticalScale(15),
   },
   inputContainer: {
-    width: 272,
+    flex: 1,
     height: 45,
     flexDirection: "row",
     alignItems: "center",
@@ -190,11 +177,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(204, 255, 58, 0.15)",
     paddingHorizontal: 15.542,
     gap: 7.081,
-    shadowColor: "rgba(19, 19, 20, 0.25)",
+    shadowColor: "#131314",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 0,
   },
   starIcon: {
     marginRight: 12,
@@ -217,20 +204,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     width: "100%",
-    gap: 10,
-    justifyContent: "space-between",
-  },
-  mapButton: {
-    width: 45,
-    height: 45,
-    borderRadius: 25,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "rgba(19, 19, 20, 0.25)",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 4,
   },
 });
 

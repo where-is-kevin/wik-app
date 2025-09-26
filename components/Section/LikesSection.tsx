@@ -13,6 +13,9 @@ import ShareButton from "../Button/ShareButton";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
 import CategoryTag from "../Tag/CategoryTag";
 
+// Local placeholder image - moved outside component to prevent re-creation
+const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+
 // TypeScript interfaces
 interface LikeItem {
   id?: string;
@@ -38,7 +41,7 @@ interface LikesSectionProps {
   onSeeMorePress?: () => void;
 }
 
-const LikeItemComponent: React.FC<LikeItemProps> = ({
+const LikeItemComponent: React.FC<LikeItemProps> = React.memo(({
   title,
   image,
   category,
@@ -47,19 +50,13 @@ const LikeItemComponent: React.FC<LikeItemProps> = ({
 }) => {
   const { colors } = useTheme();
 
-  // Local placeholder image
-  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
-
-  // Helper function to get valid image URL
-  const getValidImageUrl = useCallback((imageUrl: string): string | null => {
-    if (typeof imageUrl === "string" && imageUrl.trim() !== "") {
-      return imageUrl;
+  // Get safe image source - memoized to prevent re-renders
+  const validImageUrl = React.useMemo(() => {
+    if (typeof image === "string" && image.trim() !== "") {
+      return image;
     }
     return null;
-  }, []);
-
-  // Get safe image source
-  const validImageUrl = getValidImageUrl(image);
+  }, [image]);
 
   return (
     <CustomView style={styles.container}>
@@ -101,7 +98,7 @@ const LikeItemComponent: React.FC<LikeItemProps> = ({
       </CustomView>
     </CustomView>
   );
-};
+});
 
 // Likes section component with horizontal FlatList
 const LikesSection: React.FC<LikesSectionProps> = ({

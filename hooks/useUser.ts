@@ -7,12 +7,14 @@ type User = {
   firstName: string;
   lastName: string;
   email: string;
-  description: string;
+  description: string | null;
   location: string;
   home: string;
-  profileImageUrl: string;
+  profileImage: string; // Changed from profileImageUrl to profileImage
   personalSummary: string;
   createdAt: string;
+  homeGeom: [number, number]; // [longitude, latitude]
+  locationGeom: [number, number]; // [longitude, latitude]
 };
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
