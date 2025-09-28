@@ -1,5 +1,10 @@
 import React from "react";
-import { StyleSheet, TextInput, KeyboardTypeOptions, ViewStyle } from "react-native";
+import {
+  StyleSheet,
+  TextInput,
+  KeyboardTypeOptions,
+  ViewStyle,
+} from "react-native";
 import CustomView from "../CustomView";
 import CustomText from "../CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -52,15 +57,20 @@ export const OnboardingSearch: React.FC<OnboardingSearchProps> = ({
         style={[
           styles.searchContainer,
           !showIcon && { paddingVertical: 15.5 },
-          { 
-            borderColor: hasError 
-              ? "#FF3B30" 
-              : isFocused 
-              ? "#3C62FA" 
-              : colors.input_border 
+          {
+            borderColor: hasError
+              ? "#FF3B30"
+              : isFocused
+              ? "#3C62FA"
+              : colors.input_border,
           },
         ]}
       >
+        {showIcon && (
+          <CustomView style={styles.searchIconContainer}>
+            <OnboardingSearchSvg />
+          </CustomView>
+        )}
         <TextInput
           style={[styles.searchInput, { color: colors.label_dark }]}
           placeholder={placeholder}
@@ -79,13 +89,8 @@ export const OnboardingSearch: React.FC<OnboardingSearchProps> = ({
           autoFocus={autoFocus}
           editable={editable}
         />
-        {showIcon && (
-          <CustomView style={styles.searchIconContainer}>
-            <OnboardingSearchSvg />
-          </CustomView>
-        )}
       </CustomView>
-      
+
       {errorMessage && (
         <CustomText style={[styles.errorText, { color: "#FF3B30" }]}>
           {errorMessage}
@@ -105,17 +110,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 17,
+    paddingVertical: 12,
     backgroundColor: "#FFFFFF",
   },
   searchInput: {
     flex: 1,
     fontSize: scaleFontSize(14),
-    paddingRight: horizontalScale(8),
   },
   searchIconContainer: {
-    padding: horizontalScale(4),
+    marginRight: 11,
   },
   errorText: {
     fontSize: scaleFontSize(12),

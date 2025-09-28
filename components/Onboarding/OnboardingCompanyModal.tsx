@@ -10,10 +10,7 @@ import {
 import CustomView from "../CustomView";
 import CustomText from "../CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
-import {
-  scaleFontSize,
-  verticalScale,
-} from "@/utilities/scaling";
+import { scaleFontSize, verticalScale } from "@/utilities/scaling";
 import { OnboardingSearch } from "./OnboardingSearch";
 import { OnboardingBlurModal } from "./OnboardingModal";
 
@@ -119,13 +116,17 @@ export const OnboardingCompanyModal: React.FC<OnboardingCompanyModalProps> = ({
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredCompanies = DEFAULT_COMPANIES.filter(company =>
+  const filteredCompanies = DEFAULT_COMPANIES.filter((company) =>
     company.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Check if search query doesn't match any existing companies and is not empty
-  const hasCustomOption = searchQuery.trim().length > 0 && 
-    !DEFAULT_COMPANIES.some(company => company.name.toLowerCase() === searchQuery.toLowerCase().trim());
+  const hasCustomOption =
+    searchQuery.trim().length > 0 &&
+    !DEFAULT_COMPANIES.some(
+      (company) =>
+        company.name.toLowerCase() === searchQuery.toLowerCase().trim()
+    );
 
   const handleCompanyPress = (company: CompanyData) => {
     onCompanySelect(company.name);
@@ -156,7 +157,7 @@ export const OnboardingCompanyModal: React.FC<OnboardingCompanyModalProps> = ({
     <OnboardingBlurModal
       visible={visible}
       onClose={onClose}
-      title="Company - Search"
+      title="Select Company"
     >
       <TouchableWithoutFeedback onPress={handleScreenTap}>
         <CustomView style={styles.container}>
@@ -202,7 +203,7 @@ export const OnboardingCompanyModal: React.FC<OnboardingCompanyModalProps> = ({
                     </CustomText>
                   </TouchableOpacity>
                 )}
-                
+
                 {/* Show filtered results */}
                 {filteredCompanies.map((company) => (
                   <OnboardingCompanyItem

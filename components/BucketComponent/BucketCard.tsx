@@ -1,17 +1,13 @@
 import React from "react";
-import { StyleSheet } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
-import {
-  scaleFontSize,
-} from "@/utilities/scaling";
+import { scaleFontSize } from "@/utilities/scaling";
 import CustomView from "@/components/CustomView";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import CustomText from "@/components/CustomText";
 import ShareButton from "../Button/ShareButton";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
-
-// Local placeholder image - moved outside component to prevent re-creation
-const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+import ImagePlaceholderSvg from "../SvgComponents/ImagePlaceholderSvg";
 
 interface ExperienceCard {
   id: string;
@@ -30,13 +26,34 @@ interface BucketCardProps {
 const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
   const { colors } = useTheme();
 
-  // ✅ REMOVED imageErrors state - OptimizedImage handles this internally
+  // Helper function to check if a valid image exists
+  const getValidImageUrl = (image: any): string | null => {
+    if (typeof image === "string" && image.trim() !== "") {
+      return image;
+    }
+    return null;
+  };
 
-  // Ensuring we have at least 3 images, using local placeholder if needed
+  // Check if content exists at position
+  const hasContentAtPosition = (position: number): boolean => {
+    if (!item.safeImages || position >= item.safeImages.length) {
+      return false;
+    }
+    // Check if there's actual content (not empty string, null, or undefined)
+    const content = item.safeImages[position];
+    return (
+      content !== null &&
+      content !== undefined &&
+      content !== "" &&
+      content !== 0
+    );
+  };
+
+  // Get safe images with validation
   const safeImages = [
-    item.safeImages?.[0] || PLACEHOLDER_IMAGE,
-    item.safeImages?.[1] || PLACEHOLDER_IMAGE,
-    item.safeImages?.[2] || PLACEHOLDER_IMAGE,
+    getValidImageUrl(item.safeImages?.[0]),
+    getValidImageUrl(item.safeImages?.[1]),
+    getValidImageUrl(item.safeImages?.[2]),
   ];
 
   return (
@@ -45,58 +62,106 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
       <CustomTouchable style={styles.imageContainer} onPress={onPress}>
         {/* Main large image (left side) */}
         <CustomView style={styles.mainImageContainer}>
-          {/* ✅ REPLACED Image with OptimizedImage */}
-          <OptimizedImage
-            source={
-              typeof safeImages[0] === "string"
-                ? { uri: safeImages[0] }
-                : safeImages[0]
-            }
-            style={styles.mainImage}
-            contentFit="cover"
-            priority="normal"
-            showLoadingIndicator={true}
-            fallbackImage={PLACEHOLDER_IMAGE}
-            borderRadius={9}
-          />
+          {safeImages[0] ? (
+            <OptimizedImage
+              source={{ uri: safeImages[0] }}
+              style={styles.mainImage}
+              contentFit="cover"
+              priority="normal"
+              showLoadingIndicator={true}
+              borderRadius={9}
+            />
+          ) : (
+            <View
+              style={[
+                styles.mainImage,
+                { backgroundColor: "#F5F5F5", borderRadius: 9 },
+              ]}
+            >
+              <ImagePlaceholderSvg
+                width="100%"
+                height="100%"
+                backgroundColor="#F5F5F5"
+                iconColor="#9CA3AF"
+              />
+            </View>
+          )}
         </CustomView>
 
         {/* Right column with two smaller images */}
         <CustomView style={styles.rightColumn}>
           <CustomView style={styles.smallImageContainer}>
-            {/* ✅ REPLACED Image with OptimizedImage */}
-            <OptimizedImage
-              source={
-                typeof safeImages[1] === "string"
-                  ? { uri: safeImages[1] }
-                  : safeImages[1]
-              }
-              style={styles.smallImage}
-              contentFit="cover"
-              priority="normal"
-              showLoadingIndicator={true}
-              fallbackImage={PLACEHOLDER_IMAGE}
-              borderRadius={9}
-            />
+            {hasContentAtPosition(1) ? (
+              safeImages[1] ? (
+                <OptimizedImage
+                  source={{ uri: safeImages[1] }}
+                  style={styles.smallImage}
+                  contentFit="cover"
+                  priority="normal"
+                  showLoadingIndicator={true}
+                  borderRadius={9}
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.smallImage,
+                    { backgroundColor: "#F5F5F5", borderRadius: 9 },
+                  ]}
+                >
+                  <ImagePlaceholderSvg
+                    width="100%"
+                    height="100%"
+                    backgroundColor="#F5F5F5"
+                    iconColor="#9CA3AF"
+                  />
+                </View>
+              )
+            ) : (
+              <View
+                style={[
+                  styles.smallImage,
+                  { backgroundColor: "#F5F5F5", borderRadius: 9 },
+                ]}
+              />
+            )}
           </CustomView>
 
           <CustomView
             style={[styles.smallImageContainer, styles.bottomImageContainer]}
           >
-            {/* ✅ REPLACED Image with OptimizedImage */}
-            <OptimizedImage
-              source={
-                typeof safeImages[2] === "string"
-                  ? { uri: safeImages[2] }
-                  : safeImages[2]
-              }
-              style={styles.smallImage}
-              contentFit="cover"
-              priority="normal"
-              showLoadingIndicator={true}
-              fallbackImage={PLACEHOLDER_IMAGE}
-              borderRadius={9}
-            />
+            {hasContentAtPosition(2) ? (
+              safeImages[2] ? (
+                <OptimizedImage
+                  source={{ uri: safeImages[2] }}
+                  style={styles.smallImage}
+                  contentFit="cover"
+                  priority="normal"
+                  showLoadingIndicator={true}
+                  borderRadius={9}
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.smallImage,
+                    { backgroundColor: "#F5F5F5", borderRadius: 9 },
+                  ]}
+                >
+                  <ImagePlaceholderSvg
+                    width="100%"
+                    height="100%"
+                    backgroundColor="#F5F5F5"
+                    iconColor="#9CA3AF"
+                  />
+                </View>
+              )
+            ) : (
+              <View
+                style={[
+                  styles.smallImage,
+                  { backgroundColor: "#F5F5F5", borderRadius: 9 },
+                ]}
+              />
+            )}
           </CustomView>
         </CustomView>
       </CustomTouchable>
@@ -108,11 +173,11 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
           style={[styles.title, { color: colors.label_dark }]}
           numberOfLines={1}
         >
-          {item.title || 'Unnamed Bucket'}
+          {item.title || "Unnamed Bucket"}
         </CustomText>
         <ShareButton
-          title={item.title || 'Unnamed Bucket'}
-          message={`Check out this bucket: ${item.title || 'Unnamed Bucket'}`}
+          title={item.title || "Unnamed Bucket"}
+          message={`Check out this bucket: ${item.title || "Unnamed Bucket"}`}
           url={item.bucketShareUrl || ""}
         />
       </CustomView>

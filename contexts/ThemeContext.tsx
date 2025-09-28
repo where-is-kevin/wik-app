@@ -45,6 +45,7 @@ type ThemeColors = {
   legal_green: string;
   tag_gray_text: string;
   venue_orange: string;
+  text_black: string;
 };
 
 // Define the themes
@@ -82,6 +83,7 @@ const themes = {
     legal_green: "#01DB87",
     tag_gray_text: "#D8E0FF",
     venue_orange: "#F84808",
+    text_black: "#000",
   },
   dark: {
     text: "#ECEDEE",
@@ -116,6 +118,7 @@ const themes = {
     legal_green: "#01DB87",
     tag_gray_text: "#D8E0FF",
     venue_orange: "#F84808",
+    text_black: "#000",
   },
 };
 

@@ -13,9 +13,7 @@ import {
 } from "@/utilities/scaling";
 import { formatDistance } from "@/utilities/formatDistance";
 import PinBucketSvg from "./SvgComponents/PinBucketSvg";
-
-// Local placeholder image - moved outside component to prevent re-creation
-const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+import ImagePlaceholderSvg from "./SvgComponents/ImagePlaceholderSvg";
 
 interface ContentCardProps {
   item: any;
@@ -58,12 +56,21 @@ const ContentCard: React.FC<ContentCardProps> = ({
     >
       <View style={styles.imageContainer}>
         <OptimizedImage
-          source={validImageUrl ? { uri: validImageUrl } : PLACEHOLDER_IMAGE}
+          source={validImageUrl ? { uri: validImageUrl } : ""}
           style={styles.cardImage}
           priority="normal"
           showLoadingIndicator={true}
-          fallbackImage={PLACEHOLDER_IMAGE}
           borderRadius={10}
+          overlayComponent={
+            !validImageUrl ? (
+              <ImagePlaceholderSvg
+                width="100%"
+                height="100%"
+                backgroundColor="#F5F5F5"
+                iconColor="#9CA3AF"
+              />
+            ) : undefined
+          }
         />
 
         {/* Top Row with Category Tag and Bucket Button */}

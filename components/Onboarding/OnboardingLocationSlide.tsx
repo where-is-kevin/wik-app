@@ -156,7 +156,8 @@ export const OnboardingLocationSlide: React.FC<
                   {error}
                 </CustomText>
               </CustomView>
-            ) : searchQuery.length > 1 || (!searchQuery && searchResults.length > 0) ? (
+            ) : searchQuery.length > 1 ||
+              (!searchQuery && searchResults.length > 0) ? (
               searchResults.length > 0 ? (
                 <>
                   {/* Display search results - Current Location is already included */}
@@ -169,18 +170,20 @@ export const OnboardingLocationSlide: React.FC<
                     />
                   ))}
                   {/* Show API message when only Current Location exists */}
-                  {apiMessage && searchResults.length === 1 && searchResults[0].isCurrentLocation && (
-                    <CustomView style={styles.noResultsContainer}>
-                      <CustomText
-                        style={[
-                          styles.noResultsText,
-                          { color: colors.gray_regular },
-                        ]}
-                      >
-                        {apiMessage}
-                      </CustomText>
-                    </CustomView>
-                  )}
+                  {apiMessage &&
+                    searchResults.length === 1 &&
+                    searchResults[0].isCurrentLocation && (
+                      <CustomView style={styles.noResultsContainer}>
+                        <CustomText
+                          style={[
+                            styles.noResultsText,
+                            { color: colors.gray_regular },
+                          ]}
+                        >
+                          {apiMessage}
+                        </CustomText>
+                      </CustomView>
+                    )}
                 </>
               ) : (
                 <>

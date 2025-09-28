@@ -28,7 +28,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
 
 // Placeholder image for buckets without images - moved outside component to prevent re-creation
-const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+// Using SVG placeholder via OptimizedImage error handling
 
 // Define the BucketItem interface directly in this file
 export interface BucketItem {
@@ -78,7 +78,7 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
   const getBucketImage = (bucket: any): string => {
     try {
       // Check if bucket exists
-      if (!bucket) return PLACEHOLDER_IMAGE;
+      if (!bucket) return "";
 
       // Check if content exists and is an array
       if (
@@ -86,12 +86,12 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
         !Array.isArray(bucket.content) ||
         bucket.content.length === 0
       ) {
-        return PLACEHOLDER_IMAGE;
+        return "";
       }
 
       // Get the first content item
       const firstContent = bucket.content[0];
-      if (!firstContent) return PLACEHOLDER_IMAGE;
+      if (!firstContent) return "";
 
       // Check if internalImageUrls exists and is an array
       if (
@@ -107,7 +107,7 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
         ) {
           return firstContent.googlePlacesImageUrl;
         }
-        return PLACEHOLDER_IMAGE;
+        return "";
       }
 
       // Get the first image URL
@@ -118,10 +118,10 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
         return imageUrl;
       }
 
-      return PLACEHOLDER_IMAGE;
+      return "";
     } catch (error) {
       console.warn("Error getting bucket image:", error);
-      return PLACEHOLDER_IMAGE;
+      return "";
     }
   };
 
@@ -244,7 +244,7 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
             contentFit="cover"
             priority="normal"
             showLoadingIndicator={true}
-            fallbackImage={PLACEHOLDER_IMAGE}
+            fallbackImage={""}
           />
           <CustomView style={styles.bucketItemContent}>
             <CustomText

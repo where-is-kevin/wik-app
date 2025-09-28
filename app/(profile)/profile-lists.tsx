@@ -35,8 +35,7 @@ import { Ionicons } from "@expo/vector-icons";
 import FloatingMapButton from "@/components/FloatingMapButton";
 import { ErrorScreen } from "@/components/ErrorScreen";
 
-// Constants - moved outside component to prevent re-creation
-const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+// Using SVG placeholder via BucketCard's OptimizedImage error handling
 
 interface LocalBucketItem {
   id: string;
@@ -155,7 +154,7 @@ const ProfileListsScreen = () => {
       // Create stable array reference
       const finalImages = [...images];
       while (finalImages.length < 3) {
-        finalImages.push(PLACEHOLDER_IMAGE);
+        finalImages.push(""); // Empty string for SVG placeholder
       }
 
       return {
@@ -169,7 +168,7 @@ const ProfileListsScreen = () => {
 
   const transformedLikesData = useMemo(() => {
     return likes.map((like: any, index: number) => {
-      let foodImage = PLACEHOLDER_IMAGE;
+      let foodImage = ""; // Empty string for SVG placeholder
       if (like.internalImageUrls?.length > 0) {
         foodImage = like.internalImageUrls[0];
       } else if (like.googlePlacesImageUrl) {

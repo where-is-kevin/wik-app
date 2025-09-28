@@ -23,7 +23,6 @@ interface OnboardingFormLocationModalProps {
   selectedLocation?: LocationData;
 }
 
-
 export const OnboardingFormLocationModal: React.FC<
   OnboardingFormLocationModalProps
 > = ({ visible, onClose, onLocationSelect, selectedLocation }) => {
@@ -91,7 +90,7 @@ export const OnboardingFormLocationModal: React.FC<
     <OnboardingBlurModal
       visible={visible}
       onClose={onClose}
-      title="Current Location - Search"
+      title="Select Location"
     >
       <TouchableWithoutFeedback onPress={handleScreenTap}>
         <CustomView style={styles.container}>
@@ -99,7 +98,7 @@ export const OnboardingFormLocationModal: React.FC<
           <OnboardingSearch
             value={searchQuery}
             onChangeText={handleSearchChange}
-            placeholder="Current Location"
+            placeholder="Search locations..."
             autoFocus={false}
             autoCorrect={false}
             spellCheck={false}
@@ -110,6 +109,7 @@ export const OnboardingFormLocationModal: React.FC<
           {/* Location Results */}
           <ScrollView
             style={styles.resultsContainer}
+            contentContainerStyle={{ paddingBottom: verticalScale(20) }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
@@ -141,32 +141,31 @@ export const OnboardingFormLocationModal: React.FC<
                   />
                 ))}
                 {/* Show API message if available (e.g., "We're not there yet.") */}
-                {apiMessage && searchResults.length === 1 && searchResults[0].isCurrentLocation && (
-                  <CustomView style={styles.noResultsContainer}>
-                    <CustomText
-                      style={[
-                        styles.noResultsText,
-                        { color: colors.gray_regular },
-                      ]}
-                    >
-                      {apiMessage}
-                    </CustomText>
-                  </CustomView>
-                )}
+                {apiMessage &&
+                  searchResults.length === 1 &&
+                  searchResults[0].isCurrentLocation && (
+                    <CustomView style={styles.noResultsContainer}>
+                      <CustomText
+                        style={[
+                          styles.noResultsText,
+                          { color: colors.gray_regular },
+                        ]}
+                      >
+                        {apiMessage}
+                      </CustomText>
+                    </CustomView>
+                  )}
               </>
             ) : (
               // No results yet - showing loading or empty state
               <CustomView style={styles.noResultsContainer}>
                 <CustomText
-                  style={[
-                    styles.noResultsText,
-                    { color: colors.gray_regular },
-                  ]}
+                  style={[styles.noResultsText, { color: colors.gray_regular }]}
                 >
-                  {apiMessage || (searchQuery.length > 1
-                    ? `No locations found for "${searchQuery}"`
-                    : "Loading locations..."
-                  )}
+                  {apiMessage ||
+                    (searchQuery.length > 1
+                      ? `No locations found for "${searchQuery}"`
+                      : "Loading locations...")}
                 </CustomText>
               </CustomView>
             )}

@@ -16,8 +16,7 @@ import React, { useMemo, useCallback } from "react";
 import { ScrollView, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// Placeholder image from assets - moved outside component to prevent re-creation
-const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+// Using SVG placeholder via component error handling
 
 const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
@@ -127,7 +126,7 @@ const ProfileScreen = () => {
       // Add placeholder images if we don't have enough (create stable array)
       const finalImages = [...images];
       while (finalImages.length < 3) {
-        finalImages.push(PLACEHOLDER_IMAGE);
+        finalImages.push(""); // Empty string for SVG placeholder
       }
 
       // Get stable handlers from the map
@@ -153,7 +152,7 @@ const ProfileScreen = () => {
 
     return likes.map((like: any) => {
       // Use internal image first, then fallback to google places image, then placeholder
-      let image = PLACEHOLDER_IMAGE;
+      let image = ""; // Empty string for SVG placeholder
       if (
         like.internalImageUrls &&
         Array.isArray(like.internalImageUrls) &&

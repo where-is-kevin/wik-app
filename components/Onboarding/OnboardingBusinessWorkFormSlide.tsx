@@ -17,7 +17,11 @@ import { OnboardingIndustryModal } from "./OnboardingIndustryModal";
 import OnboardingSearchSvg from "../SvgComponents/OnboardingSearchSvg";
 
 // Import shared industry functions from modal
-import { getIndustryTags, customIndustryStore, getRandomColor } from "./OnboardingIndustryModal";
+import {
+  getIndustryTags,
+  customIndustryStore,
+  getRandomColor,
+} from "./OnboardingIndustryModal";
 
 // Get industry colors (using exact same logic as modal)
 const getIndustryColor = (industryName: string, colors: any): string => {
@@ -167,6 +171,9 @@ export const OnboardingBusinessWorkFormSlide: React.FC<
                 { borderColor: colors.input_border },
               ]}
             >
+              <CustomView style={styles.searchIconContainer}>
+                <OnboardingSearchSvg />
+              </CustomView>
               {formData.industry.length > 0 ? (
                 <CustomView style={styles.industryPills}>
                   {formData.industry.map((industry, index) => {
@@ -197,9 +204,6 @@ export const OnboardingBusinessWorkFormSlide: React.FC<
                   Start typing and select
                 </CustomText>
               )}
-              <CustomView style={styles.searchIconContainer}>
-                <OnboardingSearchSvg />
-              </CustomView>
             </CustomView>
           </TouchableOpacity>
         </CustomView>
@@ -347,6 +351,6 @@ const styles = StyleSheet.create({
     fontSize: scaleFontSize(14),
   },
   searchIconContainer: {
-    padding: horizontalScale(4),
+    marginRight: 11,
   },
 });

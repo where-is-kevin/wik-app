@@ -121,6 +121,9 @@ export default function RootLayout() {
                           presentation: 'modal',
                           headerShown: false,
                           animation: 'slide_from_bottom',
+                          contentStyle: {
+                            backgroundColor: 'transparent',
+                          },
                         }}
                       />
                       {/* Fallback screen for undefined routes */}

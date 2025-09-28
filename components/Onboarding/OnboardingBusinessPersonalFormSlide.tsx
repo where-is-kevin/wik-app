@@ -166,23 +166,26 @@ export const OnboardingBusinessPersonalFormSlide: React.FC<
             onPress={() => setShowExpertiseModal(true)}
             activeOpacity={0.7}
           >
-            <CustomView 
+            <CustomView
               style={[
                 styles.expertiseContainer,
-                { borderColor: colors.input_border }
+                { borderColor: colors.input_border },
               ]}
             >
+              <CustomView style={styles.searchIcon}>
+                <OnboardingSearchSvg />
+              </CustomView>
               {formData.areasOfExpertise.length > 0 ? (
                 <CustomView style={styles.expertisePills}>
                   {formData.areasOfExpertise.map((expertise, index) => {
                     const tagColor = getExpertiseColor(expertise, colors);
-                    
+
                     return (
-                      <CustomView 
+                      <CustomView
                         key={index}
                         style={[
                           styles.expertisePill,
-                          { backgroundColor: tagColor }
+                          { backgroundColor: tagColor },
                         ]}
                       >
                         <CustomText style={styles.expertisePillText}>
@@ -193,13 +196,15 @@ export const OnboardingBusinessPersonalFormSlide: React.FC<
                   })}
                 </CustomView>
               ) : (
-                <CustomText style={[styles.placeholderText, { color: colors.gray_regular }]}>
+                <CustomText
+                  style={[
+                    styles.placeholderText,
+                    { color: colors.gray_regular },
+                  ]}
+                >
                   Start typing and select
                 </CustomText>
               )}
-              <CustomView style={styles.searchIcon}>
-                <OnboardingSearchSvg />
-              </CustomView>
             </CustomView>
           </TouchableOpacity>
         </CustomView>
@@ -291,6 +296,6 @@ const styles = StyleSheet.create({
     fontSize: scaleFontSize(14),
   },
   searchIcon: {
-    padding: horizontalScale(4),
+    marginRight: 11,
   },
 });

@@ -15,21 +15,22 @@ import {
   scaleFontSize,
 } from "@/utilities/scaling";
 
-interface OnboardingBlurModalProps {
+interface CreateModalProps {
   visible: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
   showCancelButton?: boolean;
   onCancel?: () => void;
+  minHeight?: number;
 }
 
-export const OnboardingBlurModal: React.FC<OnboardingBlurModalProps> = ({
+export const CreateModal: React.FC<CreateModalProps> = ({
   visible,
   onClose,
   title,
   children,
-  showCancelButton = true,
+  showCancelButton = false,
   onCancel,
 }) => {
   const { colors } = useTheme();
@@ -60,7 +61,9 @@ export const OnboardingBlurModal: React.FC<OnboardingBlurModalProps> = ({
                 onPress={() => {}} // Prevent closing when clicking inside modal
                 style={[
                   styles.modalContent,
-                  { backgroundColor: colors.background },
+                  {
+                    backgroundColor: colors.background,
+                  },
                 ]}
               >
                 {/* Header */}
@@ -119,15 +122,11 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: "100%",
-    minHeight: verticalScale(320),
     padding: 20,
-    paddingBottom: 0,
-
-    flexDirection: "column",
-    alignItems: "flex-start",
-    gap: verticalScale(15),
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "#F2F2F3",
+    backgroundColor: "#FFF",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -151,7 +150,6 @@ const styles = StyleSheet.create({
     fontSize: scaleFontSize(14),
   },
   contentContainer: {
-    flex: 1,
     width: "100%",
   },
 });

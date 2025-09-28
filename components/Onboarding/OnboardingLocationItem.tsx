@@ -58,10 +58,7 @@ export const OnboardingLocationItem: React.FC<OnboardingLocationItemProps> = ({
         >
           <LocationPinSvg />
         </CustomView>
-        <CustomText
-          fontFamily="Inter-Medium"
-          style={[styles.locationText, { color: colors.label_dark }]}
-        >
+        <CustomText style={[styles.locationText, { color: colors.label_dark }]}>
           Current Location
         </CustomText>
       </TouchableOpacity>

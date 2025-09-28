@@ -45,8 +45,7 @@ import MapView, { Marker } from "react-native-maps";
 import { formatSimilarity } from "@/utilities/formatSimilarity";
 import { formatDistance } from "@/utilities/formatDistance";
 
-// Default placeholder image for events without images
-const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+// Using SVG placeholder via OptimizedImage error handling
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -203,7 +202,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
     if (contentData?.googlePlacesImageUrl) {
       return [contentData.googlePlacesImageUrl];
     }
-    return [PLACEHOLDER_IMAGE]; // Return placeholder image when no images available
+    return [""]; // Return placeholder image when no images available
   };
 
   const images = useMemo(() => getImages(), [contentData]);

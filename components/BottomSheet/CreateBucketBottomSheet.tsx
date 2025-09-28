@@ -1,5 +1,5 @@
 // CreateBucketBottomSheet.tsx
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { StyleSheet } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
 import CustomText from "@/components/CustomText";
@@ -17,14 +17,14 @@ interface CreateBucketBottomSheetProps {
   isLoading?: boolean; // Add loading state prop
 }
 
-export const CreateBucketBottomSheet: React.FC<
+const CreateBucketBottomSheetComponent: React.FC<
   CreateBucketBottomSheetProps
 > = ({ isVisible, onClose, onCreateBucket, isLoading = false }) => {
   const { colors } = useTheme();
   const [bucketName, setBucketName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
-  const handleCreateBucket = async () => {
+  const handleCreateBucket = useCallback(async () => {
     if (bucketName.trim()) {
       setIsCreating(true);
       try {
@@ -37,15 +37,19 @@ export const CreateBucketBottomSheet: React.FC<
         setIsCreating(false);
       }
     }
-  };
+  }, [bucketName, onCreateBucket]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (!isCreating) {
       // Prevent closing while creating
       setBucketName("");
       onClose();
     }
-  };
+  }, [isCreating, onClose]);
+
+  const handleTextChange = useCallback((text: string) => {
+    setBucketName(text);
+  }, []);
 
   const isButtonDisabled = !bucketName.trim() || isCreating || isLoading;
 
@@ -75,7 +79,7 @@ export const CreateBucketBottomSheet: React.FC<
           <CustomTextInput
             label="Name"
             value={bucketName}
-            onChangeText={setBucketName}
+            onChangeText={handleTextChange}
             placeholder="Enter bucket name..."
             autoCapitalize="words"
             editable={!isCreating} // Disable input while creating
@@ -125,3 +129,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
 });
+
+export const CreateBucketBottomSheet = React.memo(CreateBucketBottomSheetComponent);

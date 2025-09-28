@@ -6,21 +6,19 @@ import {
   ImageStyle,
   StyleSheet,
   StyleProp,
-  Text,
 } from "react-native";
 import { Image, ImageSource, ImageContentFit } from "expo-image";
-import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/contexts/ThemeContext";
 import ShimmerLoader from "@/components/Loader/ShimmerLoader";
+import ImagePlaceholderSvg from "@/components/SvgComponents/ImagePlaceholderSvg";
 
-// Default fallback image - using a simple placeholder
-const DefaultPlaceholder = require("@/assets/images/placeholder-bucket.png");
+// Legacy fallback - SVG placeholder now used via error handling
 
 type ImagePriority = "low" | "normal" | "high";
 type CachePolicy = "memory" | "disk" | "memory-disk" | "none";
 
 const DEFAULT_AVATARS = {
-  USER_AVATAR: DefaultPlaceholder,
+  USER_AVATAR: "", // Will show SVG placeholder via error handling
 };
 
 interface OptimizedImageProps {
@@ -41,7 +39,6 @@ interface OptimizedImageProps {
   cachePolicy?: CachePolicy;
   borderRadius?: number;
   overlayComponent?: React.ReactNode;
-  errorRetryText?: string;
   accessibilityLabel?: string;
   resizeMode?: "contain" | "cover" | "stretch" | "center";
   children?: React.ReactNode;
@@ -76,24 +73,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.background,
   },
-  errorText: {
-    fontSize: 12,
-    color: colors.gray_regular,
-    marginTop: 8,
-    textAlign: "center",
-  },
-  retryButton: {
-    marginTop: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    backgroundColor: colors.lime,
-    borderRadius: 4,
-  },
-  retryText: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: "600",
-  },
   overlayContainer: {
     position: "absolute",
     top: 0,
@@ -121,7 +100,6 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   cachePolicy = "memory-disk",
   borderRadius,
   overlayComponent,
-  errorRetryText = "Retry",
   accessibilityLabel,
 }) => {
   const { colors } = useTheme();
@@ -154,12 +132,10 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   });
   const [hasError, setHasError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
-  const [retryCount, setRetryCount] = useState(0);
 
   const handleLoad = () => {
     setIsLoading(false);
     setHasError(false);
-    setRetryCount(0); // Reset retry count on successful load
     onLoad?.();
   };
 
@@ -167,29 +143,16 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
     setIsLoading(false);
     setHasError(true);
 
-    // Log Google Places API image failures and prevent infinite retries
+    // Log Google Places API image failures
     const imageUrl = typeof source === 'string' ? source : (source as any)?.uri;
     if (imageUrl && imageUrl.includes('googleapis.com/maps/api/place/photo')) {
       console.warn('Google Places photo failed to load:', imageUrl);
-      // Set retry count to max to prevent any retries for Google Places photos
-      setRetryCount(3);
     }
 
     onError?.(error);
   };
 
-  const handleRetry = () => {
-    // Prevent infinite retries - max 3 attempts
-    if (retryCount >= 3) {
-      console.warn('Max retry attempts reached for image:', source);
-      return;
-    }
-
-    setHasError(false);
-    setIsLoading(true);
-    setRetryKey((prev) => prev + 1);
-    setRetryCount((prev) => prev + 1);
-  };
+  // Removed retry functionality - using SVG placeholder instead
 
   const getImageSource = (): string | ImageSource => {
     // Check if this is a Google Places photo and force fallback immediately
@@ -198,7 +161,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
       // Don't log for every blocked request - too verbose
       if (fallbackImage) return fallbackImage;
       if (useDefaultAvatar) return DEFAULT_AVATARS[defaultAvatarType];
-      return DefaultPlaceholder; // Always return the default placeholder
+      return ""; // Will show SVG placeholder via error handling
     }
 
     if (isSourceEmpty(source) && useDefaultAvatar) {
@@ -243,15 +206,12 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
     if (hasError && !fallbackImage && !useDefaultAvatar && showErrorFallback) {
       return (
         <View style={[styles.errorContainer, getBorderRadiusViewStyle()]}>
-          <Ionicons
-            name="image-outline"
-            size={24}
-            color={colors.gray_regular}
+          <ImagePlaceholderSvg
+            width="100%"
+            height="100%"
+            backgroundColor="#F5F5F5"
+            iconColor="#9CA3AF"
           />
-          <Text style={styles.errorText}>Failed to load image</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
-            <Text style={styles.retryText}>{errorRetryText}</Text>
-          </TouchableOpacity>
         </View>
       );
     }

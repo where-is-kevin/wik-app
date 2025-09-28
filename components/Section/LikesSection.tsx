@@ -12,9 +12,10 @@ import { useTheme } from "@/contexts/ThemeContext";
 import ShareButton from "../Button/ShareButton";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
 import CategoryTag from "../Tag/CategoryTag";
+import ImagePlaceholderSvg from "../SvgComponents/ImagePlaceholderSvg";
 
 // Local placeholder image - moved outside component to prevent re-creation
-const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+// Using SVG placeholder via OptimizedImage error handling
 
 // TypeScript interfaces
 interface LikeItem {
@@ -63,12 +64,21 @@ const LikeItemComponent: React.FC<LikeItemProps> = React.memo(({
       {/* Image container with its own touchable */}
       <CustomTouchable style={styles.imageContainer} onPress={onPress}>
         <OptimizedImage
-          source={validImageUrl ? { uri: validImageUrl } : PLACEHOLDER_IMAGE}
+          source={validImageUrl ? { uri: validImageUrl } : ""}
           style={styles.image}
           contentFit="cover"
           priority="normal"
           showLoadingIndicator={true}
-          fallbackImage={PLACEHOLDER_IMAGE}
+          overlayComponent={
+            !validImageUrl ? (
+              <ImagePlaceholderSvg
+                width="100%"
+                height="100%"
+                backgroundColor="#F5F5F5"
+                iconColor="#9CA3AF"
+              />
+            ) : undefined
+          }
         />
 
         {/* Category tag in top left */}

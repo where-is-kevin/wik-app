@@ -7,7 +7,6 @@ import { scaleFontSize } from "@/utilities/scaling";
 import { OptimizedImageBackground } from "../OptimizedImage/OptimizedImage";
 import { CardContentOverlay } from "./CardContentOverlay";
 import { getImageSource } from "@/utilities/imageHelpers";
-import { STATIC_IMAGES } from "@/constants/images";
 
 interface CardData {
   id: string;
@@ -115,7 +114,6 @@ export const SwipeCard = React.memo<SwipeCardProps>(function SwipeCard({
         contentFit="cover"
         priority={isCurrentCard ? "high" : "normal"}
         showLoadingIndicator={true}
-        fallbackImage={STATIC_IMAGES.PLACEHOLDER_IMAGE}
         onLoad={handleImageLoad}
         onError={handleImageError}
         borderRadius={16}

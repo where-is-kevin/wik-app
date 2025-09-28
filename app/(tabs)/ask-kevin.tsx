@@ -112,14 +112,11 @@ const PaginatedContentList = () => {
   const allItems = data?.pages.flatMap((page) => page.items) ?? [];
 
   // Transform data for MasonryGrid
-  const PLACEHOLDER_IMAGE =
-    "https://images.unsplash.com/photo-1536236502598-7dd171f8e852?q=80&w=1974";
-
   const transformedData: LikeItem[] = allItems.map((item, index) => ({
     id: item.id,
     title: item.title,
     category: item.category,
-    foodImage: item.internalImageUrls?.[0] || PLACEHOLDER_IMAGE,
+    foodImage: item.internalImageUrls?.[0] || "", // Empty string will show SVG placeholder
     landscapeImage: "",
     hasIcon: true,
     contentShareUrl: item.contentShareUrl,

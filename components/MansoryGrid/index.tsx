@@ -4,8 +4,7 @@ import LikeCard from "@/components/LikeComponent/LikeCard";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { horizontalScale, verticalScale } from "@/utilities/scaling";
 
-// Placeholder image - moved outside component to prevent re-creation
-const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+// Using SVG placeholder via LikeCard's OptimizedImage error handling
 
 export interface LikeItem {
   id: string;
@@ -54,7 +53,7 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
     () =>
       data.map((item) => ({
         ...item,
-        foodImage: item.foodImage || PLACEHOLDER_IMAGE,
+        foodImage: item.foodImage || "", // Empty string for SVG placeholder
       })),
     [data]
   );

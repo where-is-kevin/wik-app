@@ -132,7 +132,11 @@ export const OnboardingIndustryModal: React.FC<
   };
 
   return (
-    <OnboardingBlurModal visible={visible} onClose={onClose} title="Industry">
+    <OnboardingBlurModal
+      visible={visible}
+      onClose={onClose}
+      title="Select Industry"
+    >
       <CustomView style={styles.container}>
         {/* Search Input */}
         <OnboardingSearch
@@ -300,6 +304,7 @@ const styles = StyleSheet.create({
     paddingVertical: verticalScale(12),
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: verticalScale(20),
   },
   doneButtonText: {
     fontSize: scaleFontSize(16),
