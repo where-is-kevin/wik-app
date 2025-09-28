@@ -63,23 +63,29 @@ const LikeItemComponent: React.FC<LikeItemProps> = React.memo(({
     <CustomView style={styles.container}>
       {/* Image container with its own touchable */}
       <CustomTouchable style={styles.imageContainer} onPress={onPress}>
-        <OptimizedImage
-          source={validImageUrl ? { uri: validImageUrl } : ""}
-          style={styles.image}
-          contentFit="cover"
-          priority="normal"
-          showLoadingIndicator={true}
-          overlayComponent={
-            !validImageUrl ? (
-              <ImagePlaceholderSvg
-                width="100%"
-                height="100%"
-                backgroundColor="#F5F5F5"
-                iconColor="#9CA3AF"
-              />
-            ) : undefined
-          }
-        />
+        {validImageUrl ? (
+          <OptimizedImage
+            source={{ uri: validImageUrl }}
+            style={styles.image}
+            contentFit="cover"
+            priority="normal"
+            showLoadingIndicator={true}
+          />
+        ) : (
+          <CustomView
+            style={[
+              styles.image,
+              { backgroundColor: "#F5F5F5", borderRadius: 10 },
+            ]}
+          >
+            <ImagePlaceholderSvg
+              width="100%"
+              height="100%"
+              backgroundColor="#F5F5F5"
+              iconColor="#9CA3AF"
+            />
+          </CustomView>
+        )}
 
         {/* Category tag in top left */}
         {category && (
