@@ -45,6 +45,7 @@ import MapView, { Marker } from "react-native-maps";
 import { formatSimilarity } from "@/utilities/formatSimilarity";
 import { formatDistance } from "@/utilities/formatDistance";
 import ImagePlaceholderSvg from "@/components/SvgComponents/ImagePlaceholderSvg";
+import { trimString, trimOrNull } from "@/utilities/stringHelpers";
 
 // Using SVG placeholder via OptimizedImage error handling
 
@@ -75,24 +76,24 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   const imageCarouselRef = useRef<FlatList>(null);
 
   // Calculate dynamic heights based on your header
-  const ESTIMATED_HEADER_HEIGHT = verticalScale(10) + 12 + 24;
-  const PANEL_MIN_HEIGHT = SCREEN_HEIGHT * 0.45;
+  const ESTIMATED_HEADER_HEIGHT = verticalScale(10) + 12 + verticalScale(36);
+  const PANEL_MID_HEIGHT = SCREEN_HEIGHT * 0.5;
   const PANEL_MAX_HEIGHT = SCREEN_HEIGHT - insets.top - ESTIMATED_HEADER_HEIGHT;
 
   // Calculate the image container height to stop at the first snap point
   const IMAGE_CONTAINER_HEIGHT =
-    SCREEN_HEIGHT - PANEL_MIN_HEIGHT + verticalScale(24);
+    SCREEN_HEIGHT - PANEL_MID_HEIGHT + verticalScale(24);
 
   // Bottom sheet setup with dynamic snap points
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => {
-    const minHeightPercentage = (PANEL_MIN_HEIGHT / SCREEN_HEIGHT) * 100;
+    const midHeightPercentage = (PANEL_MID_HEIGHT / SCREEN_HEIGHT) * 100;
     const maxHeightPercentage = (PANEL_MAX_HEIGHT / SCREEN_HEIGHT) * 100;
     return [
-      `${minHeightPercentage.toFixed(1)}%`,
+      `${midHeightPercentage.toFixed(1)}%`,
       `${maxHeightPercentage.toFixed(1)}%`,
     ];
-  }, [PANEL_MIN_HEIGHT, PANEL_MAX_HEIGHT]);
+  }, [PANEL_MID_HEIGHT, PANEL_MAX_HEIGHT]);
 
   // Bucket functionality state
   const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] =
@@ -219,11 +220,22 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   // Render image item
   const renderImageItem = ({ item }: { item: string }) => {
     // Check if this is our placeholder URL for no images
-    const hasNoImages = !contentData?.internalImageUrls && !contentData?.googlePlacesImageUrl;
+    const hasNoImages =
+      !contentData?.internalImageUrls && !contentData?.googlePlacesImageUrl;
 
     if (hasNoImages) {
       return (
-        <View style={[styles.backgroundImage, { height: IMAGE_CONTAINER_HEIGHT, backgroundColor: '#F5F5F5', justifyContent: 'center', alignItems: 'center' }]}>
+        <View
+          style={[
+            styles.backgroundImage,
+            {
+              height: IMAGE_CONTAINER_HEIGHT,
+              backgroundColor: "#F5F5F5",
+              justifyContent: "center",
+              alignItems: "center",
+            },
+          ]}
+        >
           <ImagePlaceholderSvg
             width="100%"
             height="100%"
@@ -347,9 +359,9 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
       if (Platform.OS === "ios") {
         // For iOS, try Apple Maps first with location name - prefer addressShort if available
         const locationName = encodeURIComponent(
-          contentData.addressShort ||
-            contentData.title ||
-            contentData.address ||
+          trimString(contentData.addressShort) ||
+            trimString(contentData.title) ||
+            trimString(contentData.address) ||
             ""
         );
         const appleMapsUrls = [
@@ -382,9 +394,9 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
       } else {
         // For Android, use geo intent with location name - prefer addressShort if available
         const locationName = encodeURIComponent(
-          contentData.addressShort ||
-            contentData.title ||
-            contentData.address ||
+          trimString(contentData.addressShort) ||
+            trimString(contentData.title) ||
+            trimString(contentData.address) ||
             ""
         );
         const androidUrls = [
@@ -575,7 +587,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                     fontFamily="Inter-SemiBold"
                     style={[styles.title, { color: colors.label_dark }]}
                   >
-                    {contentData.title || "Unknown"}
+                    {trimString(contentData.title) || "Unknown"}
                   </CustomText>
                 </CustomTouchable>
 
@@ -667,7 +679,8 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                 <CustomText
                   style={[styles.aboutText, { color: colors.gray_regular }]}
                 >
-                  {contentData.description || "No description available."}
+                  {trimString(contentData.description) ||
+                    "No description available."}
                 </CustomText>
               </CustomView>
 
@@ -699,9 +712,9 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                           contentData.googleMapsUrl
                         )}
                         title={
-                          contentData.title ||
-                          contentData.address ||
-                          contentData.category ||
+                          trimString(contentData.title) ||
+                          trimString(contentData.address) ||
+                          trimString(contentData.category) ||
                           "Location"
                         }
                       />
