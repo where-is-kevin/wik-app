@@ -154,7 +154,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
               title="Apply"
               onPress={handleApply}
               bgColor={colors.lime}
-              customTextStyle={{ fontSize: scaleFontSize(12) }}
+              customTextStyle={{ fontSize: scaleFontSize(14) }}
               customStyles={{ marginVertical: 0 }}
             />
           </CustomView>
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   filterTitle: {
-    fontSize: scaleFontSize(10),
+    fontSize: scaleFontSize(12),
     textAlign: "center",
     marginTop: 10,
   },

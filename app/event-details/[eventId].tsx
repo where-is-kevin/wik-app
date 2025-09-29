@@ -36,7 +36,7 @@ import {
 import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import CategoryTag from "@/components/Tag/CategoryTag";
-import { FastImageBackground } from "@/components/OptimizedImage/OptimizedImage";
+import OptimizedImage from "@/components/OptimizedImage/OptimizedImage";
 import { useAddLike } from "@/hooks/useLikes";
 import { useAddDislike } from "@/hooks/useDislikes";
 import { useQueryClient } from "@tanstack/react-query";
@@ -44,6 +44,7 @@ import RatingStarSvg from "@/components/SvgComponents/RatingStarSvg";
 import MapView, { Marker } from "react-native-maps";
 import { formatSimilarity } from "@/utilities/formatSimilarity";
 import { formatDistance } from "@/utilities/formatDistance";
+import ImagePlaceholderSvg from "@/components/SvgComponents/ImagePlaceholderSvg";
 
 // Using SVG placeholder via OptimizedImage error handling
 
@@ -202,7 +203,8 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
     if (contentData?.googlePlacesImageUrl) {
       return [contentData.googlePlacesImageUrl];
     }
-    return [""]; // Return placeholder image when no images available
+    // Return a broken image URL to trigger the error handler and show SVG placeholder
+    return ["https://example.com/nonexistent-image.jpg"];
   };
 
   const images = useMemo(() => getImages(), [contentData]);
@@ -215,15 +217,34 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   };
 
   // Render image item
-  const renderImageItem = ({ item }: { item: string }) => (
-    <FastImageBackground
-      source={typeof item === "string" ? { uri: item } : item}
-      style={[styles.backgroundImage, { height: IMAGE_CONTAINER_HEIGHT }]}
-      contentFit="cover"
-      priority="high"
-      showLoadingIndicator={true}
-    />
-  );
+  const renderImageItem = ({ item }: { item: string }) => {
+    // Check if this is our placeholder URL for no images
+    const hasNoImages = !contentData?.internalImageUrls && !contentData?.googlePlacesImageUrl;
+
+    if (hasNoImages) {
+      return (
+        <View style={[styles.backgroundImage, { height: IMAGE_CONTAINER_HEIGHT, backgroundColor: '#F5F5F5', justifyContent: 'center', alignItems: 'center' }]}>
+          <ImagePlaceholderSvg
+            width="100%"
+            height="100%"
+            backgroundColor="#F5F5F5"
+            iconColor="#9CA3AF"
+          />
+        </View>
+      );
+    }
+
+    return (
+      <OptimizedImage
+        source={typeof item === "string" ? { uri: item } : item}
+        style={[styles.backgroundImage, { height: IMAGE_CONTAINER_HEIGHT }]}
+        contentFit="cover"
+        priority="high"
+        showLoadingIndicator={true}
+        showErrorFallback={true}
+      />
+    );
+  };
 
   // Bucket functionality handlers
   const handleShowBucketBottomSheet = () => {
