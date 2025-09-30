@@ -133,11 +133,7 @@ const ProfileListsScreen = () => {
             item.internalImageUrls &&
             Array.isArray(item.internalImageUrls) &&
             item.internalImageUrls.length > 0;
-          const hasGoogleImage =
-            item.googlePlacesImageUrl &&
-            typeof item.googlePlacesImageUrl === "string" &&
-            item.googlePlacesImageUrl.trim() !== "";
-          return hasInternalImage || hasGoogleImage;
+          return hasInternalImage;
         }) || [];
 
       const images = validItems.slice(0, 3).map((item: any) => {
@@ -148,7 +144,7 @@ const ProfileListsScreen = () => {
         ) {
           return item.internalImageUrls[0];
         }
-        return item.googlePlacesImageUrl;
+        return ""; // Empty string for SVG placeholder
       });
 
       // Create stable array reference
@@ -171,8 +167,6 @@ const ProfileListsScreen = () => {
       let foodImage = ""; // Empty string for SVG placeholder
       if (like.internalImageUrls?.length > 0) {
         foodImage = like.internalImageUrls[0];
-      } else if (like.googlePlacesImageUrl) {
-        foodImage = like.googlePlacesImageUrl;
       } else if (like.image) {
         foodImage = like.image;
       }

@@ -4,6 +4,12 @@ import CustomText from "@/components/CustomText";
 import CreateChevronDownSvg from "@/components/SvgComponents/CreateChevronDownSvg";
 import CreateTypeSvg from "@/components/SvgComponents/CreateTypeSvg";
 import CreateUserTypeSvg from "@/components/SvgComponents/CreateUserTypeSvg";
+import CreateLocationSvg from "@/components/SvgComponents/CreateLocationSvg";
+import CreateDescriptionSvg from "@/components/SvgComponents/CreateDescriptionSvg";
+import CreateBuildingSvg from "@/components/SvgComponents/CreateBuildingSvg";
+import CreateTagSvg from "@/components/SvgComponents/CreateTagSvg";
+import CreateLinkSvg from "@/components/SvgComponents/CreateLinkSvg";
+import CreateCapacitySvg from "@/components/SvgComponents/CreateCapacitySvg";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
   horizontalScale,
@@ -15,7 +21,17 @@ interface CustomDropdownCreateProps {
   label: string;
   value: string;
   onPress: () => void;
-  iconType?: "type" | "userType";
+  iconType?:
+    | "type"
+    | "userType"
+    | "location"
+    | "description"
+    | "industry"
+    | "tags"
+    | "link"
+    | "price"
+    | "capacity";
+  showChevron?: boolean;
 }
 
 export const CustomDropdownCreate: React.FC<CustomDropdownCreateProps> = ({
@@ -23,16 +39,33 @@ export const CustomDropdownCreate: React.FC<CustomDropdownCreateProps> = ({
   value,
   onPress,
   iconType,
+  showChevron = true,
 }) => {
   const { colors } = useTheme();
 
   const renderIcon = () => {
-    if (iconType === "type") {
-      return <CreateTypeSvg width={24} height={24} />;
-    } else if (iconType === "userType") {
-      return <CreateUserTypeSvg width={24} height={24} />;
+    switch (iconType) {
+      case "type":
+        return <CreateTypeSvg width={24} height={24} />;
+      case "userType":
+        return <CreateUserTypeSvg width={24} height={24} />;
+      case "location":
+        return <CreateLocationSvg width={24} height={24} />;
+      case "description":
+        return <CreateDescriptionSvg width={24} height={24} />;
+      case "industry":
+        return <CreateBuildingSvg width={24} height={24} />;
+      case "tags":
+        return <CreateTagSvg width={24} height={24} />;
+      case "link":
+        return <CreateLinkSvg width={24} height={24} />;
+      case "price":
+        return <CreateLinkSvg width={24} height={24} />; // Using link icon for price for now
+      case "capacity":
+        return <CreateCapacitySvg width={24} height={24} />;
+      default:
+        return null;
     }
-    return null;
   };
 
   return (
@@ -57,9 +90,11 @@ export const CustomDropdownCreate: React.FC<CustomDropdownCreateProps> = ({
         >
           {value}
         </CustomText>
-        <View style={styles.chevronContainer}>
-          <CreateChevronDownSvg width={20} height={20} />
-        </View>
+        {showChevron && (
+          <View style={styles.chevronContainer}>
+            <CreateChevronDownSvg />
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );

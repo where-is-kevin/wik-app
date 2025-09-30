@@ -10,9 +10,12 @@ import {
 import { Image, ImageSource, ImageContentFit } from "expo-image";
 import { useTheme } from "@/contexts/ThemeContext";
 import ShimmerLoader from "@/components/Loader/ShimmerLoader";
-import ImagePlaceholderSvg from "@/components/SvgComponents/ImagePlaceholderSvg";
+import { ImagePlaceholder } from "./ImagePlaceholder";
 
 // Legacy fallback - SVG placeholder now used via error handling
+
+// Global cache of failed URLs to prevent retries
+const failedUrls = new Set<string>();
 
 type ImagePriority = "low" | "normal" | "high";
 type CachePolicy = "memory" | "disk" | "memory-disk" | "none";
@@ -45,42 +48,43 @@ interface OptimizedImageProps {
 }
 
 // Create base styles outside component to prevent recreation
-const createStyles = (colors: any) => StyleSheet.create({
-  container: {
-    position: "relative",
-    overflow: "hidden",
-  },
-  image: {
-    width: "100%",
-    height: "100%",
-  } as ImageStyle,
-  loadingContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  errorContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: colors.background,
-  },
-  overlayContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      position: "relative",
+      overflow: "hidden",
+    },
+    image: {
+      width: "100%",
+      height: "100%",
+    } as ImageStyle,
+    loadingContainer: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    errorContainer: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: colors.background,
+    },
+    overlayContainer: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+  });
 
 const OptimizedImage: React.FC<OptimizedImageProps> = ({
   source,
@@ -119,19 +123,16 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   };
 
   const [isLoading, setIsLoading] = useState(() => {
-    // Check if this is a Google Places photo - don't show loading for blocked requests
-    const imageUrl = typeof source === 'string' ? source : (source as any)?.uri;
-    if (imageUrl && imageUrl.includes('googleapis.com/maps/api/place/photo')) {
-      return false; // Don't show loading for Google Places photos since we block them
-    }
-
     if (useDefaultAvatar && isSourceEmpty(source)) {
       return false;
     }
     return !useDefaultAvatar;
   });
   const [hasError, setHasError] = useState(false);
-  const [retryKey, setRetryKey] = useState(0);
+  const [containerDimensions, setContainerDimensions] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
 
   const handleLoad = () => {
     setIsLoading(false);
@@ -143,25 +144,23 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
     setIsLoading(false);
     setHasError(true);
 
-    // Log Google Places API image failures
-    const imageUrl = typeof source === 'string' ? source : (source as any)?.uri;
-    if (imageUrl && imageUrl.includes('googleapis.com/maps/api/place/photo')) {
-      console.warn('Google Places photo failed to load:', imageUrl);
+    // Add this URL to global failed cache to prevent future attempts
+    const imageUrl = typeof source === "string" ? source : (source as any)?.uri;
+    if (imageUrl) {
+      failedUrls.add(imageUrl);
     }
 
     onError?.(error);
   };
 
-  // Removed retry functionality - using SVG placeholder instead
-
   const getImageSource = (): string | ImageSource => {
-    // Check if this is a Google Places photo and force fallback immediately
-    const imageUrl = typeof source === 'string' ? source : (source as any)?.uri;
-    if (imageUrl && imageUrl.includes('googleapis.com/maps/api/place/photo')) {
-      // Don't log for every blocked request - too verbose
+    const imageUrl = typeof source === "string" ? source : (source as any)?.uri;
+
+    // If this URL has previously failed, don't attempt again
+    if (imageUrl && failedUrls.has(imageUrl)) {
       if (fallbackImage) return fallbackImage;
       if (useDefaultAvatar) return DEFAULT_AVATARS[defaultAvatarType];
-      return ""; // Will show SVG placeholder via error handling
+      return ""; // Will show SVG placeholder
     }
 
     if (isSourceEmpty(source) && useDefaultAvatar) {
@@ -203,27 +202,25 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   ];
 
   const renderContent = () => {
-    if (hasError && !fallbackImage && !useDefaultAvatar && showErrorFallback) {
-      return (
-        <View style={[styles.errorContainer, getBorderRadiusViewStyle()]}>
-          <ImagePlaceholderSvg
-            width="100%"
-            height="100%"
-            backgroundColor="#F5F5F5"
-            iconColor="#9CA3AF"
-          />
-        </View>
-      );
-    }
-
     const currentSource = getImageSource();
+    const imageUrl = typeof source === "string" ? source : (source as any)?.uri;
+
+    // Check if this URL is in the failed cache or if we have an error
+    const shouldShowPlaceholder =
+      (hasError && !fallbackImage && !useDefaultAvatar && showErrorFallback) ||
+      (imageUrl &&
+        failedUrls.has(imageUrl) &&
+        !fallbackImage &&
+        !useDefaultAvatar &&
+        showErrorFallback) ||
+      (isSourceEmpty(source) && !useDefaultAvatar && showErrorFallback);
+
     const isUsingDefaultAvatar =
       useDefaultAvatar && (isSourceEmpty(source) || hasError);
 
     return (
       <>
         <Image
-          key={retryKey}
           source={currentSource}
           style={imageStyles}
           contentFit={contentFit}
@@ -249,11 +246,23 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
           </View>
         )}
 
+        {shouldShowPlaceholder && (
+          <ImagePlaceholder
+            containerWidth={containerDimensions?.width}
+            containerHeight={containerDimensions?.height}
+          />
+        )}
+
         {overlayComponent && (
           <View style={styles.overlayContainer}>{overlayComponent}</View>
         )}
       </>
     );
+  };
+
+  const handleLayout = (event: any) => {
+    const { width, height } = event.nativeEvent.layout;
+    setContainerDimensions({ width, height });
   };
 
   if (onPress) {
@@ -262,16 +271,21 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
         style={containerStyles}
         onPress={onPress}
         activeOpacity={0.8}
+        onLayout={handleLayout}
       >
         {renderContent()}
       </TouchableOpacity>
     );
   }
 
-  return <View style={containerStyles}>{renderContent()}</View>;
+  return (
+    <View style={containerStyles} onLayout={handleLayout}>
+      {renderContent()}
+    </View>
+  );
 };
 
-OptimizedImage.displayName = 'OptimizedImage';
+OptimizedImage.displayName = "OptimizedImage";
 
 // Background Image Component
 export const OptimizedImageBackground: React.FC<OptimizedImageProps> = ({

@@ -97,7 +97,7 @@ const SwipeableCards = () => {
           imageUrl:
             item.internalImageUrls && Array.isArray(item.internalImageUrls) && item.internalImageUrls.length > 0
               ? item.internalImageUrls[0]
-              : item.googlePlacesImageUrl,
+              : "",
           price: item.price ? (typeof item.price === 'number' ? item.price.toString() : item.price) : undefined,
           rating: item?.rating ? item.rating.toString() : undefined,
           category: item.category,

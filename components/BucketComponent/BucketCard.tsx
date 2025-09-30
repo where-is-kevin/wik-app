@@ -7,7 +7,7 @@ import CustomTouchable from "@/components/CustomTouchableOpacity";
 import CustomText from "@/components/CustomText";
 import ShareButton from "../Button/ShareButton";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
-import ImagePlaceholderSvg from "../SvgComponents/ImagePlaceholderSvg";
+import { ImagePlaceholder } from "../OptimizedImage/ImagePlaceholder";
 
 interface ExperienceCard {
   id: string;
@@ -62,60 +62,30 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
       <CustomTouchable style={styles.imageContainer} onPress={onPress}>
         {/* Main large image (left side) */}
         <CustomView style={styles.mainImageContainer}>
-          {safeImages[0] ? (
-            <OptimizedImage
-              source={{ uri: safeImages[0] }}
-              style={styles.mainImage}
-              contentFit="cover"
-              priority="normal"
-              showLoadingIndicator={true}
-              borderRadius={9}
-            />
-          ) : (
-            <View
-              style={[
-                styles.mainImage,
-                { backgroundColor: "#F5F5F5", borderRadius: 9 },
-              ]}
-            >
-              <ImagePlaceholderSvg
-                width="100%"
-                height="100%"
-                backgroundColor="#F5F5F5"
-                iconColor="#9CA3AF"
-              />
-            </View>
-          )}
+          <OptimizedImage
+            source={safeImages[0] ? { uri: safeImages[0] } : ""}
+            style={styles.mainImage}
+            contentFit="cover"
+            priority="normal"
+            showLoadingIndicator={true}
+            borderRadius={9}
+            overlayComponent={!safeImages[0] ? <ImagePlaceholder /> : undefined}
+          />
         </CustomView>
 
         {/* Right column with two smaller images */}
         <CustomView style={styles.rightColumn}>
           <CustomView style={styles.smallImageContainer}>
             {hasContentAtPosition(1) ? (
-              safeImages[1] ? (
-                <OptimizedImage
-                  source={{ uri: safeImages[1] }}
-                  style={styles.smallImage}
-                  contentFit="cover"
-                  priority="normal"
-                  showLoadingIndicator={true}
-                  borderRadius={9}
-                />
-              ) : (
-                <View
-                  style={[
-                    styles.smallImage,
-                    { backgroundColor: "#F5F5F5", borderRadius: 9 },
-                  ]}
-                >
-                  <ImagePlaceholderSvg
-                    width="100%"
-                    height="100%"
-                    backgroundColor="#F5F5F5"
-                    iconColor="#9CA3AF"
-                  />
-                </View>
-              )
+              <OptimizedImage
+                source={safeImages[1] ? { uri: safeImages[1] } : ""}
+                style={styles.smallImage}
+                contentFit="cover"
+                priority="normal"
+                showLoadingIndicator={true}
+                borderRadius={9}
+                overlayComponent={!safeImages[1] ? <ImagePlaceholder /> : undefined}
+              />
             ) : (
               <View
                 style={[
@@ -130,30 +100,15 @@ const BucketCard: React.FC<BucketCardProps> = ({ item, onPress }) => {
             style={[styles.smallImageContainer, styles.bottomImageContainer]}
           >
             {hasContentAtPosition(2) ? (
-              safeImages[2] ? (
-                <OptimizedImage
-                  source={{ uri: safeImages[2] }}
-                  style={styles.smallImage}
-                  contentFit="cover"
-                  priority="normal"
-                  showLoadingIndicator={true}
-                  borderRadius={9}
-                />
-              ) : (
-                <View
-                  style={[
-                    styles.smallImage,
-                    { backgroundColor: "#F5F5F5", borderRadius: 9 },
-                  ]}
-                >
-                  <ImagePlaceholderSvg
-                    width="100%"
-                    height="100%"
-                    backgroundColor="#F5F5F5"
-                    iconColor="#9CA3AF"
-                  />
-                </View>
-              )
+              <OptimizedImage
+                source={safeImages[2] ? { uri: safeImages[2] } : ""}
+                style={styles.smallImage}
+                contentFit="cover"
+                priority="normal"
+                showLoadingIndicator={true}
+                borderRadius={9}
+                overlayComponent={!safeImages[2] ? <ImagePlaceholder /> : undefined}
+              />
             ) : (
               <View
                 style={[

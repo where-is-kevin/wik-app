@@ -512,7 +512,7 @@ const OnboardingScreen = () => {
             Array.isArray(item.internalImageUrls) &&
             item.internalImageUrls.length > 0
               ? item.internalImageUrls[0]
-              : item.googlePlacesImageUrl,
+              : "",
           price:
             typeof item.price === "number" ? item.price.toString() : item.price,
           rating: item?.rating?.toString(),

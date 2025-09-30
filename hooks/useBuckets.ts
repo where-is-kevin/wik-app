@@ -21,7 +21,6 @@ type Content = {
   addressLong?: string;
   addressShort?: string;
   googleMapsUrl: string;
-  googlePlacesImageUrl: string | null;
   internalImages: string[] | null;
   internalImageUrls: string[] | null;
   eventDatetime: string | null;

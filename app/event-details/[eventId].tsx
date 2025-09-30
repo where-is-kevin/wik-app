@@ -44,7 +44,6 @@ import RatingStarSvg from "@/components/SvgComponents/RatingStarSvg";
 import MapView, { Marker } from "react-native-maps";
 import { formatSimilarity } from "@/utilities/formatSimilarity";
 import { formatDistance } from "@/utilities/formatDistance";
-import ImagePlaceholderSvg from "@/components/SvgComponents/ImagePlaceholderSvg";
 import { trimString, trimOrNull } from "@/utilities/stringHelpers";
 
 // Using SVG placeholder via OptimizedImage error handling
@@ -201,9 +200,6 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
     ) {
       return contentData.internalImageUrls;
     }
-    if (contentData?.googlePlacesImageUrl) {
-      return [contentData.googlePlacesImageUrl];
-    }
     // Return a broken image URL to trigger the error handler and show SVG placeholder
     return ["https://example.com/nonexistent-image.jpg"];
   };
@@ -219,33 +215,6 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
   // Render image item
   const renderImageItem = ({ item }: { item: string }) => {
-    // Check if this is our placeholder URL for no images
-    const hasNoImages =
-      !contentData?.internalImageUrls && !contentData?.googlePlacesImageUrl;
-
-    if (hasNoImages) {
-      return (
-        <View
-          style={[
-            styles.backgroundImage,
-            {
-              height: IMAGE_CONTAINER_HEIGHT,
-              backgroundColor: "#F5F5F5",
-              justifyContent: "center",
-              alignItems: "center",
-            },
-          ]}
-        >
-          <ImagePlaceholderSvg
-            width="100%"
-            height="100%"
-            backgroundColor="#F5F5F5"
-            iconColor="#9CA3AF"
-          />
-        </View>
-      );
-    }
-
     return (
       <OptimizedImage
         source={typeof item === "string" ? { uri: item } : item}

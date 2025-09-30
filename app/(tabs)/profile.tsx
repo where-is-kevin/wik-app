@@ -102,17 +102,13 @@ const ProfileScreen = () => {
             item.internalImageUrls &&
             Array.isArray(item.internalImageUrls) &&
             item.internalImageUrls.length > 0;
-          const hasGoogleImage =
-            item.googlePlacesImageUrl &&
-            typeof item.googlePlacesImageUrl === "string" &&
-            item.googlePlacesImageUrl.trim() !== "";
-          return hasInternalImage || hasGoogleImage;
+          return hasInternalImage;
         }) || [];
 
       const images = validItems
         .slice(0, 3) // Take first 3 for the UI
         .map((item: any) => {
-          // Use internal image first, then fallback to google places image
+          // Use internal image only
           if (
             item.internalImageUrls &&
             Array.isArray(item.internalImageUrls) &&
@@ -120,7 +116,7 @@ const ProfileScreen = () => {
           ) {
             return item.internalImageUrls[0];
           }
-          return item.googlePlacesImageUrl;
+          return ""; // Empty string for SVG placeholder
         });
 
       // Add placeholder images if we don't have enough (create stable array)
@@ -151,7 +147,7 @@ const ProfileScreen = () => {
     if (!likes || likes.length === 0) return [];
 
     return likes.map((like: any) => {
-      // Use internal image first, then fallback to google places image, then placeholder
+      // Use internal image first, then fallback to legacy image field, then placeholder
       let image = ""; // Empty string for SVG placeholder
       if (
         like.internalImageUrls &&
@@ -159,12 +155,6 @@ const ProfileScreen = () => {
         like.internalImageUrls.length > 0
       ) {
         image = like.internalImageUrls[0];
-      } else if (
-        like.googlePlacesImageUrl &&
-        typeof like.googlePlacesImageUrl === "string" &&
-        like.googlePlacesImageUrl.trim() !== ""
-      ) {
-        image = like.googlePlacesImageUrl;
       } else if (
         like.image &&
         typeof like.image === "string" &&

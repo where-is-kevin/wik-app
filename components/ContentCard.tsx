@@ -13,7 +13,7 @@ import {
 } from "@/utilities/scaling";
 import { formatDistance } from "@/utilities/formatDistance";
 import PinBucketSvg from "./SvgComponents/PinBucketSvg";
-import ImagePlaceholderSvg from "./SvgComponents/ImagePlaceholderSvg";
+import { ImagePlaceholder } from "./OptimizedImage/ImagePlaceholder";
 
 interface ContentCardProps {
   item: any;
@@ -62,14 +62,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
           showLoadingIndicator={true}
           borderRadius={10}
           overlayComponent={
-            !validImageUrl ? (
-              <ImagePlaceholderSvg
-                width="100%"
-                height="100%"
-                backgroundColor="#F5F5F5"
-                iconColor="#9CA3AF"
-              />
-            ) : undefined
+            !validImageUrl ? <ImagePlaceholder /> : undefined
           }
         />
 

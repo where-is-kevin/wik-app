@@ -99,14 +99,7 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
         !Array.isArray(firstContent.internalImageUrls) ||
         firstContent.internalImageUrls.length === 0
       ) {
-        // Fallback to googlePlacesImageUrl if available
-        if (
-          firstContent.googlePlacesImageUrl &&
-          typeof firstContent.googlePlacesImageUrl === "string" &&
-          firstContent.googlePlacesImageUrl.trim() !== ""
-        ) {
-          return firstContent.googlePlacesImageUrl;
-        }
+        // No valid internal images available
         return "";
       }
 

@@ -17,7 +17,6 @@ type Content = {
   latitude: number;
   longitude: number;
   googleMapsUrl: string;
-  googlePlacesImageUrl: string | null;
   internalImages: string[] | null;
   bookingUrl: string | null;
   websiteUrl: string | null;

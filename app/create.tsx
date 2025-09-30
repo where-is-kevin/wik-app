@@ -24,6 +24,14 @@ import CreateContentAddImageSvg from "@/components/SvgComponents/CreateContentAd
 import { CustomDropdownCreate } from "@/components/Dropdown/CustomDropdownCreate";
 import { TypeSelectionModal } from "@/components/Modals/TypeSelectionModal";
 import { BusinessLeisureModal } from "@/components/Modals/BusinessLeisureModal";
+import {
+  CreateEventForm,
+  EventFormData,
+} from "@/components/Forms/CreateEventForm";
+import {
+  CreateExperienceForm,
+  ExperienceFormData,
+} from "@/components/Forms/CreateExperienceForm";
 import * as ImagePicker from "expo-image-picker";
 
 export default function CreateScreen() {
@@ -31,7 +39,9 @@ export default function CreateScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [eventType, setEventType] = useState("Event");
-  const [businessLeisureOptions, setBusinessLeisureOptions] = useState<string[]>(["Business"]);
+  const [businessLeisureOptions, setBusinessLeisureOptions] = useState<
+    string[]
+  >(["Business"]);
   const [images, setImages] = useState<(string | null)[]>([
     null,
     null,
@@ -39,13 +49,49 @@ export default function CreateScreen() {
     null,
   ]);
   const [showTypeModal, setShowTypeModal] = useState(false);
-  const [showBusinessLeisureModal, setShowBusinessLeisureModal] = useState(false);
+  const [showBusinessLeisureModal, setShowBusinessLeisureModal] =
+    useState(false);
+  // Form data states
+  const [eventFormData, setEventFormData] = useState<EventFormData>({
+    eventName: "",
+    startDate: new Date(),
+    endDate: new Date(),
+    venue: "",
+    description: "",
+    industry: "",
+    tags: "",
+    bookingLink: "",
+    price: "",
+    capacity: "",
+  });
+  const [experienceFormData, setExperienceFormData] =
+    useState<ExperienceFormData>({
+      experienceName: "",
+      venue: "",
+      description: "",
+      industry: "",
+      tags: "",
+      bookingLink: "",
+      price: "",
+      capacity: "",
+    });
 
   const handleCreateEvent = useCallback(() => {
     // Handle event creation
-    console.log("Creating event:", { eventType, businessLeisureOptions });
+    console.log("Creating event:", {
+      eventType,
+      businessLeisureOptions,
+      eventFormData,
+      experienceFormData,
+    });
     router.back();
-  }, [eventType, businessLeisureOptions, router]);
+  }, [
+    eventType,
+    businessLeisureOptions,
+    eventFormData,
+    experienceFormData,
+    router,
+  ]);
 
   const handleImageUpload = useCallback(
     async (index: number) => {
@@ -70,7 +116,7 @@ export default function CreateScreen() {
         const newImages = [...images];
 
         // If this is the first image being uploaded, always put it in index 0 (main position)
-        const hasAnyImages = images.some(img => img !== null);
+        const hasAnyImages = images.some((img) => img !== null);
         if (!hasAnyImages) {
           newImages[0] = result.assets[0].uri;
         } else {
@@ -213,8 +259,37 @@ export default function CreateScreen() {
               iconType="userType"
             />
 
+            {/* Details Section - Show form based on selected type */}
+            {eventType === "Event" && (
+              <View style={styles.detailsSection}>
+                <CustomText
+                  style={[styles.sectionTitle, { color: colors.input_border }]}
+                >
+                  Event Details
+                </CustomText>
+                <CreateEventForm
+                  formData={eventFormData}
+                  onFormChange={setEventFormData}
+                />
+              </View>
+            )}
+
+            {eventType === "Experience" && (
+              <View style={styles.detailsSection}>
+                <CustomText
+                  style={[styles.sectionTitle, { color: colors.input_border }]}
+                >
+                  Experience Details
+                </CustomText>
+                <CreateExperienceForm
+                  formData={experienceFormData}
+                  onFormChange={setExperienceFormData}
+                />
+              </View>
+            )}
+
             {/* Create Button */}
-            <View style={styles.createButtonContainer}>
+            <View style={[styles.createButtonContainer, { marginTop: verticalScale(20) }]}>
               <NextButton
                 title="Create Event"
                 onPress={handleCreateEvent}
@@ -340,5 +415,8 @@ const styles = StyleSheet.create({
     width: 67,
     height: 67,
     borderRadius: 12,
+  },
+  detailsSection: {
+    marginTop: verticalScale(24),
   },
 });

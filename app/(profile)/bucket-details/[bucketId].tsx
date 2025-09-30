@@ -98,12 +98,10 @@ const BucketDetailsScreen = () => {
     content: any,
     index: number
   ): LikeItem => {
-    // Use internal image first, then fallback to google places image
+    // Use internal image only
     let foodImage = "";
     if (content.internalImageUrls && content.internalImageUrls.length > 0) {
       foodImage = content.internalImageUrls[0];
-    } else if (content.googlePlacesImageUrl) {
-      foodImage = content.googlePlacesImageUrl;
     }
 
     return {

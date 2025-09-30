@@ -14,7 +14,7 @@ import ShareButton from "../Button/ShareButton";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
 import CategoryTag from "../Tag/CategoryTag";
 import PinBucketSvg from "../SvgComponents/PinBucketSvg";
-import ImagePlaceholderSvg from "../SvgComponents/ImagePlaceholderSvg";
+import { ImagePlaceholder } from "../OptimizedImage/ImagePlaceholder";
 
 // Using SVG placeholder instead of PNG for better quality
 
@@ -76,30 +76,17 @@ const LikeCard: React.FC<LikeCardProps> = ({
           style={[styles.imageContainer, { height: imageHeight }]}
           onPress={onPress}
         >
-          {validImageUrl ? (
-            <OptimizedImage
-              source={{ uri: validImageUrl }}
-              style={styles.image}
-              contentFit="cover"
-              priority="normal"
-              showLoadingIndicator={true}
-              borderRadius={8}
-            />
-          ) : (
-            <CustomView
-              style={[
-                styles.image,
-                { backgroundColor: "#F5F5F5", borderRadius: 8 },
-              ]}
-            >
-              <ImagePlaceholderSvg
-                width="100%"
-                height="100%"
-                backgroundColor="#F5F5F5"
-                iconColor="#9CA3AF"
-              />
-            </CustomView>
-          )}
+          <OptimizedImage
+            source={validImageUrl ? { uri: validImageUrl } : ""}
+            style={styles.image}
+            contentFit="cover"
+            priority="normal"
+            showLoadingIndicator={true}
+            borderRadius={8}
+            overlayComponent={
+              !validImageUrl ? <ImagePlaceholder /> : undefined
+            }
+          />
 
           {/* Experience tag in top left */}
           {item.category && (
