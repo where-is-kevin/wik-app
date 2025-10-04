@@ -11,6 +11,7 @@ import { LocationProvider } from "@/contexts/LocationContext";
 import { UXCamProvider } from "@/contexts/UXCamContext";
 import { AnalyticsProvider } from "@/contexts/AnalyticsContext";
 import { PortalProvider } from "@gorhom/portal";
+// import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { ModeProvider } from "@/contexts/ModeContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 
@@ -62,73 +63,73 @@ export default function RootLayout() {
                     <ToastProvider>
                       <StatusBar style="dark" />
                       <Stack>
-                      {/* Root index handles auth routing */}
-                      <Stack.Screen
-                        name="index"
-                        options={{ headerShown: false }}
-                      />
-                      {/* Authentication screens */}
-                      <Stack.Screen
-                        name="(auth)"
-                        options={{ headerShown: false }}
-                      />
-                      {/* Onboarding screens */}
-                      <Stack.Screen
-                        name="(onboarding)"
-                        options={{ headerShown: false }}
-                      />
-                      {/* Main tab navigation */}
-                      <Stack.Screen
-                        name="(tabs)"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen
-                        name="(profile)"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen
-                        name="(settings)"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen
-                        name="event-details/[eventId]"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen
-                        name="business-events/[businessEventId]"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen
-                        name="major-events-nearby"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen
-                        name="worldwide-major-events"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen
-                        name="worldwide-business-events"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen
-                        name="map-screen"
-                        options={{ headerShown: false }}
-                      />
-                      {/* Create modal screen */}
-                      <Stack.Screen
-                        name="create"
-                        options={{
-                          presentation: 'modal',
-                          headerShown: false,
-                          animation: 'slide_from_bottom',
-                          contentStyle: {
-                            backgroundColor: 'transparent',
-                          },
-                        }}
-                      />
-                      {/* Fallback screen for undefined routes */}
-                      <Stack.Screen name="+not-found" />
-                    </Stack>
+                        {/* Root index handles auth routing */}
+                        <Stack.Screen
+                          name="index"
+                          options={{ headerShown: false }}
+                        />
+                        {/* Authentication screens */}
+                        <Stack.Screen
+                          name="(auth)"
+                          options={{ headerShown: false }}
+                        />
+                        {/* Onboarding screens */}
+                        <Stack.Screen
+                          name="(onboarding)"
+                          options={{ headerShown: false }}
+                        />
+                        {/* Main tab navigation */}
+                        <Stack.Screen
+                          name="(tabs)"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="(profile)"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="(settings)"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="event-details/[eventId]"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="business-events/[businessEventId]"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="major-events-nearby"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="worldwide-major-events"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="worldwide-business-events"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="map-screen"
+                          options={{ headerShown: false }}
+                        />
+                        {/* Create modal screen */}
+                        <Stack.Screen
+                          name="create"
+                          options={{
+                            presentation: "modal",
+                            headerShown: false,
+                            animation: "slide_from_bottom",
+                            contentStyle: {
+                              backgroundColor: "transparent",
+                            },
+                          }}
+                        />
+                        {/* Fallback screen for undefined routes */}
+                        <Stack.Screen name="+not-found" />
+                      </Stack>
                     </ToastProvider>
                   </ModeProvider>
                 </PortalProvider>

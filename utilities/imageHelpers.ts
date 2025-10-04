@@ -11,5 +11,5 @@ export const getImageSource = (imageUrl: string) => {
   const validImageUrl = getValidImageUrl(imageUrl);
   return validImageUrl
     ? { uri: validImageUrl }
-    : STATIC_IMAGES.PLACEHOLDER_IMAGE;
+    : { uri: "" }; // Return empty to trigger SVG placeholder instead of blurry PNG
 };

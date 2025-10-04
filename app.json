@@ -42,6 +42,23 @@
       "expo-router",
       "@react-native-firebase/app",
       [
+        "@react-native-community/datetimepicker",
+        {
+          "android": {
+            "datePicker": {
+              "colorAccent": "#6A0C31",
+              "textColorPrimary": "#FFFFFF",
+              "backgroundColor": "#6A0C31"
+            },
+            "timePicker": {
+              "colorAccent": "#6A0C31",
+              "textColorPrimary": "#FFFFFF",
+              "backgroundColor": "#6A0C31"
+            }
+          }
+        }
+      ],
+      [
         "expo-font",
         {
           "fonts": [

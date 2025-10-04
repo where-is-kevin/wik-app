@@ -1,5 +1,11 @@
-import React, { useState } from "react";
-import { TouchableOpacity, StyleSheet } from "react-native";
+import React, {
+  useState,
+  useCallback,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
+import { TouchableOpacity, StyleSheet, View, Modal } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomView from "@/components/CustomView";
 import CustomText from "@/components/CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -8,13 +14,16 @@ import {
   verticalScale,
   horizontalScale,
 } from "@/utilities/scaling";
-import { CreateModal } from "@/components/Modals/CreateModal";
 import NextButton from "@/components/Button/NextButton";
 import CheckboxSvg from "@/components/SvgComponents/CheckboxSvg";
 
+export interface BusinessLeisureModalRef {
+  present: () => void;
+  dismiss: () => void;
+}
+
 interface BusinessLeisureModalProps {
-  visible: boolean;
-  onClose: () => void;
+  onClose?: () => void;
   onSelect: (selections: string[]) => void;
   selectedOptions?: string[];
 }
@@ -24,15 +33,29 @@ const businessLeisureOptions = [
   { value: "Leisure", label: "Leisure" },
 ];
 
-export const BusinessLeisureModal: React.FC<BusinessLeisureModalProps> = ({
-  visible,
-  onClose,
-  onSelect,
-  selectedOptions = [],
-}) => {
+export const BusinessLeisureModal = forwardRef<
+  BusinessLeisureModalRef,
+  BusinessLeisureModalProps
+>(({ onClose, onSelect, selectedOptions = [] }, ref) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [tempSelections, setTempSelections] =
     useState<string[]>(selectedOptions);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      present: () => {
+        setTempSelections(selectedOptions);
+        setIsVisible(true);
+      },
+      dismiss: () => {
+        setIsVisible(false);
+      },
+    }),
+    [selectedOptions]
+  );
 
   const handleToggleOption = (option: string) => {
     setTempSelections((prev) => {
@@ -44,62 +67,145 @@ export const BusinessLeisureModal: React.FC<BusinessLeisureModalProps> = ({
     });
   };
 
-  const handleContinue = () => {
+  const handleContinue = useCallback(() => {
     onSelect(tempSelections);
-    onClose();
-  };
+    setIsVisible(false);
+  }, [tempSelections, onSelect]);
 
-  const handleCancel = () => {
-    setTempSelections(selectedOptions);
-    onClose();
-  };
+  const handleCancel = useCallback(() => {
+    setIsVisible(false);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setIsVisible(false);
+    onClose?.();
+  }, [onClose]);
 
   return (
-    <CreateModal
-      visible={visible}
-      onClose={handleCancel}
-      title="Business or Leisure?"
-      showCancelButton={true}
-      onCancel={handleCancel}
+    <Modal
+      visible={isVisible}
+      animationType="slide"
+      onRequestClose={handleClose}
+      transparent={true}
+      statusBarTranslucent
     >
-      <CustomView style={styles.container}>
-        <CustomView style={styles.optionsContainer}>
-          {businessLeisureOptions.map((option) => (
-            <TouchableOpacity
-              key={option.value}
-              style={styles.optionContainer}
-              onPress={() => handleToggleOption(option.value)}
-              activeOpacity={0.7}
-            >
-              <CustomView style={styles.checkboxContainer}>
-                <CheckboxSvg selected={tempSelections.includes(option.value)} />
+      <TouchableOpacity
+        style={styles.overlay}
+        activeOpacity={1}
+        onPress={handleCancel}
+      >
+        <TouchableOpacity
+          style={styles.modalContainer}
+          activeOpacity={1}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <View
+            style={[styles.content, { backgroundColor: colors.background }]}
+          >
+            {/* Header */}
+            <View style={styles.header}>
+              <CustomText
+                fontFamily="Inter-SemiBold"
+                style={[styles.titleText, { color: colors.label_dark }]}
+              >
+                Business or Leisure?
+              </CustomText>
+              <TouchableOpacity
+                onPress={handleCancel}
+                style={styles.cancelButton}
+                activeOpacity={0.7}
+              >
                 <CustomText
-                  style={[styles.optionText, { color: colors.text_black }]}
+                  fontFamily="Inter-SemiBold"
+                  style={[styles.cancelText, { color: colors.light_blue }]}
                 >
-                  {option.label}
+                  Cancel
                 </CustomText>
-              </CustomView>
-            </TouchableOpacity>
-          ))}
-        </CustomView>
+              </TouchableOpacity>
+            </View>
 
-        <CustomView style={styles.buttonContainer}>
-          <NextButton
-            title="Continue"
-            onPress={handleContinue}
-            bgColor={colors.lime}
-            customTextStyle={{ fontSize: scaleFontSize(16) }}
-          />
-        </CustomView>
-      </CustomView>
-    </CreateModal>
+            {/* Options */}
+            <CustomView style={styles.optionsContainer}>
+              {businessLeisureOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={styles.optionContainer}
+                  onPress={() => handleToggleOption(option.value)}
+                  activeOpacity={0.7}
+                >
+                  <CustomView style={styles.checkboxContainer}>
+                    <CheckboxSvg
+                      selected={tempSelections.includes(option.value)}
+                    />
+                    <CustomText
+                      style={[styles.optionText, { color: colors.text_black }]}
+                    >
+                      {option.label}
+                    </CustomText>
+                  </CustomView>
+                </TouchableOpacity>
+              ))}
+            </CustomView>
+
+            {/* Button */}
+            <CustomView
+              style={[
+                styles.buttonContainer,
+                { paddingBottom: insets.bottom + 20 },
+              ]}
+            >
+              <NextButton
+                title="Continue"
+                onPress={handleContinue}
+                bgColor={colors.lime}
+                customTextStyle={{ fontSize: scaleFontSize(16) }}
+              />
+            </CustomView>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
   );
-};
+});
+
+BusinessLeisureModal.displayName = "BusinessLeisureModal";
 
 const styles = StyleSheet.create({
-  container: {},
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContainer: {
+    // Height determined by content
+  },
+  content: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: verticalScale(20),
+  },
+  titleText: {
+    fontSize: scaleFontSize(18),
+    fontWeight: "600",
+  },
+  cancelButton: {},
+  cancelText: {
+    fontSize: scaleFontSize(16),
+    color: "#007AFF",
+  },
+  optionsContainer: {
+    marginBottom: verticalScale(20),
+    gap: verticalScale(10),
+  },
   optionContainer: {
-    paddingVertical: 4,
+    paddingVertical: 8,
   },
   checkboxContainer: {
     flexDirection: "row",
@@ -110,10 +216,6 @@ const styles = StyleSheet.create({
     marginLeft: horizontalScale(10),
   },
   buttonContainer: {
-    marginTop: "auto",
-  },
-  optionsContainer: {
-    marginVertical: verticalScale(15),
-    gap: verticalScale(10),
+    paddingTop: 10,
   },
 });

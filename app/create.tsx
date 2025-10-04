@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   Image,
 } from "react-native";
+import { PanGestureHandler, State } from "react-native-gesture-handler";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -22,8 +23,8 @@ import {
 import NextButton from "@/components/Button/NextButton";
 import CreateContentAddImageSvg from "@/components/SvgComponents/CreateContentAddImageSvg";
 import { CustomDropdownCreate } from "@/components/Dropdown/CustomDropdownCreate";
-import { TypeSelectionModal } from "@/components/Modals/TypeSelectionModal";
-import { BusinessLeisureModal } from "@/components/Modals/BusinessLeisureModal";
+import { TypeSelectionModal, TypeSelectionModalRef } from "@/components/Modals/TypeSelectionModal";
+import { BusinessLeisureModal, BusinessLeisureModalRef } from "@/components/Modals/BusinessLeisureModal";
 import {
   CreateEventForm,
   EventFormData,
@@ -48,9 +49,8 @@ export default function CreateScreen() {
     null,
     null,
   ]);
-  const [showTypeModal, setShowTypeModal] = useState(false);
-  const [showBusinessLeisureModal, setShowBusinessLeisureModal] =
-    useState(false);
+  const typeModalRef = useRef<TypeSelectionModalRef>(null);
+  const businessLeisureModalRef = useRef<BusinessLeisureModalRef>(null);
   // Form data states
   const [eventFormData, setEventFormData] = useState<EventFormData>({
     eventName: "",
@@ -76,6 +76,24 @@ export default function CreateScreen() {
       capacity: "",
     });
 
+  const safeDismiss = useCallback(() => {
+    try {
+      // Use router.dismiss() for modals or router.back() with fallback
+      if (router.canDismiss()) {
+        router.dismiss();
+      } else if (router.canGoBack()) {
+        router.back();
+      } else {
+        // Fallback: navigate to main route
+        router.replace('/(tabs)/');
+      }
+    } catch (error) {
+      console.warn('Navigation error:', error);
+      // Last resort: try to replace with main route
+      router.replace('/(tabs)/');
+    }
+  }, [router]);
+
   const handleCreateEvent = useCallback(() => {
     // Handle event creation
     console.log("Creating event:", {
@@ -84,13 +102,13 @@ export default function CreateScreen() {
       eventFormData,
       experienceFormData,
     });
-    router.back();
+    safeDismiss();
   }, [
     eventType,
     businessLeisureOptions,
     eventFormData,
     experienceFormData,
-    router,
+    safeDismiss,
   ]);
 
   const handleImageUpload = useCallback(
@@ -152,6 +170,31 @@ export default function CreateScreen() {
     setBusinessLeisureOptions(selections);
   }, []);
 
+  const [scrollOffset, setScrollOffset] = useState(0);
+
+  const handleGestureEvent = useCallback((event: any) => {
+    // Only allow pull-to-dismiss when at the top of the scroll view
+    const { translationY, velocityY } = event.nativeEvent;
+    if (scrollOffset <= 0 && translationY > 100 && velocityY > 500) {
+      safeDismiss();
+    }
+  }, [safeDismiss, scrollOffset]);
+
+  const handleGestureStateChange = useCallback((event: any) => {
+    if (event.nativeEvent.state === State.END) {
+      const { translationY, velocityY } = event.nativeEvent;
+      // Only dismiss if at top of scroll view and pulled down enough
+      if (scrollOffset <= 0 && (translationY > 150 || (translationY > 50 && velocityY > 800))) {
+        safeDismiss();
+      }
+    }
+  }, [safeDismiss, scrollOffset]);
+
+  const handleScroll = useCallback((event: any) => {
+    const { contentOffset } = event.nativeEvent;
+    setScrollOffset(contentOffset.y);
+  }, []);
+
   const getBusinessLeisureDisplayText = () => {
     if (businessLeisureOptions.length === 0) return "Select...";
     if (businessLeisureOptions.length === 1) return businessLeisureOptions[0];
@@ -160,16 +203,27 @@ export default function CreateScreen() {
 
   return (
     <View style={styles.wrapper}>
-      <View style={[styles.container]}>
-        <SafeAreaView style={styles.safeArea}>
-          <StatusBar barStyle="light-content" backgroundColor="#6A0C31" />
+      <PanGestureHandler
+        onGestureEvent={handleGestureEvent}
+        onHandlerStateChange={handleGestureStateChange}
+        minPointers={1}
+        maxPointers={1}
+        enabled={scrollOffset <= 0}
+      >
+        <View style={[styles.container]}>
+          <SafeAreaView style={styles.safeArea}>
+            <StatusBar barStyle="light-content" backgroundColor="#6A0C31" />
 
-          {/* Drag Handle - Fixed */}
-          <View style={styles.handleContainer}>
-            <View style={[styles.handle]} />
-          </View>
+            {/* Drag Handle - Fixed */}
+            <TouchableOpacity
+              style={styles.handleContainer}
+              onPress={safeDismiss}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.handle]} />
+            </TouchableOpacity>
 
-          <ScrollView
+            <ScrollView
             style={styles.scrollView}
             contentContainerStyle={[
               styles.scrollContent,
@@ -180,6 +234,11 @@ export default function CreateScreen() {
               },
             ]}
             showsVerticalScrollIndicator={false}
+            bounces={true}
+            overScrollMode="always"
+            scrollEventThrottle={16}
+            simultaneousHandlers={[]}
+            onScroll={handleScroll}
           >
             {/* Title */}
             <View style={styles.header}>
@@ -247,7 +306,7 @@ export default function CreateScreen() {
             <CustomDropdownCreate
               label="Type"
               value={eventType}
-              onPress={() => setShowTypeModal(true)}
+              onPress={() => typeModalRef.current?.present()}
               iconType="type"
             />
 
@@ -255,7 +314,7 @@ export default function CreateScreen() {
             <CustomDropdownCreate
               label="Business or Leisure?"
               value={getBusinessLeisureDisplayText()}
-              onPress={() => setShowBusinessLeisureModal(true)}
+              onPress={() => businessLeisureModalRef.current?.present()}
               iconType="userType"
             />
 
@@ -297,22 +356,21 @@ export default function CreateScreen() {
                 customTextStyle={{ fontSize: scaleFontSize(16) }}
               />
             </View>
-          </ScrollView>
-        </SafeAreaView>
-      </View>
+            </ScrollView>
+          </SafeAreaView>
+        </View>
+      </PanGestureHandler>
 
       {/* Type Selection Modal */}
       <TypeSelectionModal
-        visible={showTypeModal}
-        onClose={() => setShowTypeModal(false)}
+        ref={typeModalRef}
         onSelect={handleTypeSelect}
         selectedType={eventType}
       />
 
       {/* Business or Leisure Modal */}
       <BusinessLeisureModal
-        visible={showBusinessLeisureModal}
-        onClose={() => setShowBusinessLeisureModal(false)}
+        ref={businessLeisureModalRef}
         onSelect={handleBusinessLeisureSelect}
         selectedOptions={businessLeisureOptions}
       />
@@ -339,6 +397,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: verticalScale(10),
     paddingBottom: verticalScale(8),
+    paddingHorizontal: horizontalScale(20),
   },
   handle: {
     width: 80,

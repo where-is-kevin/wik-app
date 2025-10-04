@@ -1,4 +1,4 @@
-import React from "react";
+import React, { forwardRef } from "react";
 import {
   StyleSheet,
   TextInput,
@@ -32,7 +32,7 @@ interface OnboardingSearchProps {
   editable?: boolean;
 }
 
-export const OnboardingSearch: React.FC<OnboardingSearchProps> = ({
+export const OnboardingSearch = forwardRef<TextInput, OnboardingSearchProps>(({
   value,
   onChangeText,
   placeholder,
@@ -47,7 +47,7 @@ export const OnboardingSearch: React.FC<OnboardingSearchProps> = ({
   errorMessage,
   customStyles,
   editable = true,
-}) => {
+}, ref) => {
   const { colors } = useTheme();
   const [isFocused, setIsFocused] = React.useState(false);
 
@@ -72,6 +72,7 @@ export const OnboardingSearch: React.FC<OnboardingSearchProps> = ({
           </CustomView>
         )}
         <TextInput
+          ref={ref}
           style={[styles.searchInput, { color: colors.label_dark }]}
           placeholder={placeholder}
           placeholderTextColor={colors.gray_regular}
@@ -98,7 +99,7 @@ export const OnboardingSearch: React.FC<OnboardingSearchProps> = ({
       )}
     </CustomView>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -32,6 +32,7 @@ interface CustomDropdownCreateProps {
     | "price"
     | "capacity";
   showChevron?: boolean;
+  hideLabel?: boolean;
 }
 
 export const CustomDropdownCreate: React.FC<CustomDropdownCreateProps> = ({
@@ -40,6 +41,7 @@ export const CustomDropdownCreate: React.FC<CustomDropdownCreateProps> = ({
   onPress,
   iconType,
   showChevron = true,
+  hideLabel = false,
 }) => {
   const { colors } = useTheme();
 
@@ -76,20 +78,33 @@ export const CustomDropdownCreate: React.FC<CustomDropdownCreateProps> = ({
     >
       <View style={styles.dropdownContent}>
         <View style={styles.iconContainer}>{renderIcon()}</View>
-        <CustomText
-          style={[
-            styles.dropdownLabel,
-            { color: colors.onboarding_option_dark },
-          ]}
-        >
-          {label}
-        </CustomText>
-        <CustomText
-          fontFamily="Inter-Medium"
-          style={[styles.dropdownValue, { color: colors.label_dark }]}
-        >
-          {value}
-        </CustomText>
+        {!hideLabel && (
+          <CustomText
+            style={[
+              styles.dropdownLabel,
+              { color: colors.onboarding_option_dark },
+            ]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {label}
+          </CustomText>
+        )}
+        {value ? (
+          <CustomText
+            fontFamily="Inter-Medium"
+            style={[
+              styles.dropdownValue,
+              { color: colors.label_dark },
+              hideLabel && styles.dropdownValueFullWidth,
+              { flex: hideLabel ? 1 : 0 },
+            ]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {value}
+          </CustomText>
+        ) : null}
         {showChevron && (
           <View style={styles.chevronContainer}>
             <CreateChevronDownSvg />
@@ -131,6 +146,9 @@ const styles = StyleSheet.create({
   dropdownValue: {
     fontSize: scaleFontSize(16),
     marginRight: horizontalScale(5),
+  },
+  dropdownValueFullWidth: {
+    textAlign: "left",
   },
   chevronContainer: {
     justifyContent: "center",

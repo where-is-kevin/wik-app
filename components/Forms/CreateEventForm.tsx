@@ -1,15 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   View,
   StyleSheet,
   TextInput,
   TouchableOpacity,
   Text,
+  Platform,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { useTheme } from "@/contexts/ThemeContext";
 import { DateTimeModal } from "@/components/Modals/DateTimeModal";
-import { SelectVenueModal } from "@/components/Modals/SelectVenueModal";
+import { SelectVenueModal, SelectVenueModalRef } from "@/components/Modals/SelectVenueModal";
+import { InstructionsModal, InstructionsModalRef } from "@/components/Modals/InstructionsModal";
+import { DescriptionModal, DescriptionModalRef } from "@/components/Modals/DescriptionModal";
+import { IndustryCreateModal, IndustryCreateModalRef } from "@/components/Modals/IndustryCreateModal";
+import { CreateTagsModal, CreateTagsModalRef } from "@/components/Modals/CreateTagsModal";
+import { BookingLinkModal, BookingLinkModalRef } from "@/components/Modals/BookingLinkModal";
+import { PriceModal, PriceModalRef } from "@/components/Modals/PriceModal";
+import { CapacityModal, CapacityModalRef } from "@/components/Modals/CapacityModal";
 import { CustomDropdownCreate } from "@/components/Dropdown/CustomDropdownCreate";
 import ClockSvg from "@/components/SvgComponents/ClockSvg";
 import CreateLocationSvg from "@/components/SvgComponents/CreateLocationSvg";
@@ -27,6 +35,7 @@ export interface EventFormData {
   endDate: Date;
   venue: string;
   venueData?: VenueData;
+  venueInstructions?: string;
   description: string;
   industry: string;
   tags: string;
@@ -46,9 +55,16 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
 }) => {
   const { colors } = useTheme();
   const { getPlaceDetails } = useGooglePlaces();
+  const descriptionModalRef = useRef<DescriptionModalRef>(null);
+  const venueModalRef = useRef<SelectVenueModalRef>(null);
+  const instructionsModalRef = useRef<InstructionsModalRef>(null);
+  const industryModalRef = useRef<IndustryCreateModalRef>(null);
+  const tagsModalRef = useRef<CreateTagsModalRef>(null);
+  const bookingLinkModalRef = useRef<BookingLinkModalRef>(null);
+  const priceModalRef = useRef<PriceModalRef>(null);
+  const capacityModalRef = useRef<CapacityModalRef>(null);
   const [showStartDateModal, setShowStartDateModal] = useState(false);
   const [showEndDateModal, setShowEndDateModal] = useState(false);
-  const [showVenueModal, setShowVenueModal] = useState(false);
 
   const formatDateTime = (date: Date) => {
     return (
@@ -63,6 +79,14 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
         minute: "2-digit",
       })
     );
+  };
+
+  const handleStartDatePress = () => {
+    setShowStartDateModal(true);
+  };
+
+  const handleEndDatePress = () => {
+    setShowEndDateModal(true);
   };
 
   const handleStartDateSave = (selectedDate: Date) => {
@@ -91,6 +115,11 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       endDate: validEndDate,
     });
   };
+
+
+  const handleDescriptionSave = useCallback((description: string) => {
+    onFormChange({ ...formData, description });
+  }, [formData, onFormChange]);
 
   const handleVenueSelect = async (venue: VenueData) => {
     // If venue has location data, use it directly
@@ -169,11 +198,11 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       <View style={styles.dateTimeContainer}>
         <TouchableOpacity
           style={styles.dateTimeItem}
-          onPress={() => setShowStartDateModal(true)}
+          onPress={handleStartDatePress}
           activeOpacity={0.7}
         >
           <View style={styles.dateTimeIcon}>
-            <ClockSvg width={24} height={24} />
+            <ClockSvg />
           </View>
           <Text
             style={[
@@ -192,7 +221,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
 
         <TouchableOpacity
           style={[styles.dateTimeItem, styles.endDateTimeItem]}
-          onPress={() => setShowEndDateModal(true)}
+          onPress={handleEndDatePress}
           activeOpacity={0.7}
         >
           <Text
@@ -211,9 +240,13 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
 
       {/* Venue Selection */}
       {formData.venueData ? (
-        <View style={styles.selectedVenueContainer}>
+        <TouchableOpacity
+          style={styles.selectedVenueContainer}
+          onPress={() => venueModalRef.current?.present()}
+          activeOpacity={0.7}
+        >
           <View style={styles.venueInfo}>
-            <CreateLocationSvg width={24} height={24} />
+            <CreateLocationSvg />
             <View style={styles.venueTextContainer}>
               <CustomText
                 style={[styles.venueName, { color: colors.label_dark }]}
@@ -225,26 +258,30 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
               >
                 {formData.venueData.address}
               </CustomText>
+              <View style={styles.dividerLine} />
+              <TouchableOpacity
+                style={styles.additionalInstructions}
+                onPress={() => instructionsModalRef.current?.present()}
+              >
+                <CustomText
+                  style={[
+                    styles.instructionsText,
+                    { color: formData.venueInstructions ? colors.label_dark : colors.gray_regular },
+                  ]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {formData.venueInstructions || "+ Add additional instructions..."}
+                </CustomText>
+              </TouchableOpacity>
             </View>
           </View>
-          <TouchableOpacity
-            style={styles.additionalInstructions}
-            onPress={() => {
-              /* Handle additional instructions */
-            }}
-          >
-            <CustomText
-              style={[styles.instructionsText, { color: colors.gray_regular }]}
-            >
-              + Add additional instructions...
-            </CustomText>
-          </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
       ) : (
         <CustomDropdownCreate
           label="Select Venue"
           value={""}
-          onPress={() => setShowVenueModal(true)}
+          onPress={() => venueModalRef.current?.present()}
           iconType="location"
           showChevron={false}
         />
@@ -282,27 +319,30 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       <CustomDropdownCreate
         label="Add Description"
         value={formData.description || ""}
-        onPress={() => {}}
+        onPress={() => descriptionModalRef.current?.present()}
         iconType="description"
         showChevron={false}
+        hideLabel={!!formData.description}
       />
 
       {/* Industry Dropdown */}
       <CustomDropdownCreate
         label="Select Industry"
         value={formData.industry || ""}
-        onPress={() => {}}
+        onPress={() => industryModalRef.current?.present()}
         iconType="industry"
         showChevron={false}
+        hideLabel={!!formData.industry}
       />
 
       {/* Tags Dropdown */}
       <CustomDropdownCreate
         label="Add Tags (Eg. AI, Mixer, Founders)"
         value={formData.tags || ""}
-        onPress={() => {}}
+        onPress={() => tagsModalRef.current?.present()}
         iconType="tags"
         showChevron={false}
+        hideLabel={!!formData.tags}
       />
 
       {/* Ticketing Section */}
@@ -319,16 +359,17 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       <CustomDropdownCreate
         label="Booking Link (Luma, Eventbrite...)"
         value={formData.bookingLink || ""}
-        onPress={() => {}}
+        onPress={() => bookingLinkModalRef.current?.present()}
         iconType="link"
         showChevron={false}
+        hideLabel={!!formData.bookingLink}
       />
 
       {/* Price Dropdown */}
       <CustomDropdownCreate
         label="Price"
         value={formData.price || "Free"}
-        onPress={() => {}}
+        onPress={() => priceModalRef.current?.present()}
         iconType="price"
         showChevron={true}
       />
@@ -337,7 +378,7 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
       <CustomDropdownCreate
         label="Capacity"
         value={formData.capacity || "Unlimited"}
-        onPress={() => {}}
+        onPress={() => capacityModalRef.current?.present()}
         iconType="capacity"
         showChevron={true}
       />
@@ -363,10 +404,70 @@ export const CreateEventForm: React.FC<CreateEventFormProps> = ({
 
       {/* Venue Selection Modal */}
       <SelectVenueModal
-        visible={showVenueModal}
-        onClose={() => setShowVenueModal(false)}
+        ref={venueModalRef}
         onVenueSelect={handleVenueSelect}
         selectedVenue={formData.venueData}
+      />
+
+      {/* Instructions Modal */}
+      <InstructionsModal
+        ref={instructionsModalRef}
+        onSave={(instructions) => {
+          onFormChange({ ...formData, venueInstructions: instructions });
+        }}
+        initialValue={formData.venueInstructions || ""}
+      />
+
+      {/* Description Modal */}
+      <DescriptionModal
+        ref={descriptionModalRef}
+        onSave={handleDescriptionSave}
+        initialValue={formData.description || ""}
+      />
+
+      {/* Industry Modal */}
+      <IndustryCreateModal
+        ref={industryModalRef}
+        onSave={(industry) => {
+          onFormChange({ ...formData, industry });
+        }}
+        selectedIndustry={formData.industry || ""}
+      />
+
+      {/* Tags Modal */}
+      <CreateTagsModal
+        ref={tagsModalRef}
+        onSave={(tags) => {
+          onFormChange({ ...formData, tags });
+        }}
+        initialValue={formData.tags || ""}
+      />
+
+      {/* Booking Link Modal */}
+      <BookingLinkModal
+        ref={bookingLinkModalRef}
+        onSave={(bookingLink) => {
+          onFormChange({ ...formData, bookingLink });
+        }}
+        initialValue={formData.bookingLink || ""}
+      />
+
+      {/* Price Modal */}
+      <PriceModal
+        ref={priceModalRef}
+        onSelect={(price) => {
+          onFormChange({ ...formData, price });
+        }}
+        selectedPrice={formData.price || "Free"}
+      />
+
+      {/* Capacity Modal */}
+      <CapacityModal
+        ref={capacityModalRef}
+        onSave={(capacity) => {
+          onFormChange({ ...formData, capacity });
+        }}
+        initialValue={formData.capacity || ""}
       />
     </View>
   );
@@ -428,35 +529,35 @@ const styles = StyleSheet.create({
   selectedVenueContainer: {
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    padding: verticalScale(16),
+    padding: 15,
     marginBottom: verticalScale(10),
   },
   venueInfo: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginBottom: verticalScale(12),
   },
   venueTextContainer: {
     flex: 1,
-    marginLeft: horizontalScale(12),
+    marginLeft: horizontalScale(10),
   },
   venueName: {
     fontSize: scaleFontSize(16),
-    fontFamily: "Inter-SemiBold",
-    marginBottom: verticalScale(4),
+    fontFamily: "Inter-Regular",
+    marginBottom: verticalScale(2),
   },
   venueAddress: {
     fontSize: scaleFontSize(14),
     fontFamily: "Inter-Regular",
+    lineHeight: 20,
   },
-  additionalInstructions: {
-    paddingVertical: verticalScale(8),
-    borderTopWidth: 1,
-    borderTopColor: "#E0E0E0",
-    marginBottom: verticalScale(8),
+  dividerLine: {
+    height: 1,
+    backgroundColor: "#E0E0E0",
+    marginVertical: 12,
   },
+  additionalInstructions: {},
   instructionsText: {
-    fontSize: scaleFontSize(14),
+    fontSize: scaleFontSize(16),
     fontFamily: "Inter-Regular",
   },
   changeVenueButton: {

@@ -22,14 +22,13 @@ export const ImagePlaceholder: React.FC<ImagePlaceholderProps> = ({
     }
 
     const minDimension = Math.min(containerWidth, containerHeight);
-
     // Scale icon size based on container size - much larger for big containers
     if (minDimension <= 80) return 40;
     if (minDimension <= 120) return 56;
     if (minDimension <= 180) return 72;
     if (minDimension <= 250) return 88;
-    if (minDimension <= 350) return 104;
-    if (minDimension <= 500) return 120; // For large hero images
+    if (minDimension <= 350) return 200;
+    if (minDimension <= 500) return 140; // For large hero images
     return 140; // For very large containers
   };
 
