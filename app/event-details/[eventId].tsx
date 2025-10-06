@@ -326,22 +326,22 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
       console.log("Extracted coordinates:", lat, lng);
 
       if (Platform.OS === "ios") {
-        // For iOS, try Apple Maps first with location name - prefer addressShort if available
-        const locationName = encodeURIComponent(
+        // For iOS, try Apple Maps first with location name - prefer title (venue name)
+        const locationName =
+          trimString(contentData.title) ||
           trimString(contentData.addressShort) ||
-            trimString(contentData.title) ||
-            trimString(contentData.address) ||
-            ""
-        );
+          trimString(contentData.address) ||
+          "Location";
+
+        const encodedLocationName = encodeURIComponent(locationName);
         const appleMapsUrls = [
-          `maps://?q=${locationName}&ll=${lat},${lng}`,
-          `http://maps.apple.com/?q=${locationName}&ll=${lat},${lng}`,
+          `maps://?q=${encodedLocationName}&ll=${lat},${lng}`,
+          `http://maps.apple.com/?q=${encodedLocationName}&ll=${lat},${lng}`,
         ];
 
         for (const url of appleMapsUrls) {
           try {
             const canOpen = await Linking.canOpenURL(url);
-            console.log(`Can open ${url}:`, canOpen);
             if (canOpen) {
               await Linking.openURL(url);
               console.log("Successfully opened Apple Maps");
@@ -354,23 +354,24 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
 
         // Fallback to Google Maps
         try {
-          const googleUrl = `https://maps.google.com/?q=${locationName}&ll=${lat},${lng}`;
+          const googleUrl = `https://maps.google.com/?q=${encodedLocationName}&ll=${lat},${lng}`;
           await Linking.openURL(googleUrl);
           console.log("Opened Google Maps web fallback");
         } catch (error) {
           console.error("All map options failed:", error);
         }
       } else {
-        // For Android, use geo intent with location name - prefer addressShort if available
-        const locationName = encodeURIComponent(
+        // For Android, use geo intent with location name - prefer title (venue name)
+        const locationName =
+          trimString(contentData.title) ||
           trimString(contentData.addressShort) ||
-            trimString(contentData.title) ||
-            trimString(contentData.address) ||
-            ""
-        );
+          trimString(contentData.address) ||
+          "Location";
+
+        const encodedLocationName = encodeURIComponent(locationName);
         const androidUrls = [
           `geo:${lat},${lng}?q=${lat},${lng}(${locationName})`,
-          `https://maps.google.com/?q=${locationName}&ll=${lat},${lng}`,
+          `https://maps.google.com/?q=${encodedLocationName}&ll=${lat},${lng}`,
           `geo:0,0?q=${lat},${lng}(${locationName})`,
         ];
 
@@ -561,7 +562,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                 </CustomTouchable>
 
                 {/* Similarity Display */}
-                {contentData?.similarity != null &&
+                {/* {contentData?.similarity != null &&
                   typeof contentData.similarity === "number" && (
                     <View style={styles.matchContainer}>
                       <CustomText
@@ -580,7 +581,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                         match
                       </CustomText>
                     </View>
-                  )}
+                  )} */}
 
                 {/* Rating, Price, Distance Display - Match Swipe Cards */}
                 <View style={styles.infoRow}>

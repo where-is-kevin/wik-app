@@ -45,6 +45,7 @@ interface BasicContentParams {
   latitude?: number;
   longitude?: number;
   category_filter?: string;
+  type?: "leisure" | "business";
 }
 
 // Fixed: Now returns Content[] instead of Content and accepts optional location params
@@ -68,7 +69,8 @@ const fetchContent = async (
     params &&
     (params.latitude !== undefined ||
       params.longitude !== undefined ||
-      params.category_filter !== undefined)
+      params.category_filter !== undefined ||
+      params.type !== undefined)
   ) {
     const cleanParams: Record<string, string> = {};
     if (params.latitude !== undefined)
@@ -77,17 +79,21 @@ const fetchContent = async (
       cleanParams.longitude = params.longitude.toString();
     if (params.category_filter !== undefined)
       cleanParams.category_filter = params.category_filter;
+    if (params.type !== undefined)
+      cleanParams.type = params.type;
 
     const queryString = new URLSearchParams(cleanParams).toString();
     url += `?${queryString}`;
   }
 
-  return await createTimedAjax<Content[]>({
+  const result = await createTimedAjax<Content[]>({
     url,
     method: "GET",
     headers,
     responseType: "json",
   });
+
+  return result;
 };
 
 // Fetch content by ID function - JWT optional
@@ -124,6 +130,7 @@ interface ContentParams {
   offset?: number;
   latitude?: number;
   longitude?: number;
+  type?: "leisure" | "business";
 }
 
 // Add interface for paginated response
@@ -157,13 +164,16 @@ const fetchContentWithParams = async (
 
   // Construct query string from params
   const queryString = new URLSearchParams(cleanParams).toString();
+  const url = `${API_URL}/content/selection/ask-kevin?${queryString}`;
 
-  return await createTimedAjax<PaginatedResponse>({
-    url: `${API_URL}/content/selection/ask-kevin?${queryString}`,
+  const result = await createTimedAjax<PaginatedResponse>({
+    url,
     method: "GET",
     headers,
     responseType: "json",
   });
+
+  return result;
 };
 
 // New interface for infinite content params
@@ -173,6 +183,7 @@ interface InfiniteContentParams {
   longitude?: number | undefined; // Explicitly allow undefined
   limit?: number;
   enabled?: boolean;
+  type?: "leisure" | "business";
 }
 
 // NEW: Infinite query hook for pagination
@@ -182,13 +193,14 @@ export function useInfiniteContent({
   longitude,
   limit = 12,
   enabled = true,
+  type,
 }: InfiniteContentParams) {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken || null;
 
   return useInfiniteQuery({
-    queryKey: ["content", "infinite", query, latitude, longitude, limit, !!jwt],
+    queryKey: ["content", "infinite", query, latitude, longitude, limit, type, !!jwt],
     queryFn: async ({ pageParam = 0 }) => {
       const params: ContentParams = {
         query,
@@ -200,6 +212,11 @@ export function useInfiniteContent({
       if (latitude !== undefined && longitude !== undefined) {
         params.latitude = latitude;
         params.longitude = longitude;
+      }
+
+      // Add type if provided
+      if (type !== undefined) {
+        params.type = type;
       }
 
       return fetchContentWithParams(params, jwt);
@@ -232,9 +249,9 @@ export function useContent(
     // If permission is denied, fetch without waiting for coordinates
     if (locationPermissionStatus === "denied") return true;
 
-    // If permission is granted, wait until we have coordinates
+    // If permission is granted, always fetch (coordinates are optional based on user preference)
     if (locationPermissionStatus === "granted") {
-      return params?.latitude !== undefined && params?.longitude !== undefined;
+      return true;
     }
 
     // If undetermined, don't fetch yet

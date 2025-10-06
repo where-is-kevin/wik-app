@@ -2,7 +2,7 @@ import { useContent } from "@/hooks/useContent";
 import React, { useState, useCallback, useMemo } from "react";
 import { useAddLike } from "@/hooks/useLikes";
 import { getErrorMessage } from "@/utilities/errorUtils";
-import { StyleSheet, TouchableOpacity, Linking, Alert } from "react-native";
+import { StyleSheet, Linking, Alert } from "react-native";
 import { ErrorScreen } from "@/components/ErrorScreen";
 import CustomView from "@/components/CustomView";
 import { horizontalScale, verticalScale } from "@/utilities/scaling";
@@ -11,16 +11,13 @@ import {
   BucketItem,
 } from "@/components/BottomSheet/BucketBottomSheet";
 import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { useAddDislike } from "@/hooks/useDislikes";
 import { useLocation } from "@/contexts/LocationContext";
-import CustomText from "@/components/CustomText";
+import { useUserLocation } from "@/contexts/UserLocationContext";
 import { CardData, SwipeCards } from "@/components/SwipeCards/SwipeCards";
 import FilterModal, { FilterType } from "@/components/FilterModal/FilterModal";
 import FilterSvg from "@/components/SvgComponents/FilterSvg";
@@ -28,19 +25,21 @@ import CustomTouchable from "@/components/CustomTouchableOpacity";
 import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
 import ModeHeader from "@/components/Header/ModeHeader";
 import { useToast } from "@/contexts/ToastContext";
+import { useMode } from "@/contexts/ModeContext";
 
 const SwipeableCards = () => {
-  const { location, permissionStatus } = useLocation();
+  const { location: deviceLocation, permissionStatus } = useLocation();
+  const { getApiLocationParams } = useUserLocation();
+  const { mode } = useMode();
   const [selectedFilters, setSelectedFilters] = useState<FilterType[]>([
     "events",
     "venues",
     "experiences",
   ]);
 
-  // Simple params - just use current location from context
+  // Use UserLocationContext to determine if we should send coordinates
   const locationParams = {
-    latitude: location?.lat,
-    longitude: location?.lon,
+    ...getApiLocationParams(deviceLocation || undefined),
     category_filter:
       selectedFilters.length > 0
         ? selectedFilters
@@ -52,6 +51,7 @@ const SwipeableCards = () => {
             })
             .join(";")
         : "event;venue;experience",
+    type: mode, // Add the current mode as type
   };
 
   // Convert permission status to the format expected by useContent
@@ -68,7 +68,6 @@ const SwipeableCards = () => {
     refetch,
   } = useContent(locationParams, getPermissionStatus());
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const { trackSuggestion } = useAnalyticsContext();
   const { showToast } = useToast();
 
@@ -93,7 +92,7 @@ const SwipeableCards = () => {
     return content
       ? content.map((item) => ({
           id: item.id,
-          title: item.title,
+          title: item.title || "Untitled", // Handle null title
           imageUrl:
             item.internalImageUrls && Array.isArray(item.internalImageUrls) && item.internalImageUrls.length > 0
               ? item.internalImageUrls[0]
@@ -106,7 +105,7 @@ const SwipeableCards = () => {
           isSponsored: item.isSponsored,
           contentShareUrl: item.contentShareUrl,
           tags: item.tags,
-          similarity: item.similarity,
+          similarity: typeof item.similarity === 'string' ? parseFloat(item.similarity) || 0 : item.similarity,
           distance: item.distance,
           eventDatetime: (item as any).eventDatetime, // Add event datetime for events
         }))
@@ -116,7 +115,6 @@ const SwipeableCards = () => {
   const handleLike = useCallback(
     (item: CardData) => {
       if (!item) {
-        console.error("No item provided to handleLike");
         return;
       }
 
@@ -136,8 +134,7 @@ const SwipeableCards = () => {
       };
 
       addLikeMutation.mutate(likeData, {
-        onError: (error) => {
-          console.error("Failed to add like:", error);
+        onError: () => {
           showToast("Failed to save your interest", "error");
         },
       });
@@ -148,7 +145,6 @@ const SwipeableCards = () => {
   const handleDislike = useCallback(
     (item: CardData) => {
       if (!item) {
-        console.error("No item provided to handleDislike");
         return;
       }
 
@@ -168,8 +164,8 @@ const SwipeableCards = () => {
       };
 
       dislikeMutation.mutate(dislikeData, {
-        onError: (error) => {
-          console.error("Failed to add dislike:", error);
+        onError: () => {
+          // Silently handle dislike errors
         },
       });
     },
@@ -179,7 +175,6 @@ const SwipeableCards = () => {
   const handleSwipeLeft = useCallback(
     (item: CardData) => {
       if (!item) {
-        console.error("No item provided to handleSwipeLeft");
         return;
       }
       handleDislike(item);
@@ -190,7 +185,6 @@ const SwipeableCards = () => {
   const handleSwipeRight = useCallback(
     (item: CardData) => {
       if (!item) {
-        console.error("No item provided to handleSwipeRight");
         return;
       }
       handleLike(item);
@@ -201,7 +195,6 @@ const SwipeableCards = () => {
   const handleSwipeUp = useCallback(
     (item: CardData) => {
       if (!item) {
-        console.error("No item provided to handleSwipeUp");
         return;
       }
 
@@ -218,8 +211,8 @@ const SwipeableCards = () => {
 
       // Check if the item has a website URL and open it
       if (item?.websiteUrl) {
-        Linking.openURL(item.websiteUrl).catch((err) => {
-          // console.error("Failed to open URL:", err);
+        Linking.openURL(item.websiteUrl).catch(() => {
+          // Silently handle URL opening errors
         });
       } else {
         Alert.alert("No Website", "No website is available for this content.");
@@ -230,7 +223,7 @@ const SwipeableCards = () => {
 
   // Simplified: Just refetch new content when cards are exhausted
   const handleComplete = useCallback(() => {
-    // console.log("All cards swiped, fetching new content...");
+    // Refetch new content when cards are exhausted
     refetch();
   }, [refetch]);
 
@@ -256,10 +249,8 @@ const SwipeableCards = () => {
 
         setIsBucketBottomSheetVisible(false);
         setSelectedItemId(null);
-
-        // console.log(`Successfully added item to bucket "${item.title}"`);
       } catch (error) {
-        console.error("Failed to add item to bucket:", error);
+        // Handle bucket add errors
       }
     }
   };
@@ -285,7 +276,7 @@ const SwipeableCards = () => {
         setIsCreateBucketBottomSheetVisible(false);
         setSelectedItemId(null);
       } catch (error) {
-        console.error("Failed to create bucket:", error);
+        // Handle bucket creation errors
       }
     }
   };
@@ -312,7 +303,7 @@ const SwipeableCards = () => {
   // Check if we're still waiting for location decision
   const waitingForLocation =
     getPermissionStatus() === "undetermined" ||
-    (getPermissionStatus() === "granted" && !location?.lat && !location?.lon);
+    (getPermissionStatus() === "granted" && !deviceLocation?.lat && !deviceLocation?.lon);
 
   // Show loading state
   if (isLoading || waitingForLocation) {

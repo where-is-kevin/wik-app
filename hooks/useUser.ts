@@ -31,7 +31,7 @@ const fetchUser = async (jwt: string): Promise<User> => {
       responseType: "json",
     });
   } catch (error: any) {
-    console.error("Error fetching user:", error);
+    // Handle user fetch errors
     if (error?.response) {
       // Throw the actual API response so it can be accessed in the component
       throw error.response;
@@ -139,9 +139,32 @@ const updateUser = async (jwt: string, updated: any): Promise<User> => {
       responseType: "json",
     });
   } catch (error: any) {
-    console.error("Error updating user:", error);
+    // Handle user update errors
     if (error?.response) {
       // Throw the actual API response so it can be accessed in the component
+      throw error.response;
+    }
+    throw error;
+  }
+};
+
+// Update user location function
+const updateUserLocation = async (jwt: string, location: string): Promise<any> => {
+  try {
+    return await createTimedAjax<any>({
+      url: `${API_URL}/oauth2/user/location`,
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        accept: "application/json",
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: JSON.stringify({ location }),
+      responseType: "json",
+    });
+  } catch (error: any) {
+    // Handle user location update errors
+    if (error?.response) {
       throw error.response;
     }
     throw error;
@@ -190,6 +213,26 @@ export function useUpdateUser() {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["user"], data);
+    },
+  });
+}
+
+export function useUpdateUserLocation() {
+  const queryClient = useQueryClient();
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
+  const jwt = authData?.accessToken;
+
+  return useMutation({
+    mutationFn: async (location: string) => {
+      if (!jwt) throw new Error("No JWT found");
+      return updateUserLocation(jwt, location);
+    },
+    onSuccess: () => {
+      // Invalidate all content queries when location is updated
+      queryClient.invalidateQueries({ queryKey: ["content"] });
+      queryClient.invalidateQueries({ queryKey: ["infiniteContent"] });
+      // Also invalidate user data to refresh profile
+      queryClient.invalidateQueries({ queryKey: ["user"] });
     },
   });
 }

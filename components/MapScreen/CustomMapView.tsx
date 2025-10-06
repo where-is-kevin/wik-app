@@ -20,31 +20,36 @@ interface CustomMapViewProps {
 }
 
 // Memoized marker component to prevent unnecessary re-renders
-const MemoizedMarker = React.memo(({ item, index, isSelected, onPress }: any) => {
-  const color = getMarkerColor(item.category);
-  const IconComponent = getMarkerIcon(item.category);
-  const numSimilarity = typeof item.similarity === 'string' ? parseFloat(item.similarity) : item.similarity;
-  const similarity = numSimilarity ? Math.round(numSimilarity * 100) : 0;
+const MemoizedMarker = React.memo(
+  ({ item, index, isSelected, onPress }: any) => {
+    const color = getMarkerColor(item.category);
+    const IconComponent = getMarkerIcon(item.category);
+    const numSimilarity =
+      typeof item.similarity === "string"
+        ? parseFloat(item.similarity)
+        : item.similarity;
+    const similarity = numSimilarity ? Math.round(numSimilarity * 100) : 0;
 
-  return (
-    <Marker
-      key={`marker-${item.id}-${isSelected ? 'sel' : 'unsel'}`}
-      coordinate={{
-        latitude: item.latitude,
-        longitude: item.longitude,
-      }}
-      onPress={onPress}
-      tracksViewChanges={false}
-    >
-      <CustomMarker
-        similarity={similarity}
-        isSelected={isSelected}
-        icon={IconComponent}
-        color={color}
-      />
-    </Marker>
-  );
-});
+    return (
+      <Marker
+        key={`marker-${item.id}-${isSelected ? "sel" : "unsel"}`}
+        coordinate={{
+          latitude: item.latitude,
+          longitude: item.longitude,
+        }}
+        onPress={onPress}
+        tracksViewChanges={false}
+      >
+        <CustomMarker
+          similarity={similarity}
+          isSelected={isSelected}
+          icon={IconComponent}
+          color={color}
+        />
+      </Marker>
+    );
+  }
+);
 
 const CustomMapView: React.FC<CustomMapViewProps> = ({
   mapRef,
@@ -58,16 +63,18 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
 }) => {
   // Simple filtering - no complex clustering to avoid crashes
   const validItems = data?.filter(hasLocation) || [];
-  
+
   // Create mapping from validItems index to original data index
-  const validItemsMapping = validItems.map(item => data.findIndex(d => d.id === item.id));
+  const validItemsMapping = validItems.map((item) =>
+    data.findIndex((d) => d.id === item.id)
+  );
 
   const handleMarkerPress = (validItemIndex: number) => {
     try {
       const originalIndex = validItemsMapping[validItemIndex];
       onMarkerPress(originalIndex);
     } catch (error) {
-      console.warn('Error handling marker press:', error);
+      console.warn("Error handling marker press:", error);
     }
   };
 
@@ -85,17 +92,21 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
       showsMyLocationButton={false}
       toolbarEnabled={false}
       userInterfaceStyle="light"
-      mapType={Platform.OS === 'android' ? 'standard' : 'standard'}
+      mapType={Platform.OS === "android" ? "standard" : "standard"}
     >
       {/* Memoized marker rendering */}
       {validItems.map((item, index) => {
-        if (!item || typeof item.latitude !== 'number' || typeof item.longitude !== 'number') {
+        if (
+          !item ||
+          typeof item.latitude !== "number" ||
+          typeof item.longitude !== "number"
+        ) {
           return null;
         }
 
         const originalIndex = validItemsMapping[index];
         const isSelected = originalIndex === selectedIndex;
-        
+
         return (
           <MemoizedMarker
             key={`marker-${item.id}`}

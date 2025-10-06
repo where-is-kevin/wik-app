@@ -25,7 +25,6 @@ interface AuthResponse {
 // Secure storage keys
 const AUTH_TOKEN_KEY = "authToken";
 const AUTH_USER_KEY = "authUser";
-const FIRST_TIME_USER_KEY = "isFirstTimeUser";
 
 // Auth storage utilities
 const authStorage = {
@@ -77,24 +76,6 @@ const authStorage = {
       console.error("Error clearing auth data:", error);
     }
   },
-
-  async isFirstTimeUser(): Promise<boolean> {
-    try {
-      const flag = await AsyncStorage.getItem(FIRST_TIME_USER_KEY);
-      return flag === null; // First time if flag doesn't exist
-    } catch (error) {
-      console.error("Error checking first time user:", error);
-      return true; // Default to first time on error
-    }
-  },
-
-  async setNotFirstTimeUser(): Promise<void> {
-    try {
-      await AsyncStorage.setItem(FIRST_TIME_USER_KEY, "false");
-    } catch (error) {
-      console.error("Error setting first time user flag:", error);
-    }
-  },
 };
 
 
@@ -119,10 +100,10 @@ export function useAuth() {
   const logout = async () => {
     try {
       await authStorage.clearAuth();
-      
+
       // Clear all cached data when logging out
       queryClient.clear();
-      
+
       router.replace("/(auth)");
     } catch (error) {
       console.error("Logout failed:", error);

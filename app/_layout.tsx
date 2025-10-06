@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { LocationProvider } from "@/contexts/LocationContext";
+import { UserLocationProvider } from "@/contexts/UserLocationContext";
 import { UXCamProvider } from "@/contexts/UXCamContext";
 import { AnalyticsProvider } from "@/contexts/AnalyticsContext";
 import { PortalProvider } from "@gorhom/portal";
@@ -58,9 +59,10 @@ export default function RootLayout() {
           <AnalyticsProvider>
             <ThemeProvider>
               <LocationProvider>
-                <PortalProvider>
-                  <ModeProvider>
-                    <ToastProvider>
+                <UserLocationProvider>
+                  <PortalProvider>
+                    <ModeProvider>
+                      <ToastProvider>
                       <StatusBar style="dark" />
                       <Stack>
                         {/* Root index handles auth routing */}
@@ -115,6 +117,10 @@ export default function RootLayout() {
                           name="map-screen"
                           options={{ headerShown: false }}
                         />
+                        <Stack.Screen
+                          name="location-selection"
+                          options={{ headerShown: false }}
+                        />
                         {/* Create modal screen */}
                         <Stack.Screen
                           name="create"
@@ -130,9 +136,10 @@ export default function RootLayout() {
                         {/* Fallback screen for undefined routes */}
                         <Stack.Screen name="+not-found" />
                       </Stack>
-                    </ToastProvider>
-                  </ModeProvider>
-                </PortalProvider>
+                      </ToastProvider>
+                    </ModeProvider>
+                  </PortalProvider>
+                </UserLocationProvider>
               </LocationProvider>
             </ThemeProvider>
           </AnalyticsProvider>

@@ -4,7 +4,6 @@ import { useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQueryClient } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { OnboardingProgressBar } from "@/components/Onboarding/OnboardingProgressBar";
 import { OnboardingLogoSlide } from "@/components/Onboarding/OnboardingLogoSlide";
@@ -51,6 +50,11 @@ import { CardData } from "@/components/SwipeCards/SwipeCards";
 import { getErrorMessage } from "@/utilities/errorUtils";
 import { verticalScale } from "@/utilities/scaling";
 import * as Location from "expo-location";
+import { useUserLocation } from "@/contexts/UserLocationContext";
+import {
+  createCurrentLocationPreference,
+  createSelectedLocationPreference,
+} from "@/utilities/locationHelpers";
 
 const OnboardingScreen = () => {
   const router = useRouter();
@@ -59,43 +63,16 @@ const OnboardingScreen = () => {
     useValidateRegistrationCode();
   const queryClient = useQueryClient();
   const { colors } = useTheme();
-
-  // Simple navigation function - no complex auth checks during onboarding
-  const navigateAfterAuth = useCallback(async () => {
-    try {
-      console.log("Navigating after onboarding completion...");
-
-      // Mark user as no longer first-time
-      await AsyncStorage.setItem("isFirstTimeUser", "false");
-
-      // Check location permission status
-      const { status } = await Location.getForegroundPermissionsAsync();
-      console.log("Location permission status:", status);
-
-      if (status === Location.PermissionStatus.GRANTED) {
-        // Permission already granted, go directly to tabs
-        console.log("Permission granted, going to tabs");
-        router.push("/(tabs)");
-      } else {
-        // Permission needed, show permission screen
-        console.log("Permission needed, showing permission screen");
-        router.push("/(auth)/location-permission");
-      }
-    } catch (error) {
-      console.error("Error checking location permission:", error);
-      // On error, show permission screen to be safe
-      router.push("/(auth)/location-permission");
-    }
-  }, [router]);
+  const { setUserLocation } = useUserLocation();
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [selections, setSelections] = useState<OnboardingSelections>({});
+
   const [currentFlow, setCurrentFlow] = useState<OnboardingStep[]>([]);
   const [userType, setUserType] = useState<number | null>(null);
   const [personalFormData, setPersonalFormData] = useState<PersonalFormData>({
     firstName: "",
     lastName: "",
     email: "",
-    home: "",
     travelDestination: "",
     personalSummary: "",
   });
@@ -128,6 +105,78 @@ const OnboardingScreen = () => {
       stage: "",
     });
 
+  // Helper function to save location preference based on onboarding selection
+  const saveLocationPreference = useCallback(async () => {
+    // Try to get location from selectedLocation state or fallback to selections
+    const locationToSave =
+      selectedLocation ||
+      selections["travelDestination"] ||
+      selections["businessDestination"];
+
+    if (
+      locationToSave &&
+      typeof locationToSave === "object" &&
+      "fullName" in locationToSave
+    ) {
+      try {
+        // Always try to get device location first
+        const { status } = await Location.getForegroundPermissionsAsync();
+        let deviceLat = 0;
+        let deviceLng = 0;
+
+        if (status === Location.PermissionStatus.GRANTED) {
+          try {
+            const currentLocation = await Location.getCurrentPositionAsync();
+            deviceLat = currentLocation.coords.latitude;
+            deviceLng = currentLocation.coords.longitude;
+          } catch {
+            // Failed to get location but continue
+          }
+        }
+
+        if (locationToSave.isCurrentLocation) {
+          // User selected "Current Location" - save as current location type
+          const locationData = createCurrentLocationPreference(
+            deviceLat,
+            deviceLng,
+            "Current Location"
+          );
+          await setUserLocation(locationData);
+        } else {
+          // User selected a specific location - save without coordinates
+          const locationData = createSelectedLocationPreference(
+            locationToSave.fullName,
+            locationToSave.name + ", " + locationToSave.country,
+            locationToSave.id
+          );
+          await setUserLocation(locationData);
+        }
+      } catch (error) {
+        console.error("Failed to save location preference:", error);
+      }
+    }
+  }, [selectedLocation, selections, setUserLocation]);
+
+  // Simple navigation function - no complex auth checks during onboarding
+  const navigateAfterAuth = useCallback(async () => {
+    try {
+      // Check location permission status
+      const { status } = await Location.getForegroundPermissionsAsync();
+
+      if (status === Location.PermissionStatus.GRANTED) {
+        // Permission already granted, go directly to tabs
+        router.push("/(tabs)");
+      } else {
+        // Permission needed, show permission screen
+        router.push("/(auth)/location-permission");
+      }
+    } catch (error) {
+      console.error("Error checking location permission:", error);
+      // On error, show permission screen to be safe
+      router.push("/(auth)/location-permission");
+    }
+  }, [router]);
+
   const {
     data: content,
     isLoading: isContentLoading,
@@ -135,82 +184,6 @@ const OnboardingScreen = () => {
     refetch,
   } = useContent({});
 
-  // Reusable function to get selected options as string for user description
-  const getSelectedOptionsString = useCallback(() => {
-    console.log("All selections for description:", selections);
-
-    const results = Object.entries(selections)
-      .map(([key, value]) => {
-        const step = onboardingSteps.find((s) => s.key === key);
-        console.log(`Processing step ${key}:`, {
-          step: step?.title,
-          value,
-          type: step?.type,
-          hasOptions: step?.options?.length,
-          hasTags: step?.tags?.length,
-        });
-
-        if (!step || value === undefined) return null;
-
-        // Handle budget selection
-        if (typeof value === "object" && "min" in value && "max" in value) {
-          return `Budget: $${value.min} - $${value.max}`;
-        }
-
-        // Skip location selection - it's sent as separate location field
-        if (typeof value === "object" && "id" in value && "fullName" in value) {
-          return null;
-        }
-
-        // Handle tag selections (step.tags)
-        if (
-          (step.type === "tag-selection" ||
-            step.type === "business-tag-selection") &&
-          step.tags &&
-          Array.isArray(value)
-        ) {
-          console.log(`🏷️ Processing tag selection for ${key}:`, {
-            value,
-            stepTags: step.tags?.length,
-            stepType: step.type,
-          });
-          const selectedTags = value
-            .map((tagIndex) => {
-              // tagIndex is zero-based, but tag.number is 1-based
-              const tag = step.tags?.find((t) => t.number === tagIndex + 1);
-              console.log(
-                `Looking for tag with number ${tagIndex + 1}, found:`,
-                tag?.text
-              );
-              return tag ? tag.text : null;
-            })
-            .filter(Boolean);
-          console.log(`Selected tags result:`, selectedTags);
-          return selectedTags.length > 0 ? selectedTags.join(" | ") : null;
-        }
-
-        // Handle steps with options (regular option selections)
-        if (step.options && step.options.length > 0) {
-          if (Array.isArray(value)) {
-            const selectedOptions = value
-              .map((i) => step.options[i])
-              .filter(Boolean);
-            return selectedOptions.length > 0
-              ? selectedOptions.join(" | ")
-              : null;
-          }
-          if (typeof value === "number" && step.options[value]) {
-            return step.options[value];
-          }
-        }
-
-        return null;
-      })
-      .filter(Boolean);
-
-    console.log("Description parts:", results);
-    return results.join(" | ");
-  }, [selections]);
 
   // Helper function to remove emojis from text (remove emoji at start + any trailing space)
   const removeEmojis = (text: string): string => {
@@ -400,8 +373,6 @@ const OnboardingScreen = () => {
 
     validateRegistrationCode(validationInput, {
       onSuccess: async (response) => {
-        console.log("Code verification successful, response:", response);
-
         try {
           // Store auth data in secure storage and query cache (like login does)
           if (response?.accessToken && response?.user) {
@@ -422,19 +393,19 @@ const OnboardingScreen = () => {
 
             // Update query cache
             queryClient.setQueryData(["auth"], authData);
-
-            console.log("Authentication data stored successfully");
           }
+          // Save location preference before navigation
+          await saveLocationPreference();
 
           await navigateAfterAuth();
         } catch (error) {
           console.error("Error storing auth data:", error);
+          // Save location preference even if auth storage fails
+          await saveLocationPreference();
           await navigateAfterAuth(); // Continue anyway
         }
       },
       onError: (err: any) => {
-        console.error("Onboarding code verification error:", err);
-
         // Always show user-friendly error message regardless of server error
         Alert.alert(
           "Verification Failed",
@@ -448,6 +419,7 @@ const OnboardingScreen = () => {
     validateRegistrationCode,
     queryClient,
     navigateAfterAuth,
+    saveLocationPreference,
   ]);
 
   const stepData = currentFlow[currentStepIndex];
@@ -478,9 +450,45 @@ const OnboardingScreen = () => {
         );
       },
       onError: (err: any) => {
-        console.error("Failed to resend OTP in onboarding", err);
 
-        // Always show user-friendly error message regardless of server error
+        // Handle specific error cases - check for detail property first
+        const errorMessage =
+          err?.detail ||
+          err?.message ||
+          err?.response?.detail ||
+          err?.response?.message ||
+          "Unknown error";
+
+        // Check for duplicate email error
+        if (
+          errorMessage.toLowerCase().includes("email") &&
+          (errorMessage.toLowerCase().includes("exists") ||
+            errorMessage.toLowerCase().includes("taken") ||
+            errorMessage.toLowerCase().includes("already"))
+        ) {
+          Alert.alert("Email Already Registered", errorMessage, [
+            {
+              text: "Try Different Email",
+              style: "default",
+            },
+            {
+              text: "Sign In Instead",
+              onPress: () => router.push("/(auth)"),
+              style: "default",
+            },
+          ]);
+          return;
+        }
+
+        // Handle other API errors with detail
+        if (err?.detail) {
+          Alert.alert("Error", errorMessage, [
+            { text: "OK", style: "default" },
+          ]);
+          return;
+        }
+
+        // Default error message for other error types
         Alert.alert(
           "Error",
           "Failed to resend verification code. Please try again.",
@@ -488,7 +496,7 @@ const OnboardingScreen = () => {
         );
       },
     });
-  }, [createUser, createTravelUserInput, createBusinessUserInput, userType]);
+  }, [createUser, createTravelUserInput, createBusinessUserInput, userType, router]);
 
   // Auto-submit when verification code is complete
   useEffect(() => {
@@ -506,7 +514,7 @@ const OnboardingScreen = () => {
 
         return {
           id: item.id,
-          title: item.title,
+          title: item.title || "Untitled",
           imageUrl:
             item.internalImageUrls &&
             Array.isArray(item.internalImageUrls) &&
@@ -514,8 +522,8 @@ const OnboardingScreen = () => {
               ? item.internalImageUrls[0]
               : "",
           price:
-            typeof item.price === "number" ? item.price.toString() : item.price,
-          rating: item?.rating?.toString(),
+            typeof item.price === "number" ? item.price.toString() : item.price || "",
+          rating: item?.rating?.toString() || "0",
           category: item.category,
           websiteUrl: item.websiteUrl || "",
           address: item.addressShort || item.address || "",
@@ -524,7 +532,7 @@ const OnboardingScreen = () => {
           tags: item.tags,
           similarity: percentage, // Override with hardcoded percentage for onboarding
           distance: item.distance,
-          eventDatetime: item.eventDatetime, // Pass through event datetime for events
+          eventDatetime: item.eventDatetime || undefined, // Pass through event datetime for events
         };
       })
     : [];
@@ -773,7 +781,7 @@ const OnboardingScreen = () => {
     }));
   };
 
-  const handleLocationSelect = (location: LocationData | undefined) => {
+  const handleLocationSelect = async (location: LocationData | undefined) => {
     if (!stepData) return;
 
     setSelectedLocation(location);
@@ -781,6 +789,46 @@ const OnboardingScreen = () => {
       ...prev,
       [stepData.key]: location,
     }));
+
+    // Save location preference immediately when selected
+    if (location) {
+      try {
+        // Always try to get device location first
+        const { status } = await Location.getForegroundPermissionsAsync();
+        let deviceLat = 0;
+        let deviceLng = 0;
+
+        if (status === Location.PermissionStatus.GRANTED) {
+          try {
+            const currentLocation = await Location.getCurrentPositionAsync();
+            deviceLat = currentLocation.coords.latitude;
+            deviceLng = currentLocation.coords.longitude;
+          } catch {
+            // Failed to get location but continue
+          }
+        }
+
+        if (location.isCurrentLocation) {
+          // User selected "Current Location" - save as current location type
+          const locationData = createCurrentLocationPreference(
+            deviceLat,
+            deviceLng,
+            "Current Location"
+          );
+          await setUserLocation(locationData);
+        } else {
+          // User selected a specific location - save without coordinates
+          const locationData = createSelectedLocationPreference(
+            location.fullName,
+            location.name + ", " + location.country,
+            location.id
+          );
+          await setUserLocation(locationData);
+        }
+      } catch (error) {
+        console.error("Failed to immediately save location preference:", error);
+      }
+    }
   };
 
   const handleNext = async () => {
@@ -798,10 +846,45 @@ const OnboardingScreen = () => {
             setCurrentStepIndex(currentStepIndex + 1);
           },
           onError: (err: any) => {
-            console.error(
-              "Failed to send OTP",
-              err?.message || "Unknown error"
-            );
+
+            // Handle specific error cases - check for detail property first
+            const errorMessage =
+              err?.detail ||
+              err?.message ||
+              err?.response?.detail ||
+              err?.response?.message ||
+              "Unknown error";
+
+            // Check for duplicate email error
+            if (
+              errorMessage.toLowerCase().includes("email") &&
+              (errorMessage.toLowerCase().includes("exists") ||
+                errorMessage.toLowerCase().includes("taken") ||
+                errorMessage.toLowerCase().includes("already"))
+            ) {
+              Alert.alert("Email Already Registered", errorMessage, [
+                {
+                  text: "Try Different Email",
+                  style: "default",
+                },
+                {
+                  text: "Sign In Instead",
+                  onPress: () => router.push("/(auth)"),
+                  style: "default",
+                },
+              ]);
+              return;
+            }
+
+            // Handle other API errors with detail
+            if (err?.detail) {
+              Alert.alert("Registration Error", errorMessage, [
+                { text: "OK", style: "default" },
+              ]);
+              return;
+            }
+
+            // Default error message for other error types
             Alert.alert(
               "Error",
               "Failed to send verification code. Please try again.",
@@ -809,8 +892,8 @@ const OnboardingScreen = () => {
             );
           },
         });
-      } catch (error) {
-        console.error("Failed to prepare user data", error);
+      } catch {
+        // Error preparing user data - handle silently
       }
       return;
     }
@@ -832,6 +915,9 @@ const OnboardingScreen = () => {
         createUser(userInput, {
           onSuccess: async () => {
             try {
+              // Save location preference before navigation
+              await saveLocationPreference();
+
               // For leisure users, navigate directly to tabs after creation
               await navigateAfterAuth();
             } catch (error) {
@@ -839,7 +925,6 @@ const OnboardingScreen = () => {
             }
           },
           onError: (err: any) => {
-            console.error("Signup failed", err?.message || "Unknown error");
 
             // Handle specific error cases
             if (err?.status === 400) {

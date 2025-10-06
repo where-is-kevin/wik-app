@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "#FFFFFF",
     marginBottom: verticalScale(10),
-    paddingLeft: 10,
+    paddingLeft: 15,
     paddingRight: 15,
     paddingVertical: 15,
     overflow: "hidden",

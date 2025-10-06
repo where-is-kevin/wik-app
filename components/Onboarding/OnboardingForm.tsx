@@ -17,7 +17,6 @@ export interface PersonalFormData {
   firstName: string;
   lastName: string;
   email: string;
-  home: string;
   travelDestination: string;
   personalSummary: string;
 }
@@ -41,7 +40,6 @@ export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
       formData.firstName.trim() !== "" &&
       formData.lastName.trim() !== "" &&
       formData.email.trim() !== "" &&
-      formData.home.trim() !== "" &&
       formData.travelDestination.trim() !== ""
     );
   };
@@ -127,15 +125,6 @@ export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
           onChangeText={(text) => handleChange("personalSummary", text)}
           fixedHeight={77}
           placeholder="Tell us everything."
-        />
-      </CustomView>
-
-      <CustomView style={styles.formGroup}>
-        <CustomTextInput
-          label="Home city"
-          value={formData.home}
-          onChangeText={(text) => handleChange("home", text)}
-          placeholder="Enter your home address"
         />
       </CustomView>
 

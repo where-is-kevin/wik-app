@@ -23,6 +23,7 @@ import CustomText from "@/components/CustomText";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import { useDeleteUser } from "@/hooks/useDeleteUser";
 import { useAuth } from "@/hooks/useAuth"; // Changed from useAuthGuard
+import { useUserLocation } from "@/contexts/UserLocationContext";
 import AppInfoModal from "@/components/AppInfoModal";
 
 const settingsData = [
@@ -40,6 +41,7 @@ const Settings = () => {
   const { colors } = useTheme();
   const deleteUserMutation = useDeleteUser();
   const { logout } = useAuth(); // Use the new auth hook
+  const { clearUserLocation } = useUserLocation();
   const [showAppInfoModal, setShowAppInfoModal] = useState(false);
 
   const handleFeedback = () => {
@@ -56,8 +58,10 @@ const Settings = () => {
   };
 
   const handleLogout = async () => {
-    // console.log("Logging out...");
-    await logout(); // Use the auth hook's logout function
+    // Clear user location preference before logout
+    await clearUserLocation();
+    // Use the auth hook's logout function
+    await logout();
   };
 
   const handleAppInfo = () => {
@@ -78,9 +82,10 @@ const Settings = () => {
           style: "destructive",
           onPress: () => {
             deleteUserMutation.mutate(undefined, {
-              onSuccess: () => {
-                // Clear auth data and navigate
-                logout();
+              onSuccess: async () => {
+                // Clear user location and auth data
+                await clearUserLocation();
+                await logout();
               },
               onError: (error) => {
                 Alert.alert(

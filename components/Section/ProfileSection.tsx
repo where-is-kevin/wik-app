@@ -1,4 +1,5 @@
 import { useTheme } from "@/contexts/ThemeContext";
+import { useUserLocation } from "@/contexts/UserLocationContext";
 import {
   horizontalScale,
   scaleFontSize,
@@ -39,6 +40,7 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors } = useTheme();
+  const { userLocation } = useUserLocation();
 
   // Animation values
   const profileImageY = useSharedValue(-100);
@@ -52,6 +54,10 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
     router.push("/(profile)");
   };
 
+  const onLocationPress = () => {
+    router.push("/location-selection");
+  };
+
   // Helper function to get valid image URL
   const getValidImageUrl = (imageUrl?: string): string | null => {
     if (typeof imageUrl === "string" && imageUrl.trim() !== "") {
@@ -62,7 +68,6 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
 
   // Get safe profile image source
   const validProfileImageUrl = getValidImageUrl(user?.profileImage);
-
 
   // Start animations when user data is available
   React.useEffect(() => {
@@ -180,7 +185,8 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
             !user?.personalSummary && { marginTop: verticalScale(10) },
           ]}
         >
-          <CustomView
+          <CustomTouchable
+            onPress={onLocationPress}
             bgColor={colors.profile_name_black}
             style={styles.locationTag}
           >
@@ -189,11 +195,11 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
               fontFamily="Inter-Medium"
               style={[styles.locationText, { color: colors.text_white }]}
             >
-              {user?.location || "No location"}
+              {userLocation?.displayName || "Current Location"}
             </CustomText>
-          </CustomView>
+          </CustomTouchable>
 
-          <CustomView
+          {/* <CustomView
             bgColor={colors.opacity_lime}
             style={styles.secondaryLocationTag}
           >
@@ -207,7 +213,7 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
             >
               {user?.home || "No location"}
             </CustomText>
-          </CustomView>
+          </CustomView> */}
         </CustomView>
       </Animated.View>
     </CustomView>

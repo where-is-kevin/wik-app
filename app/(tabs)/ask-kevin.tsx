@@ -17,6 +17,7 @@ import {
   verticalScale,
 } from "@/utilities/scaling";
 import CustomText from "@/components/CustomText";
+import { useUserLocation } from "@/contexts/UserLocationContext";
 import { useLocation } from "@/contexts/LocationContext";
 import {
   BucketBottomSheet,
@@ -33,7 +34,8 @@ const PaginatedContentList = () => {
   const { colors } = useTheme();
   const { mode } = useMode();
   const router = useRouter();
-  const { location: contextLocation } = useLocation();
+  const { getApiLocationParams } = useUserLocation();
+  const { location: deviceLocation } = useLocation();
 
   // Handle string | string[] type from useLocalSearchParams
   const normalizeQuery = (query: string | string[] | undefined): string => {
@@ -91,6 +93,9 @@ const PaginatedContentList = () => {
   const createBucketMutation = useCreateBucket();
 
   // Use infinite query - works with or without location
+  // Get location params - only includes lat/lng if user chose "Current Location"
+  const locationParams = getApiLocationParams(deviceLocation || undefined);
+
   const {
     data,
     fetchNextPage,
@@ -102,10 +107,10 @@ const PaginatedContentList = () => {
     refetch,
   } = useInfiniteContent({
     query: searchQuery,
-    latitude: contextLocation?.lat,
-    longitude: contextLocation?.lon,
+    ...locationParams, // Conditionally spread lat/lng
     limit: 12,
     enabled: true,
+    type: mode, // Pass the current mode as type
   });
 
   // Flatten all pages into single array
@@ -210,7 +215,7 @@ const PaginatedContentList = () => {
           setIsBucketBottomSheetVisible(false);
           setSelectedLikeItemId(null);
         } catch (error) {
-          console.error("Failed to add item to bucket:", error);
+          // Handle bucket add errors
         }
       }
     },
@@ -237,7 +242,7 @@ const PaginatedContentList = () => {
           setIsCreateBucketBottomSheetVisible(false);
           setSelectedLikeItemId(null);
         } catch (error) {
-          console.error("Failed to create bucket:", error);
+          // Handle bucket creation errors
         }
       }
     },
@@ -276,7 +281,6 @@ const PaginatedContentList = () => {
 
   const handleViewAllMajorEvents = useCallback(() => {
     // TODO: Navigate to all major events page
-    console.log("View all major events");
   }, []);
 
   // Cleanup timeout on unmount
@@ -408,8 +412,8 @@ const PaginatedContentList = () => {
             />
           ) : (
             <ErrorScreen
-              title={`No results found for "${searchQuery}"`}
-              message="Try searching for something else"
+              title={`No results found`}
+              message="Try searching for something else or changing mode"
             />
           )}
         </CustomView>

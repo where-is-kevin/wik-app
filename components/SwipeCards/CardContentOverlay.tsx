@@ -57,14 +57,14 @@ const formatPrice = (price?: string | number): string | null => {
   if (price === null || price === undefined) return null;
 
   // Handle string prices (new API format like "€10.00 - €25.00")
-  if (typeof price === 'string') {
+  if (typeof price === "string") {
     if (price === "0" || price === "0.00") return "Free";
-    if (price.includes('€') || price.includes('$')) return price; // Already formatted price range
+    if (price.includes("€") || price.includes("$")) return price; // Already formatted price range
     if (price && price !== "0") return "Ticketed";
   }
 
   // Handle number prices (old format)
-  if (typeof price === 'number') {
+  if (typeof price === "number") {
     if (price === 0) return "Free";
     if (price > 0) return "Ticketed";
   }
@@ -146,7 +146,7 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
           {item.title}
         </CustomText>
 
-        <View style={styles.matchContainer}>
+        {/* <View style={styles.matchContainer}>
           <CustomText
             fontFamily="Inter-SemiBold"
             style={[styles.priceText, { color: colors.lime }]}
@@ -159,7 +159,7 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
           >
             {"match"}
           </CustomText>
-        </View>
+        </View> */}
 
         {/* Rating, Price, Distance OR Event DateTime */}
         <View style={styles.infoRow}>
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: scaleFontSize(24),
-    marginVertical: verticalScale(8),
+    marginTop: verticalScale(8),
   },
   priceText: {
     fontSize: scaleFontSize(24),

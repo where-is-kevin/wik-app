@@ -12,9 +12,10 @@ import { ErrorScreen } from "@/components/ErrorScreen";
 import { bucketsHaveContent, likesHaveContent } from "@/utilities/hasContent";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, useState } from "react";
 import { ScrollView, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQueryClient } from "@tanstack/react-query";
 
 // Using SVG placeholder via component error handling
 
@@ -22,6 +23,7 @@ const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const { data: user, isLoading, isError, error, refetch } = useUser();
   const {
@@ -40,13 +42,8 @@ const ProfileScreen = () => {
 
   // Flatten the paginated data
   const buckets = useMemo(() => {
-    console.log('🔄 Profile buckets recalculating, bucketsData pages:', bucketsData?.pages?.length);
-
     if (!bucketsData?.pages) return [];
-    const flattened = bucketsData.pages.flatMap((page) => page.items);
-
-    console.log('📦 Profile buckets result:', flattened?.length, 'buckets');
-    return flattened;
+    return bucketsData.pages.flatMap((page) => page.items);
   }, [bucketsData]);
 
   const likes = useMemo(() => {
@@ -90,8 +87,6 @@ const ProfileScreen = () => {
 
   // Transform real bucket data for the UI with stable reference
   const transformedBucketsData = useMemo(() => {
-    console.log('🔄 Profile transformedBucketsData recalculating, buckets:', buckets?.length);
-
     if (!buckets || buckets.length === 0) return [];
 
     return buckets.map((bucket: any) => {
@@ -193,24 +188,19 @@ const ProfileScreen = () => {
 
   // Handle retry for any failed data - stable callback
   const handleRetry = useCallback(() => {
-    console.log("Retrying profile data...", {
-      isError,
-      likesError,
-      bucketsError,
-    });
     if (isError) {
-      console.log("Refetching user data...");
       refetch();
     }
     if (likesError) {
-      console.log("Refetching likes data...");
       refetchLikes();
     }
     if (bucketsError) {
-      console.log("Refetching buckets data...");
       refetchBuckets();
     }
   }, [isError, likesError, bucketsError, refetch, refetchLikes, refetchBuckets]);
+
+
+
 
   // Show loading state
   if (isLoading || bucketsLoading || likesLoading) {
@@ -273,6 +263,7 @@ const ProfileScreen = () => {
             <EmptyData type="likes" style={styles.sectionEmptyState} />
           )}
         </ScrollView>
+
       </CustomView>
     </>
   );

@@ -9,7 +9,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/ThemeContext";
 import { scaleFontSize, verticalScale } from "@/utilities/scaling";
-import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
+import DateTimePicker, {
+  DateTimePickerAndroid,
+} from "@react-native-community/datetimepicker";
 import NextButton from "@/components/Button/NextButton";
 import CustomText from "@/components/CustomText";
 
@@ -38,49 +40,49 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
     setDate(initialDate);
 
     // For Android, use the imperative API with date then time picker
-    if (Platform.OS === 'android' && visible) {
+    if (Platform.OS === "android" && visible) {
       // First show date picker
       DateTimePickerAndroid.open({
         value: initialDate,
-        mode: 'date',
-        display: 'default',
+        mode: "date",
+        display: "default",
         minimumDate: minimumDate,
         positiveButton: {
-          label: 'Next',
-          textColor: '#6A0C31'
+          label: "Next",
+          textColor: "#6A0C31",
         },
         negativeButton: {
-          label: 'Cancel',
-          textColor: '#6A0C31'
+          label: "Cancel",
+          textColor: "#6A0C31",
         },
         onChange: (event: any, selectedDate?: Date) => {
-          if (event.type === 'dismissed') {
+          if (event.type === "dismissed") {
             onClose();
             return;
           }
 
-          if (event.type === 'set' && selectedDate) {
+          if (event.type === "set" && selectedDate) {
             // Date selected, now show time picker
             DateTimePickerAndroid.open({
               value: selectedDate,
-              mode: 'time',
-              display: 'default',
+              mode: "time",
+              display: "default",
               is24Hour: false,
               positiveButton: {
-                label: 'Continue',
-                textColor: '#6A0C31'
+                label: "Continue",
+                textColor: "#6A0C31",
               },
               negativeButton: {
-                label: 'Cancel',
-                textColor: '#6A0C31'
+                label: "Cancel",
+                textColor: "#6A0C31",
               },
               onChange: (timeEvent: any, selectedTime?: Date) => {
-                if (timeEvent.type === 'dismissed') {
+                if (timeEvent.type === "dismissed") {
                   onClose();
                   return;
                 }
 
-                if (timeEvent.type === 'set' && selectedTime) {
+                if (timeEvent.type === "set" && selectedTime) {
                   // Combine date and time
                   const finalDateTime = new Date(selectedDate);
                   finalDateTime.setHours(selectedTime.getHours());
@@ -90,10 +92,10 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
                   onSave(finalDateTime);
                   onClose();
                 }
-              }
+              },
             });
           }
-        }
+        },
       });
     }
   }, [visible, initialDate, minimumDate, onSave, onClose]);
@@ -115,7 +117,7 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
   };
 
   // For iOS, show custom modal with inline picker
-  if (Platform.OS === 'ios') {
+  if (Platform.OS === "ios") {
     return (
       <Modal
         visible={visible}
@@ -150,7 +152,7 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
                 >
                   <CustomText
                     fontFamily="Inter-SemiBold"
-                    style={[styles.cancelText, { color: colors.light_blue}]}
+                    style={[styles.cancelText, { color: colors.light_blue }]}
                   >
                     Cancel
                   </CustomText>
@@ -173,7 +175,12 @@ export const DateTimeModal: React.FC<DateTimeModalProps> = ({
                 </View>
 
                 {/* Continue Button */}
-                <View style={[styles.buttonContainer, { paddingBottom: insets.bottom + 20 }]}>
+                <View
+                  style={[
+                    styles.buttonContainer,
+                    { paddingBottom: insets.bottom + 20 },
+                  ]}
+                >
                   <NextButton
                     title="Continue"
                     onPress={handleContinue}
@@ -236,6 +243,6 @@ const styles = StyleSheet.create({
     height: 200,
   },
   buttonContainer: {
-    // marginTop: verticalScale(20),
+    marginTop: verticalScale(20),
   },
 });

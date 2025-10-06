@@ -6,7 +6,6 @@ import { verticalScale, scaleFontSize } from "@/utilities/scaling";
 import CustomView from "@/components/CustomView";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function IndexScreen() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -23,21 +22,8 @@ export default function IndexScreen() {
           // User is authenticated, proceed with location check and navigation
           await checkAndNavigate();
         } else {
-          // User is not authenticated, check if first time
-          try {
-            const isFirstTime = await AsyncStorage.getItem("isFirstTimeUser");
-            if (isFirstTime === null) {
-              // First time user - go to onboarding
-              router.replace("/(onboarding)");
-            } else {
-              // Returning user - go to auth
-              router.replace("/(auth)");
-            }
-          } catch (error) {
-            console.error("Error checking first time user:", error);
-            // Default to auth on error
-            router.replace("/(auth)");
-          }
+          // User is not authenticated - go directly to auth (no onboarding check)
+          router.replace("/(auth)");
         }
       }
     };

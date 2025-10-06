@@ -85,12 +85,12 @@ export default function CreateScreen() {
         router.back();
       } else {
         // Fallback: navigate to main route
-        router.replace('/(tabs)/');
+        router.replace('/');
       }
     } catch (error) {
       console.warn('Navigation error:', error);
       // Last resort: try to replace with main route
-      router.replace('/(tabs)/');
+      router.replace('/');
     }
   }, [router]);
 
@@ -173,18 +173,18 @@ export default function CreateScreen() {
   const [scrollOffset, setScrollOffset] = useState(0);
 
   const handleGestureEvent = useCallback((event: any) => {
-    // Only allow pull-to-dismiss when at the top of the scroll view
-    const { translationY, velocityY } = event.nativeEvent;
-    if (scrollOffset <= 0 && translationY > 100 && velocityY > 500) {
-      safeDismiss();
+    // Allow gesture tracking for pull-to-dismiss
+    const { translationY } = event.nativeEvent;
+    if (scrollOffset <= 0 && translationY > 0) {
+      // Only track when at top and pulling down
     }
-  }, [safeDismiss, scrollOffset]);
+  }, [scrollOffset]);
 
   const handleGestureStateChange = useCallback((event: any) => {
     if (event.nativeEvent.state === State.END) {
       const { translationY, velocityY } = event.nativeEvent;
-      // Only dismiss if at top of scroll view and pulled down enough
-      if (scrollOffset <= 0 && (translationY > 150 || (translationY > 50 && velocityY > 800))) {
+      // More lenient conditions for pull-to-dismiss
+      if (scrollOffset <= 10 && translationY > 80 && velocityY > 500) {
         safeDismiss();
       }
     }
@@ -208,7 +208,10 @@ export default function CreateScreen() {
         onHandlerStateChange={handleGestureStateChange}
         minPointers={1}
         maxPointers={1}
-        enabled={scrollOffset <= 0}
+        enabled={scrollOffset <= 10}
+        failOffsetX={[-15, 15]}
+        activeOffsetY={[-10, 10]}
+        shouldCancelWhenOutside={false}
       >
         <View style={[styles.container]}>
           <SafeAreaView style={styles.safeArea}>
@@ -235,10 +238,11 @@ export default function CreateScreen() {
             ]}
             showsVerticalScrollIndicator={false}
             bounces={true}
-            overScrollMode="always"
-            scrollEventThrottle={16}
-            simultaneousHandlers={[]}
+            overScrollMode="auto"
+            scrollEventThrottle={8}
             onScroll={handleScroll}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}
           >
             {/* Title */}
             <View style={styles.header}>
