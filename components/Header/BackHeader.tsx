@@ -34,6 +34,7 @@ const BackHeader: React.FC<BackHeaderProps> = ({
           <CustomTouchable
             bgColor={colors.overlay}
             onPress={() => router.back()}
+            hitSlop={{ top: 30, bottom: 30, left: 30, right: 30 }}
           >
             <ArrowLeftSvg />
           </CustomTouchable>
