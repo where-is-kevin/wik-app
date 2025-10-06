@@ -75,7 +75,7 @@ const PaginatedContentList = () => {
   });
 
   // Check if Major Events should be visible (only for business mode)
-  const shouldShowMajorEvents = mode === "business";
+  const shouldShowMajorEvents = false; // Hidden for release
 
   // Bucket functionality state
   const [selectedLikeItemId, setSelectedLikeItemId] = useState<string | null>(

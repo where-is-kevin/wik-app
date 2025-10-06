@@ -191,8 +191,8 @@ export default function TabLayout() {
           </Animated.View>
         </Pressable>
 
-        {/* Create Button */}
-        <TouchableOpacity
+        {/* Create Button - Hidden for release */}
+        {/* <TouchableOpacity
           onPress={handleCreateTabPress}
           style={styles.tabButton}
           activeOpacity={0.7}
@@ -200,7 +200,7 @@ export default function TabLayout() {
           <Animated.View style={[styles.tabWrapper, createJiggleStyle]}>
             <NavPlusSvg color="#A3A3A8" />
           </Animated.View>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {/* Ask Kevin Tab */}
         <Pressable
