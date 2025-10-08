@@ -11,8 +11,8 @@ import { LocationProvider } from "@/contexts/LocationContext";
 import { UserLocationProvider } from "@/contexts/UserLocationContext";
 import { UXCamProvider } from "@/contexts/UXCamContext";
 import { AnalyticsProvider } from "@/contexts/AnalyticsContext";
-import { PortalProvider } from "@gorhom/portal";
-// import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { PortalProvider, PortalHost } from "@gorhom/portal";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { ModeProvider } from "@/contexts/ModeContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 
@@ -61,8 +61,9 @@ export default function RootLayout() {
               <LocationProvider>
                 <UserLocationProvider>
                   <PortalProvider>
-                    <ModeProvider>
-                      <ToastProvider>
+                    <BottomSheetModalProvider>
+                      <ModeProvider>
+                        <ToastProvider>
                       <StatusBar style="dark" />
                       <Stack>
                         {/* Root index handles auth routing */}
@@ -136,8 +137,10 @@ export default function RootLayout() {
                         {/* Fallback screen for undefined routes */}
                         <Stack.Screen name="+not-found" />
                       </Stack>
-                      </ToastProvider>
-                    </ModeProvider>
+                        </ToastProvider>
+                      </ModeProvider>
+                    </BottomSheetModalProvider>
+                    <PortalHost name="root" />
                   </PortalProvider>
                 </UserLocationProvider>
               </LocationProvider>

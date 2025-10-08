@@ -48,6 +48,7 @@ const OTPVerificationScreen = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [timeLeft, setTimeLeft] = useState(30);
   const [canResend, setCanResend] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const AUTH_TOKEN_KEY = "authToken";
   const AUTH_USER_KEY = "authUser";
@@ -87,7 +88,13 @@ const OTPVerificationScreen = () => {
       return;
     }
 
+    // Prevent double submissions
+    if (isVerifying || isPending) {
+      return;
+    }
+
     setErrorMessage("");
+    setIsVerifying(true);
 
     logEvent("otp_verify_attempt", {
       email: email as string,

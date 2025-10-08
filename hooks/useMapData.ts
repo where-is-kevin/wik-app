@@ -58,7 +58,7 @@ export const hasLocation = (
   );
 };
 
-export const useMapData = (source: string, searchQuery: string, bucketId?: string) => {
+export const useMapData = (source: string, searchQuery: string, bucketId?: string, type?: "leisure" | "business", locationParams?: { latitude?: number; longitude?: number }) => {
   const { location } = useLocation();
 
   // Use appropriate data hook based on source
@@ -72,8 +72,8 @@ export const useMapData = (source: string, searchQuery: string, bucketId?: strin
   const contentQuery = useInfiniteContent({
     query: searchQuery,
     enabled: source === "content",
-    latitude: location?.lat,
-    longitude: location?.lon,
+    ...locationParams, // Use the location params from UserLocationContext
+    type: type,
   });
 
   const data = React.useMemo(() => {

@@ -1,13 +1,10 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import { StyleSheet } from "react-native";
 import CustomView from "../CustomView";
 import CustomText from "../CustomText";
-import CustomTouchable from "../CustomTouchableOpacity";
 import { useTheme } from "@/contexts/ThemeContext";
-import {
-  verticalScale,
-} from "@/utilities/scaling";
-import { SwipeCards, CardData } from "../SwipeCards/SwipeCards";
+import { verticalScale } from "@/utilities/scaling";
+import SwipeCards, { CardData } from "../SwipeCards/SwipeCards";
 import SwipeCardTooltips from "../Tooltips/SwipeCardTooltips";
 import AnimatedLoader from "../Loader/AnimatedLoader";
 import { commonOnboardingStyles } from "./OnboardingStyles";
@@ -49,6 +46,9 @@ export const OnboardingCardSwipeSlide: React.FC<
   const { colors } = useTheme();
   const { trackSuggestion } = useAnalyticsContext();
 
+  // Track when to refresh the card stack (same as tabs index)
+  const [swipeKey, setSwipeKey] = useState<number>(0);
+
   // Enhanced analytics tracking for onboarding swipes
   const handleSwipeLeft = (item: CardData) => {
     trackSuggestion("swipe_left", {
@@ -56,7 +56,7 @@ export const OnboardingCardSwipeSlide: React.FC<
       suggestion_type:
         (item.category as "venue" | "experience" | "event") || "venue",
       category: item.category || "unknown",
-      similarity_score: item.similarity,
+      similarity_score: typeof item.similarity === 'string' ? parseFloat(item.similarity) || 0 : item.similarity,
       onboarding_step: stepData.title,
       is_onboarding: true,
     });
@@ -69,7 +69,7 @@ export const OnboardingCardSwipeSlide: React.FC<
       suggestion_type:
         (item.category as "venue" | "experience" | "event") || "venue",
       category: item.category || "unknown",
-      similarity_score: item.similarity,
+      similarity_score: typeof item.similarity === 'string' ? parseFloat(item.similarity) || 0 : item.similarity,
       onboarding_step: stepData.title,
       is_onboarding: true,
     });
@@ -82,7 +82,7 @@ export const OnboardingCardSwipeSlide: React.FC<
       suggestion_type:
         (item.category as "venue" | "experience" | "event") || "venue",
       category: item.category || "unknown",
-      similarity_score: item.similarity,
+      similarity_score: typeof item.similarity === 'string' ? parseFloat(item.similarity) || 0 : item.similarity,
       onboarding_step: stepData.title,
       is_onboarding: true,
     });
@@ -96,6 +96,12 @@ export const OnboardingCardSwipeSlide: React.FC<
   const handleRetry = () => {
     onRetry();
   };
+
+  // Handle completion of card stack - for onboarding, just complete without refresh
+  const handleComplete = useCallback(() => {
+    // Don't refresh cards in onboarding, just complete the step
+    onComplete();
+  }, [onComplete]);
 
   // Show loading state while content is being fetched
   if (isLoading) {
@@ -140,6 +146,7 @@ export const OnboardingCardSwipeSlide: React.FC<
 
   return (
     <CustomView
+      bgColor={colors.overlay}
       style={[
         commonOnboardingStyles.content,
         { paddingTop: 0, paddingBottom: 0 },
@@ -160,15 +167,19 @@ export const OnboardingCardSwipeSlide: React.FC<
         {stepData.subtitle}
       </CustomText>
 
-      <CustomView style={styles.swipeContainer}>
+      <CustomView bgColor={colors.overlay} style={styles.swipeContainer}>
         <SwipeCards
+          key={swipeKey}
           data={cardData}
           onCardTap={handleCardTap}
           onSwipeLeft={handleSwipeLeft}
           onSwipeRight={handleSwipeRight}
           onSwipeUp={handleSwipeUp}
-          onComplete={onComplete}
+          onComplete={handleComplete}
+          isLoading={isLoading}
           hideButtons={true}
+          showLoaderOnComplete={false}
+          fullWidth={true}
         />
 
         {showTutorial && !isLoading && !error && cardData.length > 0 && (
@@ -183,8 +194,6 @@ const styles = StyleSheet.create({
   swipeContainer: {
     flex: 1,
     width: "100%",
-    alignItems: "center",
-    justifyContent: "center",
     marginTop: verticalScale(12),
   },
 });

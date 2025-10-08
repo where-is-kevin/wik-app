@@ -2,7 +2,8 @@ import { useContent } from "@/hooks/useContent";
 import React, { useState, useCallback, useMemo } from "react";
 import { useAddLike } from "@/hooks/useLikes";
 import { getErrorMessage } from "@/utilities/errorUtils";
-import { StyleSheet, Linking, Alert } from "react-native";
+import { StyleSheet, Linking, Alert, View } from "react-native";
+import { useRouter } from "expo-router";
 import { ErrorScreen } from "@/components/ErrorScreen";
 import CustomView from "@/components/CustomView";
 import { horizontalScale, verticalScale } from "@/utilities/scaling";
@@ -18,7 +19,7 @@ import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { useAddDislike } from "@/hooks/useDislikes";
 import { useLocation } from "@/contexts/LocationContext";
 import { useUserLocation } from "@/contexts/UserLocationContext";
-import { CardData, SwipeCards } from "@/components/SwipeCards/SwipeCards";
+import SwipeCards, { CardData } from "@/components/SwipeCards/SwipeCards";
 import FilterModal, { FilterType } from "@/components/FilterModal/FilterModal";
 import FilterSvg from "@/components/SvgComponents/FilterSvg";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
@@ -28,6 +29,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useMode } from "@/contexts/ModeContext";
 
 const SwipeableCards = () => {
+  const router = useRouter();
   const { location: deviceLocation, permissionStatus } = useLocation();
   const { getApiLocationParams } = useUserLocation();
   const { mode } = useMode();
@@ -73,6 +75,7 @@ const SwipeableCards = () => {
 
   const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] =
     useState(false);
+
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [
     isCreateBucketBottomSheetVisible,
@@ -86,30 +89,47 @@ const SwipeableCards = () => {
   const addLikeMutation = useAddLike();
   const dislikeMutation = useAddDislike();
 
+  // Track when to refresh the card stack
+  const [swipeKey, setSwipeKey] = useState<number>(0);
+
   // Transform your content data to match SwipeCards interface
-  // Memoize transformedData to prevent recreation on every render
   const transformedData: CardData[] = useMemo(() => {
-    return content
-      ? content.map((item) => ({
-          id: item.id,
-          title: item.title || "Untitled", // Handle null title
-          imageUrl:
-            item.internalImageUrls && Array.isArray(item.internalImageUrls) && item.internalImageUrls.length > 0
-              ? item.internalImageUrls[0]
-              : "",
-          price: item.price ? (typeof item.price === 'number' ? item.price.toString() : item.price) : undefined,
-          rating: item?.rating ? item.rating.toString() : undefined,
-          category: item.category,
-          websiteUrl: item.websiteUrl || "",
-          address: item.addressShort || item.address || "",
-          isSponsored: item.isSponsored,
-          contentShareUrl: item.contentShareUrl,
-          tags: item.tags,
-          similarity: typeof item.similarity === 'string' ? parseFloat(item.similarity) || 0 : item.similarity,
-          distance: item.distance,
-          eventDatetime: (item as any).eventDatetime, // Add event datetime for events
-        }))
-      : [];
+    if (!content || content.length === 0) {
+      return [];
+    }
+
+    const filtered = content
+      .slice(0, 5) // Limit to 4 cards for better Android performance
+      .map((item) => ({
+        id: item.id,
+        title: item.title || "Untitled", // Handle null title
+        imageUrl:
+          item.internalImageUrls &&
+          Array.isArray(item.internalImageUrls) &&
+          item.internalImageUrls.length > 0
+            ? item.internalImageUrls[0]
+            : "",
+        price: item.price
+          ? typeof item.price === "number"
+            ? item.price.toString()
+            : item.price
+          : undefined,
+        rating: item?.rating ? item.rating.toString() : undefined,
+        category: item.category,
+        websiteUrl: item.websiteUrl || "",
+        address: item.addressShort || item.address || "",
+        isSponsored: item.isSponsored,
+        contentShareUrl: item.contentShareUrl,
+        tags: item.tags,
+        similarity:
+          typeof item.similarity === "string"
+            ? parseFloat(item.similarity) || 0
+            : item.similarity,
+        distance: item.distance,
+        eventDatetime: (item as any).eventDatetime, // Add event datetime for events
+      }));
+
+    return filtered;
   }, [content]);
 
   const handleLike = useCallback(
@@ -177,7 +197,9 @@ const SwipeableCards = () => {
       if (!item) {
         return;
       }
-      handleDislike(item);
+
+      // Handle dislike asynchronously without blocking UI
+      setTimeout(() => handleDislike(item), 0);
     },
     [handleDislike]
   );
@@ -187,7 +209,9 @@ const SwipeableCards = () => {
       if (!item) {
         return;
       }
-      handleLike(item);
+
+      // Handle like asynchronously without blocking UI
+      setTimeout(() => handleLike(item), 0);
     },
     [handleLike]
   );
@@ -198,36 +222,58 @@ const SwipeableCards = () => {
         return;
       }
 
-      // Track as save_suggestion (you can change to book_suggestion if this is booking)
-      trackSuggestion("save_suggestion", {
-        suggestion_id: item.id,
-        suggestion_type:
-          (item.category as "venue" | "experience" | "event") || "venue",
-        category: item.category || "unknown",
-        similarity_score: item.similarity,
-        rating: item.rating ? parseFloat(item.rating) : undefined,
-        price_range: item.price,
-      });
-
-      // Check if the item has a website URL and open it
-      if (item?.websiteUrl) {
-        Linking.openURL(item.websiteUrl).catch(() => {
-          // Silently handle URL opening errors
+      // Handle analytics and URL opening asynchronously
+      setTimeout(() => {
+        // Track as save_suggestion
+        trackSuggestion("save_suggestion", {
+          suggestion_id: item.id,
+          suggestion_type:
+            (item.category as "venue" | "experience" | "event") || "venue",
+          category: item.category || "unknown",
+          similarity_score: item.similarity,
+          rating: item.rating ? parseFloat(item.rating) : undefined,
+          price_range: item.price,
         });
-      } else {
-        Alert.alert("No Website", "No website is available for this content.");
-      }
+
+        // Check if the item has a website URL and open it
+        if (item?.websiteUrl) {
+          Linking.openURL(item.websiteUrl).catch(() => {
+            // Silently handle URL opening errors
+          });
+        } else {
+          Alert.alert(
+            "No Website",
+            "No website is available for this content."
+          );
+        }
+      }, 0);
     },
     [trackSuggestion]
   );
 
-  // Simplified: Just refetch new content when cards are exhausted
+  // Track loading state for card refresh
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Refresh the card stack when cards are exhausted
   const handleComplete = useCallback(() => {
-    // Refetch new content when cards are exhausted
-    refetch();
+    setIsRefreshing(true);
+    // Increment key to force Swiper to refresh with new data
+    setSwipeKey((prev) => prev + 1);
+    refetch().finally(() => {
+      // Small delay to ensure smooth transition
+      setTimeout(() => setIsRefreshing(false), 500);
+    });
   }, [refetch]);
 
+  const handleCardTap = useCallback(
+    (item: CardData) => {
+      router.push(`/event-details/${item.id}`);
+    },
+    [router]
+  );
+
   const handleShowBucketBottomSheet = useCallback((itemId?: string) => {
+    console.log("🪣 handleShowBucketBottomSheet called with itemId:", itemId);
     if (itemId) {
       setSelectedItemId(itemId);
     }
@@ -303,9 +349,11 @@ const SwipeableCards = () => {
   // Check if we're still waiting for location decision
   const waitingForLocation =
     getPermissionStatus() === "undetermined" ||
-    (getPermissionStatus() === "granted" && !deviceLocation?.lat && !deviceLocation?.lon);
+    (getPermissionStatus() === "granted" &&
+      !deviceLocation?.lat &&
+      !deviceLocation?.lon);
 
-  // Show loading state
+  // Show loading state (initial load, location waiting)
   if (isLoading || waitingForLocation) {
     return (
       <SafeAreaView style={{ backgroundColor: "#fff", flex: 1 }}>
@@ -314,8 +362,8 @@ const SwipeableCards = () => {
     );
   }
 
-  // Show empty state when no data is available AND we're not loading
-  if (!transformedData.length) {
+  // Show empty state when no data is available AND we're not loading/refreshing
+  if (!transformedData.length && !isRefreshing) {
     return (
       <>
         <ModeHeader />
@@ -361,11 +409,11 @@ const SwipeableCards = () => {
   }
 
   return (
-    <>
-      <ModeHeader />
-      <CustomView style={styles.content}>
+    <View style={{ flex: 1, backgroundColor: "#FFF", zIndex: -1 }}>
+      <CustomView bgColor={colors.overlay} style={{ flex: 1 }}>
+        <ModeHeader />
         <CustomTouchable
-          style={styles.filterSvgButton}
+          style={[styles.filterSvgButton, { marginRight: horizontalScale(24) }]}
           onPress={() => setIsFilterModalVisible(true)}
         >
           <CustomView style={styles.filterSvgContainer}>
@@ -379,18 +427,26 @@ const SwipeableCards = () => {
           </CustomView>
         </CustomTouchable>
 
-        <CustomView style={[styles.swipeContainer]}>
+        {isRefreshing ? (
+          <CustomView style={styles.swipeContainer}>
+            <AnimatedLoader />
+          </CustomView>
+        ) : (
           <SwipeCards
+            key={swipeKey}
             data={transformedData}
             onSwipeLeft={handleSwipeLeft}
             onSwipeRight={handleSwipeRight}
             onSwipeUp={handleSwipeUp}
             onComplete={handleComplete}
+            onCardTap={handleCardTap}
             onBucketPress={handleShowBucketBottomSheet}
-            shouldAdvanceOnSwipeUp={false} // Don't advance card on swipe up in tabs screen
+            isLoading={isLoading}
+            showLoaderOnComplete={true}
           />
-        </CustomView>
+        )}
       </CustomView>
+
       <BucketBottomSheet
         isVisible={isBucketBottomSheetVisible}
         onClose={handleCloseBucketBottomSheet}
@@ -411,7 +467,7 @@ const SwipeableCards = () => {
         onApply={handleFilterApply}
         selectedFilters={selectedFilters}
       />
-    </>
+    </View>
   );
 };
 

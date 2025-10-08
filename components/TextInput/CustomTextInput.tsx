@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, memo } from "react";
 import {
   TextInput,
   StyleSheet,
@@ -32,6 +32,9 @@ interface CustomTextInputProps {
   maxLength?: number;
   fixedHeight?: number;
   customTextStyles?: TextStyle | TextStyle[]; // Add custom text styles prop
+  autoFocus?: boolean;
+  blurOnSubmit?: boolean;
+  returnKeyType?: "done" | "go" | "next" | "search" | "send" | "default";
 }
 
 const CustomTextInput: React.FC<CustomTextInputProps> = ({
@@ -49,6 +52,9 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
   maxLength,
   fixedHeight,
   customTextStyles,
+  autoFocus = false,
+  blurOnSubmit = false,
+  returnKeyType = "default",
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
@@ -124,6 +130,9 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
           textAlignVertical={multiline ? "top" : "center"}
           maxLength={maxLength}
           scrollEnabled={multiline}
+          autoFocus={autoFocus}
+          blurOnSubmit={blurOnSubmit}
+          returnKeyType={returnKeyType}
         />
         {secureTextEntry && (
           <CustomTouchable
@@ -198,4 +207,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CustomTextInput;
+export default memo(CustomTextInput);

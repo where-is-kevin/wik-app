@@ -27,7 +27,6 @@ export const useLocationPermissionGuard = (
     async (): Promise<LocationPermissionStatus> => {
       try {
         const { status } = await Location.getForegroundPermissionsAsync();
-        console.log("Raw permission status from Expo:", status);
         
         switch (status) {
           case Location.PermissionStatus.GRANTED:
@@ -57,18 +56,14 @@ export const useLocationPermissionGuard = (
       // Simply check current permission status
       const { status } = await Location.getForegroundPermissionsAsync();
       
-      console.log("Location permission status:", status);
-
       if (status === Location.PermissionStatus.GRANTED) {
         // Permission already granted, go to tabs
-        console.log("Permission granted, going to tabs");
         setPermissionStatus("granted");
         if (redirectToTabs) {
           router.replace("/(tabs)");
         }
       } else {
         // Permission not granted (undetermined or denied), show permission screen
-        console.log("Permission not granted, showing permission screen");
         setPermissionStatus(status === Location.PermissionStatus.DENIED ? "denied" : "undetermined");
         router.replace("/(auth)/location-permission");
       }

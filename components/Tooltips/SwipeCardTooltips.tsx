@@ -120,7 +120,11 @@ const SwipeCardTooltips = ({ onComplete }: SwipeCardTooltipsProps) => {
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: verticalScale(10), // Match the paddingBottom from SwipeCards
     zIndex: 1000,
     borderRadius: 16,
   },

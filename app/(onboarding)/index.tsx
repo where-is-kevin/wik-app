@@ -80,6 +80,7 @@ const OnboardingScreen = () => {
   const [swipeDislikes, setSwipeDislikes] = useState<string[]>([]);
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
   const hasSwipedUpRef = useRef<boolean>(false);
+  const isVerifyingRef = useRef<boolean>(false);
   const [showSwipeUpModal, setShowSwipeUpModal] = useState<boolean>(false);
   const [budgetRange, setBudgetRange] = useState<{ min: number; max: number }>({
     min: 50,
@@ -366,6 +367,13 @@ const OnboardingScreen = () => {
   const handleCodeValidation = useCallback(async () => {
     if (verificationCode.length !== 6) return;
 
+    // Prevent double submissions
+    if (isVerifyingRef.current || isValidating) {
+      return;
+    }
+
+    isVerifyingRef.current = true;
+
     const validationInput: ValidateRegistrationCodeInput = {
       email: travelEmail,
       otpCode: verificationCode,
@@ -403,9 +411,12 @@ const OnboardingScreen = () => {
           // Save location preference even if auth storage fails
           await saveLocationPreference();
           await navigateAfterAuth(); // Continue anyway
+        } finally {
+          isVerifyingRef.current = false;
         }
       },
       onError: (err: any) => {
+        isVerifyingRef.current = false;
         // Always show user-friendly error message regardless of server error
         Alert.alert(
           "Verification Failed",

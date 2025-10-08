@@ -13,16 +13,24 @@ import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBo
 import { useMapData, hasLocation } from "@/hooks/useMapData";
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
+import { useUserLocation } from "@/contexts/UserLocationContext";
+import { useLocation } from "@/contexts/LocationContext";
 
 const MapScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { trackScreenView, trackButtonClick } = useAnalyticsContext();
+  const { getApiLocationParams } = useUserLocation();
+  const { location: deviceLocation } = useLocation();
 
   // Get source and query from route params, default to likes
   const source = (params.source as string) || "likes";
   const searchQuery = (params.query as string) || "";
   const bucketId = params.bucketId as string;
+  const type = params.type as "leisure" | "business" | undefined;
+
+  // Get location params - only includes lat/lng if user chose "Current Location"
+  const locationParams = getApiLocationParams(deviceLocation || undefined);
 
   // Use custom hook for data management
   const {
@@ -31,8 +39,7 @@ const MapScreen = () => {
     isError,
     locationLoading,
     locationError,
-    userLocation,
-  } = useMapData(source, searchQuery, bucketId);
+  } = useMapData(source, searchQuery, bucketId, type, locationParams);
 
   const mapRef = React.useRef<MapView>(null);
   const flatListRef = React.useRef<FlatList>(null);
@@ -259,7 +266,6 @@ const MapScreen = () => {
         selectedIndex={selectedIndex}
         onMarkerPress={onMarkerPress}
         hasLocation={hasLocation}
-        userLocation={userLocation}
         onRegionChange={handleRegionChange}
       />
 

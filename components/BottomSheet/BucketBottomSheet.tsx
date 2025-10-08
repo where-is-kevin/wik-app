@@ -1,5 +1,5 @@
 // BucketBottomSheet.tsx - WITH PAGINATION SUPPORT
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback, useRef, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -7,10 +7,12 @@ import {
   Dimensions,
   StatusBar,
   Platform,
-  FlatList,
-  Modal,
-  Pressable,
 } from "react-native";
+import {
+  BottomSheetModal,
+  BottomSheetView,
+  BottomSheetBackdrop,
+} from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/ThemeContext";
 import CustomText from "@/components/CustomText";
@@ -24,8 +26,8 @@ import CustomTouchable from "../CustomTouchableOpacity";
 import CreateBucketPlus from "../SvgComponents/CreateBucketPlus";
 import { useBuckets } from "@/hooks/useBuckets";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
-import { useQueryClient } from "@tanstack/react-query";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
+import { FlatList } from "react-native-gesture-handler";
 
 // Placeholder image for buckets without images - moved outside component to prevent re-creation
 // Using SVG placeholder via OptimizedImage error handling
@@ -54,9 +56,33 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
   onCreateNew,
   selectedLikeItemId,
 }) => {
+
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const queryClient = useQueryClient();
+
+  // Bottom sheet ref
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+
+  // Handle visibility changes
+  useEffect(() => {
+    if (isVisible) {
+      bottomSheetModalRef.current?.present();
+    } else {
+      bottomSheetModalRef.current?.dismiss();
+    }
+  }, [isVisible]);
+
+  // Render backdrop callback
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+      />
+    ),
+    []
+  );
 
   // Use the existing useBuckets hook with pagination
   const {
@@ -72,7 +98,6 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
     isVisible, // only enabled when bottom sheet is visible
     20 // standard page size
   );
-
 
   // Helper function to safely get image URL
   const getBucketImage = (bucket: any): string => {
@@ -176,8 +201,8 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
     }
   }, [buckets]);
 
-  // Calculate dynamic height for bottom sheet
-  const snapPointHeight = useMemo(() => {
+  // Calculate snap points for bottom sheet
+  const snapPoints = useMemo(() => {
     try {
       const screenHeight = Dimensions.get("window").height;
       const statusBarHeight =
@@ -196,10 +221,11 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
 
       const finalPercentage = `${Math.floor(percentage)}%`;
 
-      return finalPercentage;
+      // Return array with single snap point
+      return [finalPercentage];
     } catch (error) {
       console.warn("Error calculating snap point height:", error);
-      return "70%"; // Fallback height
+      return ["75%"]; // Fallback height
     }
   }, [insets?.top]);
 
@@ -347,6 +373,7 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
         onEndReachedThreshold={0.5}
         ListFooterComponent={renderFooter}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
+        style={styles.flatList}
       />
     );
   };
@@ -358,109 +385,74 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
   }
 
   return (
-    <Modal
-      visible={isVisible}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={onClose}
-      statusBarTranslucent={true}
+    <BottomSheetModal
+      ref={bottomSheetModalRef}
+      index={0}
+      snapPoints={snapPoints}
+      onDismiss={onClose}
+      backdropComponent={renderBackdrop}
+      backgroundStyle={{
+        backgroundColor: colors.background,
+      }}
+      handleIndicatorStyle={{
+        backgroundColor: colors.indicator_gray || "#F2F2F7",
+      }}
+      enablePanDownToClose={true}
+      enableDismissOnClose={true}
+      enableDynamicSizing={false}
     >
-      <View style={styles.modalContainer}>
-        {/* Overlay */}
-        <Pressable style={styles.overlay} onPress={onClose} />
+      <BottomSheetView style={styles.container}>
+        <CustomView style={styles.header}>
+          <CustomText
+            fontFamily="Inter-SemiBold"
+            style={[styles.title, { color: colors.label_dark || "#000" }]}
+          >
+            Add to bucket
+          </CustomText>
+        </CustomView>
 
-        {/* Bottom Sheet Content */}
+        {renderContent()}
+
+        {/* Fixed bottom section for Create New Button */}
         <CustomView
           style={[
-            styles.bottomSheetContainer,
+            styles.bottomSection,
             {
-              backgroundColor: colors.background,
-              height:
-                (parseFloat(snapPointHeight.replace("%", "")) *
-                  Dimensions.get("window").height) /
-                100,
+              borderTopColor: colors.onboarding_gray || "#E0E0E0",
+              paddingBottom: insets.bottom + 10, // Add 10pt base + safe area
             },
           ]}
         >
-          {/* Handle Indicator */}
-          <View
-            style={[
-              styles.handleIndicator,
-              { backgroundColor: colors.indicator_gray || "#F2F2F7" },
-            ]}
-          />
-
-          <CustomView style={styles.container}>
-            <CustomView style={styles.header}>
-              <CustomText
-                fontFamily="Inter-SemiBold"
-                style={[styles.title, { color: colors.label_dark || "#000" }]}
-              >
-                Add to bucket
-              </CustomText>
-            </CustomView>
-
-            {renderContent()}
-
-            {/* Fixed bottom section for Create New Button */}
+          <TouchableOpacity
+            style={styles.createNewButton}
+            onPress={() => {
+              onCreateNew();
+            }}
+            activeOpacity={0.7}
+          >
             <CustomView
+              bgColor={colors.light_blue || "#E3F2FD"}
+              style={styles.createNewIconContainer}
+            >
+              <CreateBucketPlus />
+            </CustomView>
+            <CustomText
+              fontFamily="Inter-SemiBold"
               style={[
-                styles.bottomSection,
-                { borderTopColor: colors.onboarding_gray || "#E0E0E0" },
+                styles.createNewText,
+                { color: colors.label_dark || "#000" },
               ]}
             >
-              <TouchableOpacity
-                style={styles.createNewButton}
-                onPress={() => {
-                  onCreateNew();
-                }}
-                activeOpacity={0.7}
-              >
-                <CustomView
-                  bgColor={colors.light_blue || "#E3F2FD"}
-                  style={styles.createNewIconContainer}
-                >
-                  <CreateBucketPlus />
-                </CustomView>
-                <CustomText
-                  fontFamily="Inter-SemiBold"
-                  style={[
-                    styles.createNewText,
-                    { color: colors.label_dark || "#000" },
-                  ]}
-                >
-                  Create new bucket
-                </CustomText>
-              </TouchableOpacity>
-            </CustomView>
-          </CustomView>
+              Create new bucket
+            </CustomText>
+          </TouchableOpacity>
         </CustomView>
-      </View>
-    </Modal>
+      </BottomSheetView>
+    </BottomSheetModal>
   );
 };
 
 const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  bottomSheetContainer: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 8,
-  },
-  handleIndicator: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginBottom: 8,
-  },
   container: {
     flex: 1,
     paddingBottom: 8,
@@ -472,6 +464,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: scaleFontSize(15),
+  },
+  flatList: {
+    flex: 1,
   },
   flatListContent: {
     paddingHorizontal: 24,

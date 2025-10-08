@@ -1,8 +1,12 @@
 import React from "react";
-import { View, StyleSheet, Platform } from "react-native";
+import { View, StyleSheet, Platform, TouchableOpacity } from "react-native";
 import MapView, { Marker, Callout } from "react-native-maps";
+import { useLocation } from "@/contexts/LocationContext";
+import { useUserLocation } from "@/contexts/UserLocationContext";
+import * as Location from "expo-location";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { horizontalScale, verticalScale } from "@/utilities/scaling";
 import CustomMarker from "./CustomMarker";
-import UserLocationMarker from "./UserLocationMarker";
 import { getMarkerColor, getMarkerIcon } from "@/utilities/map/mapHelpers";
 
 interface CustomMapViewProps {
@@ -12,10 +16,6 @@ interface CustomMapViewProps {
   selectedIndex: number;
   onMarkerPress: (index: number) => void;
   hasLocation: (item: any) => boolean;
-  userLocation?: {
-    latitude: number;
-    longitude: number;
-  } | null;
   onRegionChange?: (region: any) => void;
 }
 
@@ -58,9 +58,84 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
   selectedIndex,
   onMarkerPress,
   hasLocation,
-  userLocation,
   onRegionChange,
 }) => {
+  const { location: deviceLocation, permissionStatus } = useLocation();
+  const { userLocation } = useUserLocation();
+  const insets = useSafeAreaInsets();
+  const topPosition = insets.top < 30 ? insets.top + verticalScale(10) : insets.top;
+
+  // State for custom user location marker
+  const [userLocationCoords, setUserLocationCoords] = React.useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+
+  // Get user location for custom marker
+  React.useEffect(() => {
+    const getUserLocation = async () => {
+      try {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status === Location.PermissionStatus.GRANTED) {
+          const position = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          setUserLocationCoords({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        }
+      } catch (error) {
+        console.log('Error getting user location for marker:', error);
+      }
+    };
+
+    getUserLocation();
+  }, []);
+
+  // Function to center map on user location - gets fresh GPS coordinates
+  const handleLocationPress = React.useCallback(async () => {
+    try {
+      // Get fresh current location directly from GPS
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status !== Location.PermissionStatus.GRANTED) {
+        return;
+      }
+
+      const currentPosition = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.BestForNavigation,
+      });
+
+      const realLocation = {
+        latitude: currentPosition.coords.latitude,
+        longitude: currentPosition.coords.longitude,
+      };
+
+      // Update the user location marker
+      setUserLocationCoords(realLocation);
+
+      if (mapRef.current) {
+        const userRegion = {
+          ...realLocation,
+          latitudeDelta: 0.005, // Zoom in closer
+          longitudeDelta: 0.005,
+        };
+        mapRef.current.animateToRegion(userRegion, 1000);
+      }
+    } catch (error) {
+      console.log('Error getting current location:', error);
+      // Fallback to deviceLocation if GPS fails
+      if (deviceLocation && mapRef.current) {
+        const userRegion = {
+          latitude: deviceLocation.lat,
+          longitude: deviceLocation.lon,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        };
+        mapRef.current.animateToRegion(userRegion, 1000);
+      }
+    }
+  }, [deviceLocation, mapRef]);
   // Simple filtering - no complex clustering to avoid crashes
   const validItems = data?.filter(hasLocation) || [];
 
@@ -79,7 +154,8 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
   };
 
   return (
-    <MapView
+    <View style={styles.container}>
+      <MapView
       ref={mapRef}
       style={styles.mapContainer}
       region={region}
@@ -90,9 +166,10 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
       pitchEnabled={false}
       showsUserLocation={false}
       showsMyLocationButton={false}
-      toolbarEnabled={false}
+      followsUserLocation={false}
+      showsCompass={false}
       userInterfaceStyle="light"
-      mapType={Platform.OS === "android" ? "standard" : "standard"}
+      mapType="standard"
     >
       {/* Memoized marker rendering */}
       {validItems.map((item, index) => {
@@ -118,30 +195,94 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
         );
       })}
 
-      {/* User Location Marker */}
-      {userLocation &&
-        typeof userLocation.latitude === "number" &&
-        typeof userLocation.longitude === "number" &&
-        !isNaN(userLocation.latitude) &&
-        !isNaN(userLocation.longitude) && (
-          <Marker
-            coordinate={{
-              latitude: userLocation.latitude,
-              longitude: userLocation.longitude,
-            }}
-            tracksViewChanges={false}
-            anchor={{ x: 0.5, y: 0.5 }}
-          >
-            <UserLocationMarker />
-          </Marker>
-        )}
-    </MapView>
+      {/* Custom user location marker - always visible */}
+      {userLocationCoords && (
+        <Marker
+          coordinate={userLocationCoords}
+          anchor={{ x: 0.5, y: 0.5 }}
+          tracksViewChanges={false}
+        >
+          <View style={styles.userLocationMarker}>
+            <View style={styles.userLocationDot} />
+          </View>
+        </Marker>
+      )}
+      </MapView>
+
+      {/* Custom Location Button */}
+      {deviceLocation && permissionStatus === 'granted' && (
+        <TouchableOpacity
+          style={[styles.locationButton, { top: topPosition }]}
+          onPress={handleLocationPress}
+          activeOpacity={0.8}
+        >
+          <View style={styles.locationIcon}>
+            <View style={styles.crosshair}>
+              <View style={styles.crosshairInner} />
+            </View>
+          </View>
+        </TouchableOpacity>
+      )}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   mapContainer: {
     flex: 1,
+  },
+  locationButton: {
+    position: 'absolute',
+    right: horizontalScale(16), // Same right margin as back button's left margin
+    zIndex: 10,
+    backgroundColor: 'rgba(255,255,255,0.9)', // Exact same as back button
+    borderRadius: horizontalScale(24), // Same as back button
+    padding: horizontalScale(8), // Same padding as back button
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  locationIcon: {
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  crosshair: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: '#222', // Same color as back button arrow
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  crosshairInner: {
+    width: 4,
+    height: 4,
+    backgroundColor: '#222', // Same color as back button arrow
+    borderRadius: 2,
+  },
+  userLocationMarker: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(74, 144, 226, 0.3)',
+    borderWidth: 2,
+    borderColor: '#4A90E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userLocationDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#4A90E2',
   },
 });
 

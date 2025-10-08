@@ -30,7 +30,7 @@ interface SwipeCardProps {
   panHandlers?: any;
   animatedStyle?: any;
   colors: any;
-  onBucketPress?: (value: string) => void;
+  onBucketPress?: (itemId: string) => void;
   hideButtons?: boolean;
   onImageLoad?: (itemId: string) => void;
   onImageError?: (itemId: string) => void;

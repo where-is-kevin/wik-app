@@ -113,7 +113,7 @@ const PaginatedContentList = () => {
     type: mode, // Pass the current mode as type
   });
 
-  // Flatten all pages into single array
+  // Get all items - use proper FlatList virtualization instead of windowing
   const allItems = data?.pages.flatMap((page) => page.items) ?? [];
 
   // Transform data for MasonryGrid
@@ -252,9 +252,9 @@ const PaginatedContentList = () => {
   // Map navigation handler
   const handleOpenMap = useCallback(() => {
     router.push(
-      `/map-screen?source=content&query=${encodeURIComponent(searchQuery)}`
+      `/map-screen?source=content&query=${encodeURIComponent(searchQuery)}&type=${mode}`
     );
-  }, [router, searchQuery]);
+  }, [router, searchQuery, mode]);
 
   const handleItemPress = useCallback(
     (item: LikeItem) => {

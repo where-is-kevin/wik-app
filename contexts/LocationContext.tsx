@@ -41,7 +41,9 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Clear any previous errors
       setErrorMsg(null);
 
-      const result = await Location.getCurrentPositionAsync({});
+      const result = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
       
       const newLocation = {
         lat: result.coords.latitude,

@@ -1,6 +1,6 @@
 // components/CardContentOverlay.tsx
 import React, { useCallback, useMemo } from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomText from "@/components/CustomText";
 import CustomView from "../CustomView";
@@ -91,13 +91,15 @@ interface CardData {
 interface CardContentOverlayProps {
   item: CardData;
   colors: any;
-  onBucketPress?: (value: string) => void;
+  onBucketPress?: (itemId: string) => void;
   hideButtons?: boolean;
+  onCardTap?: (item: CardData) => void;
 }
 
 export const CardContentOverlay = React.memo<CardContentOverlayProps>(
-  function CardContentOverlay({ item, colors, onBucketPress, hideButtons }) {
+  function CardContentOverlay({ item, colors, onBucketPress, hideButtons, onCardTap }) {
     const handleBucketPress = useCallback(() => {
+      console.log("🪣 CardContentOverlay bucket button pressed for item:", item.id);
       onBucketPress?.(item.id);
     }, [onBucketPress, item.id]);
 
@@ -124,6 +126,10 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
         </View>
       );
     };
+    const handleCardTap = useCallback(() => {
+      onCardTap?.(item);
+    }, [onCardTap, item]);
+
     const renderCardContent = () => (
       <View style={styles.cardContent}>
         {item.isSponsored && (
@@ -243,16 +249,22 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
           <CustomView bgColor={colors.overlay} style={styles.row}>
             {!hideButtons && (
               <>
-                <CustomTouchable
-                  style={styles.bucketContainer}
-                  bgColor={colors.lime}
+                <TouchableOpacity
+                  style={[styles.bucketContainer, { backgroundColor: colors.lime }]}
                   onPress={handleBucketPress}
+                  activeOpacity={0.7}
                 >
                   <PinBucketSvg />
-                </CustomTouchable>
+                </TouchableOpacity>
                 <CustomTouchable
                   bgColor={colors.lime}
                   style={styles.shareButton}
+                  onStartShouldSetResponder={() => true}
+                  onMoveShouldSetResponder={() => true}
+                  onResponderGrant={() => true}
+                  onResponderMove={() => true}
+                  onResponderTerminationRequest={() => false}
+                  onResponderRelease={() => true}
                 >
                   <ShareButton
                     title={""}
@@ -278,7 +290,14 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
       return (
         <>
           {renderTopRow()}
-          <View style={styles.sponsoredOverlay}>{renderCardContent()}</View>
+          <View style={styles.sponsoredOverlay}>
+            <TouchableOpacity
+              onPress={handleCardTap}
+              activeOpacity={0.95}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }}
+            />
+            {renderCardContent()}
+          </View>
         </>
       );
     }
@@ -290,6 +309,11 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
           colors={["rgba(242, 242, 243, 0)", "#0B2E34"]}
           style={styles.gradientOverlay}
         >
+          <TouchableOpacity
+            onPress={handleCardTap}
+            activeOpacity={0.95}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }}
+          />
           {renderCardContent()}
         </LinearGradient>
       </>

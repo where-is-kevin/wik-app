@@ -1,10 +1,13 @@
-import React, { useCallback, useMemo } from "react";
-import { FlatList, RefreshControl, ListRenderItem, View } from "react-native";
+import React, { useCallback, useMemo, useRef } from "react";
+import {
+  FlatList,
+  RefreshControl,
+  View,
+  ListRenderItem,
+} from "react-native";
 import LikeCard from "@/components/LikeComponent/LikeCard";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { horizontalScale, verticalScale } from "@/utilities/scaling";
-
-// Using SVG placeholder via LikeCard's OptimizedImage error handling
 
 export interface LikeItem {
   id: string;
@@ -35,6 +38,26 @@ interface MasonryGridProps {
   onScroll?: (event: any) => void;
 }
 
+// Masonry container for true column layout
+interface MasonryContainer {
+  id: string;
+  leftColumn: LikeItem[];
+  rightColumn: LikeItem[];
+  showLoader: boolean;
+}
+
+// Memoized card component to prevent unnecessary re-renders
+const MemoizedLikeCard = React.memo<{
+  item: LikeItem;
+  onBucketPress: () => void;
+  onPress: () => void;
+}>(({ item, onBucketPress, onPress }) => (
+  <LikeCard onBucketPress={onBucketPress} item={item} onPress={onPress} />
+));
+
+MemoizedLikeCard.displayName = "MemoizedLikeCard";
+
+
 const MasonryGrid: React.FC<MasonryGridProps> = ({
   data,
   onBucketPress,
@@ -48,37 +71,39 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
   contentContainerStyle,
   onScroll,
 }) => {
-  // Process data to ensure all items have valid images
-  const processedData = useMemo(
-    () =>
-      data.map((item) => ({
-        ...item,
-        foodImage: item.foodImage || "", // Empty string for SVG placeholder
-      })),
-    [data]
-  );
+  const flatListRef = useRef<FlatList>(null);
+  const loadingRef = useRef(false);
 
-  // Split data into two columns for true masonry effect (like original)
-  const { leftColumn, rightColumn } = useMemo(() => {
-    const left = processedData.filter((_, index) => index % 2 === 0);
-    const right = processedData.filter((_, index) => index % 2 === 1);
-    return { leftColumn: left, rightColumn: right };
-  }, [processedData]);
-
-  // Create a single item that contains both columns for FlatList
+  // Process data into balanced masonry columns
   const masonryData = useMemo(() => {
-    return [{ id: "masonry-columns", leftColumn, rightColumn }];
-  }, [leftColumn, rightColumn]);
+    const processedData = data.map((item) => ({
+      ...item,
+      foodImage: item.foodImage || "", // Empty string for SVG placeholder
+    }));
 
-  // Render the masonry columns (same as original ScrollView approach)
+    // Simple alternating distribution for clean masonry
+    const leftColumn = processedData.filter((_, index) => index % 2 === 0);
+    const rightColumn = processedData.filter((_, index) => index % 2 === 1);
+
+    return [
+      {
+        id: "masonry-container",
+        leftColumn,
+        rightColumn,
+        showLoader: isFetchingNextPage,
+      },
+    ];
+  }, [data, isFetchingNextPage]);
+
+  // Render column of items
   const renderColumn = useCallback(
     (columnData: LikeItem[]) => (
       <View style={styles.columnContainer}>
         {columnData.map((item) => (
-          <View key={item.id}>
-            <LikeCard
-              onBucketPress={() => onBucketPress(item.id)}
+          <View key={item.id} style={styles.cardContainer}>
+            <MemoizedLikeCard
               item={item}
+              onBucketPress={() => onBucketPress(item.id)}
               onPress={() => onItemPress?.(item)}
             />
           </View>
@@ -88,96 +113,102 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
     [onBucketPress, onItemPress]
   );
 
-  // Render the single FlatList item containing both columns
-  const renderMasonryColumns: ListRenderItem<any> = useCallback(
+  // Render the masonry container
+  const renderMasonryContainer: ListRenderItem<MasonryContainer> = useCallback(
     ({ item }) => (
-      <View style={styles.columnsContainer}>
-        {renderColumn(item.leftColumn)}
-        {renderColumn(item.rightColumn)}
+      <View>
+        <View style={styles.rowContainer}>
+          {renderColumn(item.leftColumn)}
+          {renderColumn(item.rightColumn)}
+        </View>
+        {item.showLoader && (
+          <View style={styles.footerLoader}>
+            <AnimatedLoader />
+          </View>
+        )}
       </View>
     ),
     [renderColumn]
   );
 
-  // Footer component for loading state
-  const renderFooter = useCallback(() => {
-    if (!isFetchingNextPage) return null;
-
-    return (
-      <View style={styles.footerLoader}>
-        <AnimatedLoader customAnimationStyle={styles.loader} />
-      </View>
-    );
-  }, [isFetchingNextPage]);
-
-  // Handle load more with proper threshold
-  const handleLoadMore = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage && onLoadMore) {
+  // Handle end reached for infinite pagination
+  const handleEndReached = useCallback(() => {
+    if (
+      hasNextPage &&
+      !isFetchingNextPage &&
+      !loadingRef.current &&
+      onLoadMore
+    ) {
+      loadingRef.current = true;
       onLoadMore();
+      // Reset loading ref after a delay to prevent rapid calls
+      setTimeout(() => {
+        loadingRef.current = false;
+      }, 1000);
     }
   }, [hasNextPage, isFetchingNextPage, onLoadMore]);
 
   // Key extractor
-  const keyExtractor = useCallback((item: any) => item.id, []);
+  const keyExtractor = useCallback((item: MasonryContainer) => item.id, []);
+
+  // Empty state
+  if (data.length === 0 && !refreshing) {
+    return <View style={styles.container} />;
+  }
 
   return (
-    <FlatList
-      data={masonryData}
-      renderItem={renderMasonryColumns}
-      keyExtractor={keyExtractor}
-      showsVerticalScrollIndicator={showVerticalScrollIndicator}
-      contentContainerStyle={[styles.container, contentContainerStyle]}
-      // Scroll tracking
-      onScroll={onScroll}
-      scrollEventThrottle={16}
-      // Refresh Control
-      refreshControl={
-        onRefresh ? (
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#666"
-            colors={["#666"]}
-          />
-        ) : undefined
-      }
-      // Infinite Pagination - Built-in FlatList props!
-      onEndReached={handleLoadMore}
-      onEndReachedThreshold={0.3} // Trigger when 30% from bottom
-      ListFooterComponent={renderFooter}
-      // Performance optimizations
-      removeClippedSubviews={false} // Keep false for masonry layout
-      maxToRenderPerBatch={1} // Only one item (the columns container)
-      windowSize={3}
-      initialNumToRender={1}
-    />
+    <View style={styles.container}>
+      <FlatList
+        ref={flatListRef}
+        data={masonryData}
+        renderItem={renderMasonryContainer}
+        keyExtractor={keyExtractor}
+        showsVerticalScrollIndicator={showVerticalScrollIndicator}
+        contentContainerStyle={[styles.contentContainer, contentContainerStyle]}
+        onScroll={onScroll}
+        // Performance optimizations
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={1} // Only 1 container
+        windowSize={5} // Keep small window since we have 1 large item
+        initialNumToRender={1} // Start with 1 container
+        onEndReachedThreshold={0.3}
+        onEndReached={handleEndReached}
+        // Refresh control
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          ) : undefined
+        }
+        // Disable scroll during refresh for better UX
+        scrollEnabled={!refreshing}
+      />
+    </View>
   );
 };
 
 const styles = {
   container: {
-    paddingHorizontal: horizontalScale(24),
-    paddingLeft: horizontalScale(22),
+    flex: 1,
   },
-  columnsContainer: {
+  contentContainer: {
+    paddingHorizontal: horizontalScale(16),
+    paddingBottom: verticalScale(20),
+  },
+  rowContainer: {
     flexDirection: "row" as const,
-    gap: 10,
-    alignItems: "flex-start" as const,
     justifyContent: "space-between" as const,
+    marginBottom: verticalScale(8),
   },
   columnContainer: {
-    width: 160,
+    width: '47%' as const, // Fixed width so right column goes to far right
+  },
+  cardContainer: {
+    marginBottom: verticalScale(8),
   },
   footerLoader: {
     paddingVertical: verticalScale(20),
     alignItems: "center" as const,
-    justifyContent: "center" as const,
-  },
-  loader: {
-    width: 80,
-    height: 80,
   },
 };
 
 export default MasonryGrid;
-export type { MasonryGridProps };

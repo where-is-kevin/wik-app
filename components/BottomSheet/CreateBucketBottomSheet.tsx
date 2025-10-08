@@ -1,14 +1,19 @@
 // CreateBucketBottomSheet.tsx
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { StyleSheet } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
 import CustomText from "@/components/CustomText";
 import CustomView from "@/components/CustomView";
 import { scaleFontSize, verticalScale } from "@/utilities/scaling";
-import { CustomBottomSheet } from "./CustomBottomSheet";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  BottomSheetModal,
+  BottomSheetView,
+  BottomSheetBackdrop,
+} from "@gorhom/bottom-sheet";
+import { ScrollView } from "react-native";
 import CustomTextInput from "../TextInput/CustomTextInput";
 import NextButton from "../Button/NextButton";
-import { ScrollView } from "react-native-gesture-handler";
 
 interface CreateBucketBottomSheetProps {
   isVisible: boolean;
@@ -21,8 +26,33 @@ const CreateBucketBottomSheetComponent: React.FC<
   CreateBucketBottomSheetProps
 > = ({ isVisible, onClose, onCreateBucket, isLoading = false }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [bucketName, setBucketName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+
+  // Bottom sheet ref
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+
+  // Handle visibility changes
+  useEffect(() => {
+    if (isVisible) {
+      bottomSheetModalRef.current?.present();
+    } else {
+      bottomSheetModalRef.current?.dismiss();
+    }
+  }, [isVisible]);
+
+  // Render backdrop callback
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+      />
+    ),
+    []
+  );
 
   const handleCreateBucket = useCallback(async () => {
     if (bucketName.trim()) {
@@ -30,11 +60,14 @@ const CreateBucketBottomSheetComponent: React.FC<
       try {
         await onCreateBucket(bucketName.trim());
         setBucketName(""); // Clear input after successful creation
+        // Small delay to ensure state updates complete before parent closes modal
+        setTimeout(() => {
+          setIsCreating(false);
+        }, 100);
       } catch (error) {
         console.error("Error creating bucket:", error);
-        // You might want to show an error message to the user here
-      } finally {
         setIsCreating(false);
+        // You might want to show an error message to the user here
       }
     }
   }, [bucketName, onCreateBucket]);
@@ -54,13 +87,26 @@ const CreateBucketBottomSheetComponent: React.FC<
   const isButtonDisabled = !bucketName.trim() || isCreating || isLoading;
 
   return (
-    <CustomBottomSheet
-      isVisible={isVisible}
-      onClose={handleClose}
+    <BottomSheetModal
+      ref={bottomSheetModalRef}
+      index={0}
       snapPoints={["70%"]}
+      onDismiss={handleClose}
+      backdropComponent={renderBackdrop}
+      backgroundStyle={{
+        backgroundColor: colors.background,
+      }}
+      handleIndicatorStyle={{
+        backgroundColor: colors.indicator_gray || "#F2F2F7",
+      }}
       enablePanDownToClose={!isCreating} // Disable pan to close while creating
+      enableDismissOnClose={true}
+      enableDynamicSizing={false}
+      android_keyboardInputMode="adjustResize"
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
     >
-      <CustomView style={styles.container}>
+      <BottomSheetView style={styles.container}>
         <CustomView style={styles.header}>
           <CustomText
             fontFamily="Inter-SemiBold"
@@ -74,7 +120,7 @@ const CreateBucketBottomSheetComponent: React.FC<
           style={styles.scrollContainer}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          scrollEnabled={false}
+          keyboardShouldPersistTaps="handled"
         >
           <CustomTextInput
             label="Name"
@@ -83,6 +129,9 @@ const CreateBucketBottomSheetComponent: React.FC<
             placeholder="Enter bucket name..."
             autoCapitalize="words"
             editable={!isCreating} // Disable input while creating
+            autoFocus={false}
+            blurOnSubmit={true}
+            returnKeyType="done"
           />
         </ScrollView>
 
@@ -90,7 +139,10 @@ const CreateBucketBottomSheetComponent: React.FC<
         <CustomView
           style={[
             styles.bottomSection,
-            { borderTopColor: colors.onboarding_gray },
+            {
+              borderTopColor: colors.onboarding_gray,
+              paddingBottom: insets.bottom + 12, // Add 12pt base + safe area
+            },
           ]}
         >
           <NextButton
@@ -100,8 +152,8 @@ const CreateBucketBottomSheetComponent: React.FC<
             bgColor={colors.lime}
           />
         </CustomView>
-      </CustomView>
-    </CustomBottomSheet>
+      </BottomSheetView>
+    </BottomSheetModal>
   );
 };
 

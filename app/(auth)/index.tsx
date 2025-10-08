@@ -23,7 +23,7 @@ interface SignInScreenProps {
 
 const SignInScreen: React.FC<SignInScreenProps> = () => {
   const [email, setEmail] = useState<string>(
-    __DEV__ ? "marko.trifunovic135@gmail.com" : ""
+    __DEV__ ? "fresh.trifunovic@gmail.com" : ""
   );
   const { colors } = useTheme();
   const router = useRouter();
@@ -143,13 +143,23 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
 
             <CustomView style={styles.signUpSection}>
               <CustomView style={styles.orContainer}>
-                <CustomView style={[styles.horizontalLine, { backgroundColor: colors.input_border }]} />
+                <CustomView
+                  style={[
+                    styles.horizontalLine,
+                    { backgroundColor: colors.input_border },
+                  ]}
+                />
                 <CustomText
                   style={[styles.notMemberText, { color: colors.gray_regular }]}
                 >
                   or
                 </CustomText>
-                <CustomView style={[styles.horizontalLine, { backgroundColor: colors.input_border }]} />
+                <CustomView
+                  style={[
+                    styles.horizontalLine,
+                    { backgroundColor: colors.input_border },
+                  ]}
+                />
               </CustomView>
 
               <CustomTouchable
