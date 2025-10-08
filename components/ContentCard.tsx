@@ -61,9 +61,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
           priority="normal"
           showLoadingIndicator={true}
           borderRadius={10}
-          overlayComponent={
-            !validImageUrl ? <ImagePlaceholder /> : undefined
-          }
+          overlayComponent={!validImageUrl ? <ImagePlaceholder /> : undefined}
         />
 
         {/* Top Row with Category Tag and Bucket Button */}
@@ -96,14 +94,14 @@ const ContentCard: React.FC<ContentCardProps> = ({
           >
             {item.title || item.name || "Event"}
           </CustomText>
-          <CustomText
+          {/* <CustomText
             fontFamily="Inter-SemiBold"
             style={[styles.matchText, { color: colors.light_blue }]}
           >
             {item.similarity
               ? `${Math.round(item.similarity * 100)}% match`
               : "0% match"}
-          </CustomText>
+          </CustomText> */}
         </View>
 
         {/* Subtitle */}

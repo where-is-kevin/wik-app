@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import CustomView from "../CustomView";
 import CustomText from "../CustomText";
@@ -28,11 +28,19 @@ export const OnboardingExpertiseModal: React.FC<
 > = ({ visible, onClose, onExpertiseSelect, selectedExpertise }) => {
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
+  const [tempSelectedExpertise, setTempSelectedExpertise] = useState<string[]>(selectedExpertise);
+
+  // Sync temp state when modal becomes visible or selectedExpertise changes
+  useEffect(() => {
+    if (visible) {
+      setTempSelectedExpertise(selectedExpertise);
+    }
+  }, [visible, selectedExpertise]);
 
   const baseTags = getExpertiseTags(colors);
 
   // Create custom tags from selected expertise that aren't in base tags
-  const customTags: ExpertiseTag[] = selectedExpertise
+  const customTags: ExpertiseTag[] = tempSelectedExpertise
     .filter((expertise) => !baseTags.some((tag) => tag.name === expertise))
     .map((expertise) => ({
       id: `custom-${expertise}`,
@@ -53,35 +61,36 @@ export const OnboardingExpertiseModal: React.FC<
     !allTags.some(
       (tag) => tag.name.toLowerCase() === searchQuery.toLowerCase().trim()
     ) &&
-    !selectedExpertise.includes(searchQuery.trim());
+    !tempSelectedExpertise.includes(searchQuery.trim());
 
   const handleTagPress = (tag: ExpertiseTag) => {
-    const isSelected = selectedExpertise.includes(tag.name);
+    const isSelected = tempSelectedExpertise.includes(tag.name);
     let newSelection: string[];
 
     if (isSelected) {
-      newSelection = selectedExpertise.filter((item) => item !== tag.name);
+      newSelection = tempSelectedExpertise.filter((item) => item !== tag.name);
     } else {
-      newSelection = [...selectedExpertise, tag.name];
+      newSelection = [...tempSelectedExpertise, tag.name];
     }
 
-    onExpertiseSelect(newSelection);
+    setTempSelectedExpertise(newSelection);
   };
 
   const handleCustomTagPress = () => {
     const customTagName = searchQuery.trim();
-    if (customTagName && !selectedExpertise.includes(customTagName)) {
+    if (customTagName && !tempSelectedExpertise.includes(customTagName)) {
       // This will automatically store the color in the shared store
       getExpertiseColor(customTagName, colors);
 
       // Add to selection
-      const newSelection = [...selectedExpertise, customTagName];
-      onExpertiseSelect(newSelection);
+      const newSelection = [...tempSelectedExpertise, customTagName];
+      setTempSelectedExpertise(newSelection);
       setSearchQuery(""); // Clear search after adding custom tag
     }
   };
 
   const handleDone = () => {
+    onExpertiseSelect(tempSelectedExpertise);
     onClose();
   };
 
@@ -135,7 +144,7 @@ export const OnboardingExpertiseModal: React.FC<
 
             {/* Show existing filtered tags */}
             {filteredTags.map((tag: ExpertiseTag) => {
-              const isSelected = selectedExpertise.includes(tag.name);
+              const isSelected = tempSelectedExpertise.includes(tag.name);
               return (
                 <TouchableOpacity
                   key={tag.id}
@@ -167,7 +176,7 @@ export const OnboardingExpertiseModal: React.FC<
         </ScrollView>
 
         {/* Done Button */}
-        {selectedExpertise.length > 0 && (
+        {tempSelectedExpertise.length > 0 && (
           <CustomView style={styles.doneButtonContainer}>
             <TouchableOpacity
               style={[styles.doneButton, { backgroundColor: colors.lime }]}
@@ -177,7 +186,7 @@ export const OnboardingExpertiseModal: React.FC<
                 fontFamily="Inter-SemiBold"
                 style={[styles.doneButtonText, { color: colors.label_dark }]}
               >
-                Done ({selectedExpertise.length})
+                Done ({tempSelectedExpertise.length})
               </CustomText>
             </TouchableOpacity>
           </CustomView>

@@ -1,6 +1,6 @@
 // components/CardContentOverlay.tsx
 import React, { useCallback, useMemo } from "react";
-import { View, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomText from "@/components/CustomText";
 import CustomView from "../CustomView";
@@ -13,7 +13,6 @@ import {
   verticalScale,
 } from "@/utilities/scaling";
 import { formatTags } from "@/utilities/formatTags";
-import { formatSimilarity } from "@/utilities/formatSimilarity";
 import { formatDistance } from "@/utilities/formatDistance";
 import SponsoredKevinSvg from "../SvgComponents/SponsoredKevinSvg";
 import SendSvgSmall from "../SvgComponents/SendSvgSmall";
@@ -80,6 +79,7 @@ interface CardData {
   rating?: string;
   category?: string;
   address?: string;
+  addressShort?: string;
   isSponsored?: boolean;
   contentShareUrl: string;
   tags?: string;
@@ -97,9 +97,14 @@ interface CardContentOverlayProps {
 }
 
 export const CardContentOverlay = React.memo<CardContentOverlayProps>(
-  function CardContentOverlay({ item, colors, onBucketPress, hideButtons, onCardTap }) {
+  function CardContentOverlay({
+    item,
+    colors,
+    onBucketPress,
+    hideButtons,
+    onCardTap,
+  }) {
     const handleBucketPress = useCallback(() => {
-      console.log("🪣 CardContentOverlay bucket button pressed for item:", item.id);
       onBucketPress?.(item.id);
     }, [onBucketPress, item.id]);
 
@@ -250,7 +255,10 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
             {!hideButtons && (
               <>
                 <TouchableOpacity
-                  style={[styles.bucketContainer, { backgroundColor: colors.lime }]}
+                  style={[
+                    styles.bucketContainer,
+                    { backgroundColor: colors.lime },
+                  ]}
                   onPress={handleBucketPress}
                   activeOpacity={0.7}
                 >
@@ -259,12 +267,6 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
                 <CustomTouchable
                   bgColor={colors.lime}
                   style={styles.shareButton}
-                  onStartShouldSetResponder={() => true}
-                  onMoveShouldSetResponder={() => true}
-                  onResponderGrant={() => true}
-                  onResponderMove={() => true}
-                  onResponderTerminationRequest={() => false}
-                  onResponderRelease={() => true}
                 >
                   <ShareButton
                     title={""}
@@ -294,7 +296,14 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
             <TouchableOpacity
               onPress={handleCardTap}
               activeOpacity={0.95}
-              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 1,
+              }}
             />
             {renderCardContent()}
           </View>
@@ -304,18 +313,19 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
 
     return (
       <>
-        {renderTopRow()}
-        <LinearGradient
-          colors={["rgba(242, 242, 243, 0)", "#0B2E34"]}
-          style={styles.gradientOverlay}
+        <TouchableOpacity
+          onPress={handleCardTap}
+          activeOpacity={0.95}
+          style={styles.fullCardTouchable}
         >
-          <TouchableOpacity
-            onPress={handleCardTap}
-            activeOpacity={0.95}
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1 }}
-          />
-          {renderCardContent()}
-        </LinearGradient>
+          {renderTopRow()}
+          <LinearGradient
+            colors={["rgba(242, 242, 243, 0)", "rgba(11, 46, 52, 0.7)"]}
+            style={styles.gradientOverlay}
+          >
+            {renderCardContent()}
+          </LinearGradient>
+        </TouchableOpacity>
       </>
     );
   }
@@ -412,7 +422,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: "80%",
+    height: "60%",
     justifyContent: "flex-end",
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
@@ -465,5 +475,14 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: "white",
+  },
+  fullCardTouchable: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: "100%",
+    height: "100%",
   },
 });

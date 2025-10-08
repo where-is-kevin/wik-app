@@ -1,6 +1,14 @@
 // components/SwipeCards.tsx - Using rn-swiper-list with card stacking fix
-import React, { useCallback, useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import React, { useCallback, useRef, useState, useEffect } from "react";
+import {
+  StyleSheet,
+  View,
+  Image,
+  Animated,
+  Linking,
+  Alert,
+  Platform,
+} from "react-native";
 import AnimatedLoader from "../Loader/AnimatedLoader";
 import { Swiper, type SwiperCardRefType } from "rn-swiper-list";
 import CustomText from "../CustomText";
@@ -61,6 +69,141 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
   const ref = useRef<SwiperCardRefType>();
   const { colors } = useTheme();
   const [isCompleting, setIsCompleting] = React.useState(false);
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+  const [swiperReady, setSwiperReady] = useState(false);
+  const [isFirstLoad, setIsFirstLoad] = useState(true);
+  const [loadedImageCount, setLoadedImageCount] = useState(0);
+  const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(
+    new Set()
+  );
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Android-specific optimizations
+  const isAndroid = Platform.OS === "android";
+  const preloadCount = isAndroid ? 3 : 4; // Enough for deck appearance but still fast
+  const minLoadTime = 0; // No artificial delay - show as soon as images are ready
+  const fadeDelay = 0; // No fade delay - instant appearance
+
+  // Memoize data dependencies to avoid unnecessary re-renders
+  const dataLength = data?.length || 0;
+  const firstItemId = data?.[0]?.id;
+  const hasData = dataLength > 0;
+
+  // Track if we've already processed this data set
+  const lastProcessedDataRef = useRef<string>("");
+  const currentDataKey = `${dataLength}-${firstItemId}`;
+
+  // Calculate how many images we need to wait for before showing cards (less than preloadCount for faster display)
+  const requiredImageCount = Math.min(dataLength, isAndroid ? 2 : 2); // Wait for just 2 images for deck
+
+  // Reset image loading state when data changes
+  useEffect(() => {
+    if (currentDataKey !== lastProcessedDataRef.current) {
+      setLoadedImageCount(0);
+      setImageLoadErrors(new Set());
+    }
+  }, [currentDataKey]);
+
+  // Image loading callback
+  const handleImageLoad = useCallback(() => {
+    setLoadedImageCount((prev) => prev + 1);
+  }, []);
+
+  // Image error callback
+  const handleImageError = useCallback((imageUrl: string) => {
+    setImageLoadErrors((prev) => {
+      const newSet = new Set(prev);
+      newSet.add(imageUrl);
+      return newSet;
+    });
+    // Count errors as "loaded" to prevent infinite waiting
+    setLoadedImageCount((prev) => prev + 1);
+  }, []);
+
+  // Check if enough images are ready - be more lenient for faster loading
+  const areImagesReady = loadedImageCount >= requiredImageCount || !hasData ||
+    (loadedImageCount > 0 && dataLength <= 2); // If we have few cards, just wait for 1 image
+
+  // Main loading and ready state management
+  useEffect(() => {
+    // Skip if we've already processed this exact data set
+    if (
+      currentDataKey === lastProcessedDataRef.current &&
+      hasData &&
+      imagesLoaded
+    ) {
+      return;
+    }
+
+    lastProcessedDataRef.current = currentDataKey;
+
+    if (!data || data.length === 0) {
+      setImagesLoaded(true);
+      setSwiperReady(true);
+      fadeAnim.setValue(1);
+      return;
+    }
+
+    // Reset states for new data
+    fadeAnim.setValue(0);
+    setImagesLoaded(false);
+    setSwiperReady(false);
+
+
+    // Loading with small delay to ensure swiper is properly initialized
+    let hasShown = false;
+    const showCards = () => {
+      if (hasShown) return;
+      hasShown = true;
+
+      setImagesLoaded(true);
+      setSwiperReady(true);
+      setIsFirstLoad(false);
+
+      // Immediate display like main tabs
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    };
+
+    const checkImagesReady = () => {
+      if (areImagesReady) {
+        showCards();
+      }
+    };
+
+    // Check immediately and set up interval to keep checking
+    checkImagesReady();
+    const interval = setInterval(checkImagesReady, 50);
+
+    // Short fallback to ensure cards always show
+    setTimeout(
+      () => {
+        clearInterval(interval);
+        if (!hasShown) {
+          showCards();
+        }
+      },
+      isAndroid ? 400 : 300
+    ); // Very short fallback for guaranteed display
+
+    return () => clearInterval(interval);
+  }, [
+    data,
+    dataLength,
+    firstItemId,
+    currentDataKey,
+    hasData,
+    fadeAnim,
+    isFirstLoad,
+    areImagesReady,
+    imagesLoaded,
+    minLoadTime,
+    fadeDelay,
+    isAndroid,
+  ]);
 
   const handleSwipeRight = (cardIndex: number) => {
     if (data && data[cardIndex]) {
@@ -76,7 +219,22 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
 
   const handleSwipeTop = (cardIndex: number) => {
     if (data && data[cardIndex]) {
-      onSwipeUp(data[cardIndex]);
+      const card = data[cardIndex];
+
+      // Trigger URL linking instead of removing card
+      if (card?.websiteUrl) {
+        Linking.openURL(card.websiteUrl).catch(() => {
+          Alert.alert(
+            "Unable to Open",
+            "Could not open the website for this content."
+          );
+        });
+      } else {
+        Alert.alert("No Website", "No website is available for this content.");
+      }
+
+      // Don't call onSwipeUp to prevent card from being removed from stack
+      // The card should snap back to position due to the spring config
     }
   };
 
@@ -92,23 +250,36 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
     }, 500);
   }, [onComplete, isCompleting]);
 
-
   const renderCard = useCallback(
-    (card: CardData) => {
+    (card: CardData, index: number) => {
       const imageSource = getImageSource(card.imageUrl);
+      const isPreloadCard = index < preloadCount;
 
       return (
-        <View style={[
-          styles.renderCardContainer,
-          fullWidth && { paddingHorizontal: 0 }
-        ]}>
+        <View
+          style={[
+            styles.renderCardContainer,
+            fullWidth && { paddingHorizontal: 0 },
+          ]}
+        >
           <OptimizedImageBackground
             source={imageSource}
             style={styles.cardStyle}
             contentFit="cover"
-            priority="normal"
-            showLoadingIndicator={false}
+            priority={isPreloadCard ? "high" : "normal"}
+            showLoadingIndicator={isPreloadCard}
             borderRadius={15}
+            onLoad={() => {
+              if (isPreloadCard) {
+                handleImageLoad();
+              }
+            }}
+            onError={() => {
+              if (isPreloadCard) {
+                handleImageError(card.imageUrl);
+              }
+            }}
+            cachePolicy="memory-disk"
           >
             <CardContentOverlay
               item={card}
@@ -121,7 +292,15 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
         </View>
       );
     },
-    [colors, onBucketPress, hideButtons, onCardTap, fullWidth]
+    [
+      colors,
+      onBucketPress,
+      hideButtons,
+      onCardTap,
+      preloadCount,
+      handleImageLoad,
+      handleImageError,
+    ]
   );
 
   const OverlayLabelRight = useCallback(() => {
@@ -182,7 +361,8 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
     );
   }
 
-  if (isLoading || !data || data.length === 0) {
+  // Show loader while initial data is loading OR while images are being preloaded OR while swiper is preparing
+  if (isLoading || !imagesLoaded || !swiperReady) {
     return (
       <View style={styles.container}>
         <AnimatedLoader />
@@ -190,76 +370,86 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
     );
   }
 
-  // Handle single card case with prerenderItems workaround for rn-swiper-list bug
+  // If no data, return null to let parent handle empty state
+  if (!data || data.length === 0) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>
-      <View style={styles.subContainer}>
-        {!isCompleting && (
+      <Animated.View style={[styles.subContainer, { opacity: fadeAnim }]}>
+        {!isCompleting && swiperReady && (
           <Swiper
-          key={`swiper-${data?.[0]?.id || 'empty'}`}
-          ref={ref}
-          data={data}
-          cardStyle={styles.cardStyle}
-          overlayLabelContainerStyle={styles.overlayLabelContainerStyle}
-          renderCard={renderCard}
-          onSwipeRight={handleSwipeRight}
-          onSwipeLeft={handleSwipeLeft}
-          onSwipeTop={handleSwipeTop}
-          onSwipedAll={handleSwipedAll}
-          onPress={undefined}
-          onIndexChange={() => {}}
-          OverlayLabelRight={OverlayLabelRight}
-          OverlayLabelLeft={OverlayLabelLeft}
-          OverlayLabelTop={OverlayLabelTop}
-          disableBottomSwipe={true}
-          swipeVelocityThreshold={150}
-          prerenderItems={Math.min(data.length - 1, 3)}
-          keyExtractor={(item, index) => `${item.id}-${index}`}
-          // Configure overlay opacity ranges to make them mutually exclusive - very strict
-          inputOverlayLabelRightOpacityRange={[50, 120]}
-          outputOverlayLabelRightOpacityRange={[0, 1]}
-          inputOverlayLabelLeftOpacityRange={[-120, -50]}
-          outputOverlayLabelLeftOpacityRange={[1, 0]}
-          inputOverlayLabelTopOpacityRange={[-120, -50]}
-          outputOverlayLabelTopOpacityRange={[1, 0]}
-          // Enhanced card movement - more realistic pickup animation
-          rotateInputRange={[-120, 0, 120]}
-          rotateOutputRange={[-Math.PI / 8, 0, Math.PI / 8]}
-          translateYRange={[-15, 0, -15]}
-          // prerenderItems={1}
-          swipeRightSpringConfig={{
-            damping: 50,
-            stiffness: 400,
-            mass: 0.3,
-            overshootClamping: true,
-            restDisplacementThreshold: 0.01,
-            restSpeedThreshold: 0.01,
-          }}
-          swipeLeftSpringConfig={{
-            damping: 50,
-            stiffness: 400,
-            mass: 0.3,
-            overshootClamping: true,
-            restDisplacementThreshold: 0.01,
-            restSpeedThreshold: 0.01,
-          }}
-          swipeTopSpringConfig={{
-            damping: 50,
-            stiffness: 400,
-            mass: 0.3,
-            overshootClamping: true,
-            restDisplacementThreshold: 0.01,
-            restSpeedThreshold: 0.01,
-          }}
-        />
+            key={`swiper-${data?.[0]?.id || "empty"}-${
+              areImagesReady ? "ready" : "loading"
+            }`}
+            ref={ref}
+            data={data}
+            cardStyle={styles.cardStyle}
+            overlayLabelContainerStyle={styles.overlayLabelContainerStyle}
+            renderCard={renderCard}
+            onSwipeRight={handleSwipeRight}
+            onSwipeLeft={handleSwipeLeft}
+            onSwipeTop={handleSwipeTop}
+            onSwipedAll={handleSwipedAll}
+            onPress={undefined}
+            onIndexChange={() => {}}
+            OverlayLabelRight={OverlayLabelRight}
+            OverlayLabelLeft={OverlayLabelLeft}
+            OverlayLabelTop={OverlayLabelTop}
+            disableBottomSwipe={true}
+            disableTopSwipe={false}
+            swipeVelocityThreshold={isAndroid ? 120 : 150}
+            swipeTopSpringConfig={{
+              damping: isAndroid ? 20 : 15,
+              stiffness: isAndroid ? 120 : 150,
+              mass: 1,
+              overshootClamping: false,
+              restDisplacementThreshold: 0.1,
+              restSpeedThreshold: 0.1,
+            }}
+            prerenderItems={Math.min(
+              data.length - 1,
+              preloadCount
+            )}
+            keyExtractor={(item, index) =>
+              `${item.id}-${index}-${currentDataKey}`
+            }
+            // Configure overlay opacity ranges to make them mutually exclusive - very strict
+            inputOverlayLabelRightOpacityRange={[50, 120]}
+            outputOverlayLabelRightOpacityRange={[0, 1]}
+            inputOverlayLabelLeftOpacityRange={[-120, -50]}
+            outputOverlayLabelLeftOpacityRange={[1, 0]}
+            inputOverlayLabelTopOpacityRange={[-120, -50]}
+            outputOverlayLabelTopOpacityRange={[1, 0]}
+            // Enhanced card movement - more realistic pickup animation (Android optimized)
+            rotateInputRange={[-120, 0, 120]}
+            rotateOutputRange={[-Math.PI / 8, 0, Math.PI / 8]}
+            translateYRange={isAndroid ? [-10, 0, -10] : [-15, 0, -15]}
+            swipeRightSpringConfig={{
+              damping: isAndroid ? 40 : 50,
+              stiffness: isAndroid ? 300 : 400,
+              mass: isAndroid ? 0.5 : 0.3,
+              overshootClamping: true,
+              restDisplacementThreshold: 0.01,
+              restSpeedThreshold: 0.01,
+            }}
+            swipeLeftSpringConfig={{
+              damping: isAndroid ? 40 : 50,
+              stiffness: isAndroid ? 300 : 400,
+              mass: isAndroid ? 0.5 : 0.3,
+              overshootClamping: true,
+              restDisplacementThreshold: 0.01,
+              restSpeedThreshold: 0.01,
+            }}
+          />
         )}
         {isCompleting && (
           <View style={styles.loadingContainer}>
             <AnimatedLoader />
           </View>
         )}
-      </View>
+      </Animated.View>
     </View>
   );
 };

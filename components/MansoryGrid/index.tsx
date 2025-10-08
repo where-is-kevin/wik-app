@@ -1,10 +1,5 @@
 import React, { useCallback, useMemo, useRef } from "react";
-import {
-  FlatList,
-  RefreshControl,
-  View,
-  ListRenderItem,
-} from "react-native";
+import { FlatList, RefreshControl, View, ListRenderItem } from "react-native";
 import LikeCard from "@/components/LikeComponent/LikeCard";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { horizontalScale, verticalScale } from "@/utilities/scaling";
@@ -56,7 +51,6 @@ const MemoizedLikeCard = React.memo<{
 ));
 
 MemoizedLikeCard.displayName = "MemoizedLikeCard";
-
 
 const MasonryGrid: React.FC<MasonryGridProps> = ({
   data,
@@ -191,17 +185,17 @@ const styles = {
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: horizontalScale(16),
+    paddingHorizontal: 0,
     paddingBottom: verticalScale(20),
   },
   rowContainer: {
     flexDirection: "row" as const,
     justifyContent: "space-between" as const,
+    alignItems: "flex-start" as const,
     marginBottom: verticalScale(8),
+    paddingHorizontal: horizontalScale(20),
   },
-  columnContainer: {
-    width: '47%' as const, // Fixed width so right column goes to far right
-  },
+  columnContainer: {},
   cardContainer: {
     marginBottom: verticalScale(8),
   },

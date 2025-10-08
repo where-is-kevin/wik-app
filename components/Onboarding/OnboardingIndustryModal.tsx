@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import CustomView from "../CustomView";
 import CustomText from "../CustomText";
@@ -67,14 +67,19 @@ export const OnboardingIndustryModal: React.FC<
 }) => {
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
+  const [tempSelectedIndustries, setTempSelectedIndustries] = useState<string[]>(selectedIndustries || []);
+
+  // Sync temp state when modal becomes visible or selectedIndustries changes
+  useEffect(() => {
+    if (visible) {
+      setTempSelectedIndustries(selectedIndustries || []);
+    }
+  }, [visible, selectedIndustries]);
 
   const industryTags = getIndustryTags(colors);
   const filteredTags = industryTags.filter((tag: IndustryTag) =>
     tag.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  // Ensure selectedIndustries is always an array
-  const safeSelectedIndustries = selectedIndustries || [];
 
   // Check if search query doesn't match any existing tags and is not empty
   const hasCustomOption =
@@ -82,36 +87,37 @@ export const OnboardingIndustryModal: React.FC<
     !industryTags.some(
       (tag) => tag.name.toLowerCase() === searchQuery.toLowerCase().trim()
     ) &&
-    !safeSelectedIndustries.includes(searchQuery.trim());
+    !tempSelectedIndustries.includes(searchQuery.trim());
 
   const handleTagPress = (tag: IndustryTag) => {
-    const isSelected = safeSelectedIndustries.includes(tag.name);
+    const isSelected = tempSelectedIndustries.includes(tag.name);
     let newSelection: string[];
 
     if (isSelected) {
-      newSelection = safeSelectedIndustries.filter((item) => item !== tag.name);
+      newSelection = tempSelectedIndustries.filter((item) => item !== tag.name);
     } else {
-      newSelection = [...safeSelectedIndustries, tag.name];
+      newSelection = [...tempSelectedIndustries, tag.name];
     }
 
-    onIndustrySelect(newSelection);
+    setTempSelectedIndustries(newSelection);
   };
 
   const handleCustomTagPress = () => {
     const customTagName = searchQuery.trim();
-    if (customTagName && !safeSelectedIndustries.includes(customTagName)) {
+    if (customTagName && !tempSelectedIndustries.includes(customTagName)) {
       // Store color for this custom tag
       if (!customIndustryStore[customTagName]) {
         customIndustryStore[customTagName] = getRandomColor();
       }
 
-      const newSelection = [...safeSelectedIndustries, customTagName];
-      onIndustrySelect(newSelection);
+      const newSelection = [...tempSelectedIndustries, customTagName];
+      setTempSelectedIndustries(newSelection);
       setSearchQuery(""); // Clear search after adding custom tag
     }
   };
 
   const handleDone = () => {
+    onIndustrySelect(tempSelectedIndustries);
     onClose();
   };
 
@@ -181,7 +187,7 @@ export const OnboardingIndustryModal: React.FC<
 
             {/* Show existing filtered tags */}
             {filteredTags.map((tag: IndustryTag) => {
-              const isSelected = safeSelectedIndustries.includes(tag.name);
+              const isSelected = tempSelectedIndustries.includes(tag.name);
               return (
                 <TouchableOpacity
                   key={tag.id}
@@ -211,7 +217,7 @@ export const OnboardingIndustryModal: React.FC<
             })}
 
             {/* Show selected custom industries */}
-            {safeSelectedIndustries
+            {tempSelectedIndustries
               .filter(
                 (industry) => !industryTags.some((tag) => tag.name === industry)
               )
@@ -231,10 +237,10 @@ export const OnboardingIndustryModal: React.FC<
                     },
                   ]}
                   onPress={() => {
-                    const newSelection = safeSelectedIndustries.filter(
+                    const newSelection = tempSelectedIndustries.filter(
                       (item) => item !== industry
                     );
-                    onIndustrySelect(newSelection);
+                    setTempSelectedIndustries(newSelection);
                   }}
                 >
                   <CustomText style={[styles.tagText, { color: "#FFFFFF" }]}>
@@ -247,7 +253,7 @@ export const OnboardingIndustryModal: React.FC<
       </CustomView>
 
       {/* Done Button - Fixed at bottom */}
-      {safeSelectedIndustries.length > 0 && (
+      {tempSelectedIndustries.length > 0 && (
         <CustomView style={styles.doneButtonContainer}>
           <TouchableOpacity
             style={[styles.doneButton, { backgroundColor: colors.lime }]}
@@ -257,7 +263,7 @@ export const OnboardingIndustryModal: React.FC<
               fontFamily="Inter-SemiBold"
               style={[styles.doneButtonText, { color: colors.label_dark }]}
             >
-              Done ({safeSelectedIndustries.length})
+              Done ({tempSelectedIndustries.length})
             </CustomText>
           </TouchableOpacity>
         </CustomView>

@@ -74,7 +74,6 @@ export const OnboardingBusinessWorkFormSlide: React.FC<
   const updateField = (field: keyof BusinessWorkFormData, value: any) => {
     const newData = { ...formData, [field]: value };
     setFormData(newData);
-    console.log("Business form data being sent:", newData);
     onFormChange(newData);
   };
 

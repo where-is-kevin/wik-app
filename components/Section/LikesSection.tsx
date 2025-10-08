@@ -162,10 +162,10 @@ const LikesSection: React.FC<LikesSectionProps> = ({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.flatListContent}
         ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
-        removeClippedSubviews={true}
-        initialNumToRender={3}
-        maxToRenderPerBatch={5}
-        windowSize={10}
+        removeClippedSubviews={false}
+        initialNumToRender={5}
+        maxToRenderPerBatch={3}
+        windowSize={5}
         getItemLayout={(data, index) => ({
           length: 177 + horizontalScale(12), // item width + separator
           offset: (177 + horizontalScale(12)) * index,

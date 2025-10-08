@@ -83,9 +83,7 @@ const LikeCard: React.FC<LikeCardProps> = ({
             priority="normal"
             showLoadingIndicator={true}
             borderRadius={8}
-            overlayComponent={
-              !validImageUrl ? <ImagePlaceholder /> : undefined
-            }
+            overlayComponent={!validImageUrl ? <ImagePlaceholder /> : undefined}
           />
 
           {/* Experience tag in top left */}
@@ -116,11 +114,13 @@ const LikeCard: React.FC<LikeCardProps> = ({
             style={[styles.title, { color: colors.label_dark }]}
             numberOfLines={1}
           >
-            {item.title || item.address || item.category || 'Unknown'}
+            {item.title || item.address || item.category || "Unknown"}
           </CustomText>
           <ShareButton
-            title={item.title || item.address || item.category || 'Unknown'}
-            message={`Check out this ${item.category}: ${item.title || item.address || item.category || 'Unknown'}`}
+            title={item.title || item.address || item.category || "Unknown"}
+            message={`Check out this ${item.category}: ${
+              item.title || item.address || item.category || "Unknown"
+            }`}
             url={item.contentShareUrl || ""}
           />
         </CustomView>

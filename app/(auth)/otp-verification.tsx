@@ -136,6 +136,9 @@ const OTPVerificationScreen = () => {
             setErrorMessage(
               "Authentication successful but failed to save. Please try again."
             );
+            setIsVerifying(false); // Reset verifying state on storage error
+          } finally {
+            setIsVerifying(false); // Always reset verifying state
           }
         },
         onError: (err: any) => {
@@ -151,6 +154,7 @@ const OTPVerificationScreen = () => {
 
           // Always show user-friendly error message regardless of server error
           setErrorMessage("Wrong code. Please try again.");
+          setIsVerifying(false); // Reset verifying state on error
         },
       }
     );
@@ -208,7 +212,7 @@ const OTPVerificationScreen = () => {
                   setErrorMessage("");
 
                   // Auto-submit when all fields are filled
-                  if (text.length === CELL_COUNT) {
+                  if (text.length === CELL_COUNT && !isVerifying && !isPending) {
                     setTimeout(() => {
                       handleVerifyPress(text);
                     }, 100); // Small delay to ensure UI updates

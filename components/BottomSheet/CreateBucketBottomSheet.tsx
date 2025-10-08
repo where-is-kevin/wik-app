@@ -129,7 +129,7 @@ const CreateBucketBottomSheetComponent: React.FC<
             placeholder="Enter bucket name..."
             autoCapitalize="words"
             editable={!isCreating} // Disable input while creating
-            autoFocus={false}
+            autoFocus={true}
             blurOnSubmit={true}
             returnKeyType="done"
           />

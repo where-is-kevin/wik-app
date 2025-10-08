@@ -5,6 +5,7 @@ import { MajorEventsSection } from "@/components/Section/MajorEventsSection";
 import { MajorEventData } from "@/components/Cards/MajorEventsCard";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useMode } from "@/contexts/ModeContext";
+import { useToast } from "@/contexts/ToastContext";
 import ModeHeader from "@/components/Header/ModeHeader";
 import FloatingMapButton from "@/components/FloatingMapButton";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -33,6 +34,7 @@ const PaginatedContentList = () => {
   const { query } = useLocalSearchParams();
   const { colors } = useTheme();
   const { mode } = useMode();
+  const { showToast } = useToast();
   const router = useRouter();
   const { getApiLocationParams } = useUserLocation();
   const { location: deviceLocation } = useLocation();
@@ -214,12 +216,13 @@ const PaginatedContentList = () => {
 
           setIsBucketBottomSheetVisible(false);
           setSelectedLikeItemId(null);
+          showToast("Added to bucket", "success");
         } catch (error) {
-          // Handle bucket add errors
+          showToast("Failed to add to bucket", "error");
         }
       }
     },
-    [selectedLikeItemId, addBucketMutation]
+    [selectedLikeItemId, addBucketMutation, showToast]
   );
 
   const handleShowCreateBucketBottomSheet = useCallback(() => {
@@ -241,12 +244,13 @@ const PaginatedContentList = () => {
           });
           setIsCreateBucketBottomSheetVisible(false);
           setSelectedLikeItemId(null);
+          showToast("Bucket created", "success");
         } catch (error) {
-          // Handle bucket creation errors
+          showToast("Failed to create bucket", "error");
         }
       }
     },
-    [selectedLikeItemId, createBucketMutation]
+    [selectedLikeItemId, createBucketMutation, showToast]
   );
 
   // Map navigation handler

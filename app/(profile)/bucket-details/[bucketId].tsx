@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BackHeader from "@/components/Header/BackHeader";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useToast } from "@/contexts/ToastContext";
 import SearchBar from "@/components/SearchBar/SearchBar";
 import {
   verticalScale,
@@ -66,6 +67,7 @@ const useDebounce = (value: string, delay: number) => {
 
 const BucketDetailsScreen = () => {
   const { colors } = useTheme();
+  const { showToast } = useToast();
   const router = useRouter();
   const { bucketId } = useLocalSearchParams<{ bucketId: string }>();
   const [searchQuery, setSearchQuery] = useState("");
@@ -155,10 +157,9 @@ const BucketDetailsScreen = () => {
 
         setIsBucketBottomSheetVisible(false);
         setSelectedLikeItemId(null);
-
-        // console.log(`Successfully added item to bucket "${item.title}"`);
+        showToast("Added to bucket", "success", false);
       } catch (error) {
-        // console.error("Failed to add item to bucket:", error);
+        showToast("Failed to add to bucket", "error", false);
       }
     }
   };
@@ -183,8 +184,10 @@ const BucketDetailsScreen = () => {
 
         setIsCreateBucketBottomSheetVisible(false);
         setSelectedLikeItemId(null);
+        showToast("Bucket created", "success", false);
       } catch (error) {
         console.error("Error creating bucket:", error);
+        showToast("Failed to create bucket", "error", false);
       }
     }
   };
@@ -238,7 +241,11 @@ const BucketDetailsScreen = () => {
         <BackHeader transparent={true} />
         <ErrorScreen
           title={bucketError ? "Failed to load bucket" : "Bucket not found"}
-          message={bucketError ? "Please check your connection and try again" : "This bucket may have been deleted or doesn't exist"}
+          message={
+            bucketError
+              ? "Please check your connection and try again"
+              : "This bucket may have been deleted or doesn't exist"
+          }
           onRetry={bucketError ? refetchBucket : undefined}
         />
       </SafeAreaView>

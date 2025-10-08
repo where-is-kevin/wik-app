@@ -51,6 +51,7 @@ import { getErrorMessage } from "@/utilities/errorUtils";
 import { verticalScale } from "@/utilities/scaling";
 import * as Location from "expo-location";
 import { useUserLocation } from "@/contexts/UserLocationContext";
+import { useMode } from "@/contexts/ModeContext";
 import {
   createCurrentLocationPreference,
   createSelectedLocationPreference,
@@ -64,6 +65,7 @@ const OnboardingScreen = () => {
   const queryClient = useQueryClient();
   const { colors } = useTheme();
   const { setUserLocation } = useUserLocation();
+  const { setMode } = useMode();
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [selections, setSelections] = useState<OnboardingSelections>({});
 
@@ -161,6 +163,12 @@ const OnboardingScreen = () => {
   // Simple navigation function - no complex auth checks during onboarding
   const navigateAfterAuth = useCallback(async () => {
     try {
+      // Set user mode based on their onboarding choice
+      if (userType !== null) {
+        const userMode = userType === 0 ? "business" : "leisure";
+        await setMode(userMode);
+      }
+
       // Check location permission status
       const { status } = await Location.getForegroundPermissionsAsync();
 
@@ -176,7 +184,7 @@ const OnboardingScreen = () => {
       // On error, show permission screen to be safe
       router.push("/(auth)/location-permission");
     }
-  }, [router]);
+  }, [router, userType, setMode]);
 
   const {
     data: content,
@@ -514,7 +522,7 @@ const OnboardingScreen = () => {
     if (verificationCode.length === 6 && stepData?.type === "code-slide") {
       handleCodeValidation();
     }
-  }, [verificationCode, stepData?.type, handleCodeValidation]);
+  }, [verificationCode, stepData?.type]); // Removed handleCodeValidation from dependencies
 
   // Transform content data to match SwipeCards interface (limit to 5 items)
   const transformedCardData: CardData[] = content
@@ -1358,7 +1366,9 @@ const OnboardingScreen = () => {
       {renderStepContent()}
 
       <LinearGradient
-        colors={["#FFFFFF", "rgba(255, 255, 255, 0)"]}
+        colors={stepData?.type === "card-swipe"
+          ? ["rgba(255, 255, 255, 0)", "rgba(255, 255, 255, 0)"]
+          : ["#FFFFFF", "rgba(255, 255, 255, 0)"]}
         locations={[0, 1]}
         style={[
           commonOnboardingStyles.footer,

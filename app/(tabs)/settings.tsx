@@ -29,7 +29,6 @@ import AppInfoModal from "@/components/AppInfoModal";
 const settingsData = [
   { id: "1", title: "Feedback" },
   { id: "2", title: "Privacy and security" },
-  { id: "3", title: "Change password" },
   { id: "6", title: "App information" },
   { id: "4", title: "Log out" },
   { id: "5", title: "Delete user" },
@@ -53,9 +52,6 @@ const Settings = () => {
     router.push("/privacy-policy");
   };
 
-  const handleChangePassword = () => {
-    router.push("/change-password");
-  };
 
   const handleLogout = async () => {
     // Clear user location preference before logout
@@ -108,9 +104,6 @@ const Settings = () => {
         break;
       case "2":
         handlePrivacyAndSecurity();
-        break;
-      case "3":
-        handleChangePassword();
         break;
       case "6":
         handleAppInfo();

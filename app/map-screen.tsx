@@ -13,6 +13,7 @@ import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBo
 import { useMapData, hasLocation } from "@/hooks/useMapData";
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
+import { useToast } from "@/contexts/ToastContext";
 import { useUserLocation } from "@/contexts/UserLocationContext";
 import { useLocation } from "@/contexts/LocationContext";
 
@@ -20,6 +21,7 @@ const MapScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { trackScreenView, trackButtonClick } = useAnalyticsContext();
+  const { showToast } = useToast();
   const { getApiLocationParams } = useUserLocation();
   const { location: deviceLocation } = useLocation();
 
@@ -192,12 +194,14 @@ const MapScreen = () => {
           });
           setIsBucketBottomSheetVisible(false);
           setSelectedLikeItemId(null);
+          showToast("Added to bucket", "success", false);
         } catch (error) {
           console.error("Failed to add item to bucket:", error);
+          showToast("Failed to add to bucket", "error", false);
         }
       }
     },
-    [selectedLikeItemId, addBucketMutation]
+    [selectedLikeItemId, addBucketMutation, showToast]
   );
 
   const handleShowCreateBucketBottomSheet = React.useCallback(() => {
@@ -219,12 +223,14 @@ const MapScreen = () => {
           });
           setIsCreateBucketBottomSheetVisible(false);
           setSelectedLikeItemId(null);
+          showToast("Bucket created", "success", false);
         } catch (error) {
           console.error("Failed to create bucket:", error);
+          showToast("Failed to create bucket", "error", false);
         }
       }
     },
-    [selectedLikeItemId, createBucketMutation]
+    [selectedLikeItemId, createBucketMutation, showToast]
   );
 
   // Loading state

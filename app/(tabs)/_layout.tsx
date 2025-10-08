@@ -122,16 +122,23 @@ export default function TabLayout() {
           styles.tabBarStyle,
           {
             height:
-              verticalScale(60) +
-              bottom +
-              (Platform.OS === "android" ? verticalScale(8) : 0),
+              Platform.OS === "ios" && bottom > 0
+                ? verticalScale(45) + bottom
+                : verticalScale(60) +
+                  bottom +
+                  (Platform.OS === "android" ? verticalScale(8) : 0),
             paddingBottom:
               bottom > 0
-                ? bottom
+                ? verticalScale(10)
                 : Platform.OS === "android"
                 ? verticalScale(8)
-                : 0,
-            paddingTop: Platform.OS === "android" ? verticalScale(8) : 0,
+                : verticalScale(8),
+            paddingTop:
+              bottom > 0
+                ? 0
+                : Platform.OS === "android"
+                ? verticalScale(8)
+                : verticalScale(8),
           },
         ]}
       >

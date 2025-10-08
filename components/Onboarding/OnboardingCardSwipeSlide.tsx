@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { StyleSheet } from "react-native";
 import CustomView from "../CustomView";
 import CustomText from "../CustomText";
@@ -97,11 +97,11 @@ export const OnboardingCardSwipeSlide: React.FC<
     onRetry();
   };
 
-  // Handle completion of card stack - for onboarding, just complete without refresh
+  // Handle completion of card stack - just complete the step
   const handleComplete = useCallback(() => {
-    // Don't refresh cards in onboarding, just complete the step
     onComplete();
   }, [onComplete]);
+
 
   // Show loading state while content is being fetched
   if (isLoading) {

@@ -9,6 +9,7 @@ import { StyleSheet, FlatList, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BackHeader from "@/components/Header/BackHeader";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useToast } from "@/contexts/ToastContext";
 import {
   horizontalScale,
   scaleFontSize,
@@ -77,6 +78,7 @@ const useDebounce = (value: string, delay: number) => {
 
 const ProfileListsScreen = () => {
   const { colors } = useTheme();
+  const { showToast } = useToast();
   const router = useRouter();
   const { type } = useLocalSearchParams();
   const listType = type === "buckets" || type === "likes" ? type : "buckets";
@@ -112,7 +114,6 @@ const ProfileListsScreen = () => {
   // Mutations
   const addBucketMutation = useAddBucket();
   const createBucketMutation = useCreateBucket();
-
 
   // Flatten paginated data
   const buckets = useMemo(() => {
@@ -253,12 +254,14 @@ const ProfileListsScreen = () => {
           });
           setIsBucketBottomSheetVisible(false);
           setSelectedLikeItemId(null);
+          showToast("Added to bucket", "success", false);
         } catch (error) {
           console.error("Failed to add item to bucket:", error);
+          showToast("Failed to add to bucket", "error", false);
         }
       }
     },
-    [selectedLikeItemId, addBucketMutation]
+    [selectedLikeItemId, addBucketMutation, showToast]
   );
 
   const handleShowCreateBucketBottomSheet = useCallback(() => {
@@ -281,12 +284,14 @@ const ProfileListsScreen = () => {
           setIsCreateBucketBottomSheetVisible(false);
           setActiveTab("buckets");
           setSelectedLikeItemId(null);
+          showToast("Bucket created", "success", false);
         } catch (error) {
           console.error("Failed to create bucket:", error);
+          showToast("Failed to create bucket", "error", false);
         }
       }
     },
-    [selectedLikeItemId, createBucketMutation]
+    [selectedLikeItemId, createBucketMutation, showToast]
   );
 
   const handleLikeItemPress = useCallback(

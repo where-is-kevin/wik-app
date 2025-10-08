@@ -99,7 +99,7 @@ const SwipeableCards = () => {
     }
 
     const filtered = content
-      .slice(0, 5) // Limit to 4 cards for better Android performance
+      .slice(0, 8) // Limit to 8 cards to match prerenderItems
       .map((item) => ({
         id: item.id,
         title: item.title || "Untitled", // Handle null title
@@ -144,7 +144,7 @@ const SwipeableCards = () => {
         suggestion_type:
           (item.category as "venue" | "experience" | "event") || "unknown",
         category: item.category || "unknown",
-        similarity_score: item.similarity,
+        similarity_score: typeof item.similarity === "string" ? parseFloat(item.similarity) || 0 : item.similarity,
         rating: item.rating ? parseFloat(item.rating) : undefined,
         price_range: item.price,
       });
@@ -174,7 +174,7 @@ const SwipeableCards = () => {
         suggestion_type:
           (item.category as "venue" | "experience" | "event") || "venue",
         category: item.category || "unknown",
-        similarity_score: item.similarity,
+        similarity_score: typeof item.similarity === "string" ? parseFloat(item.similarity) || 0 : item.similarity,
         rating: item.rating ? parseFloat(item.rating) : undefined,
         price_range: item.price,
       });
@@ -230,7 +230,7 @@ const SwipeableCards = () => {
           suggestion_type:
             (item.category as "venue" | "experience" | "event") || "venue",
           category: item.category || "unknown",
-          similarity_score: item.similarity,
+          similarity_score: typeof item.similarity === "string" ? parseFloat(item.similarity) || 0 : item.similarity,
           rating: item.rating ? parseFloat(item.rating) : undefined,
           price_range: item.price,
         });
@@ -273,7 +273,6 @@ const SwipeableCards = () => {
   );
 
   const handleShowBucketBottomSheet = useCallback((itemId?: string) => {
-    console.log("🪣 handleShowBucketBottomSheet called with itemId:", itemId);
     if (itemId) {
       setSelectedItemId(itemId);
     }
@@ -295,8 +294,9 @@ const SwipeableCards = () => {
 
         setIsBucketBottomSheetVisible(false);
         setSelectedItemId(null);
+        showToast("Added to bucket", "success");
       } catch (error) {
-        // Handle bucket add errors
+        showToast("Failed to add to bucket", "error");
       }
     }
   };
@@ -321,8 +321,9 @@ const SwipeableCards = () => {
         });
         setIsCreateBucketBottomSheetVisible(false);
         setSelectedItemId(null);
+        showToast("Bucket created", "success");
       } catch (error) {
-        // Handle bucket creation errors
+        showToast("Failed to create bucket", "error");
       }
     }
   };
@@ -353,12 +354,39 @@ const SwipeableCards = () => {
       !deviceLocation?.lat &&
       !deviceLocation?.lon);
 
-  // Show loading state (initial load, location waiting)
+  // Show loading state with header still visible (initial load, location waiting)
   if (isLoading || waitingForLocation) {
     return (
-      <SafeAreaView style={{ backgroundColor: "#fff", flex: 1 }}>
-        <AnimatedLoader />
-      </SafeAreaView>
+      <View style={{ flex: 1, backgroundColor: "#FFF", zIndex: -1 }}>
+        <CustomView bgColor={colors.overlay} style={{ flex: 1 }}>
+          <ModeHeader />
+          <CustomTouchable
+            style={[styles.filterSvgButton, { marginRight: horizontalScale(24) }]}
+            onPress={() => setIsFilterModalVisible(true)}
+          >
+            <CustomView style={styles.filterSvgContainer}>
+              <FilterSvg />
+              {selectedFilters.length < 3 && (
+                <CustomView
+                  bgColor={colors.light_blue}
+                  style={styles.filterIndicatorDot}
+                />
+              )}
+            </CustomView>
+          </CustomTouchable>
+
+          <CustomView style={styles.swipeContainer}>
+            <AnimatedLoader />
+          </CustomView>
+        </CustomView>
+
+        <FilterModal
+          isVisible={isFilterModalVisible}
+          onClose={() => setIsFilterModalVisible(false)}
+          onApply={handleFilterApply}
+          selectedFilters={selectedFilters}
+        />
+      </View>
     );
   }
 
