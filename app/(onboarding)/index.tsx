@@ -547,7 +547,8 @@ const OnboardingScreen = () => {
           tags: item.tags,
           similarity: percentage, // Override with hardcoded percentage for onboarding
           distance: item.distance,
-          eventDatetime: item.eventDatetime || undefined, // Pass through event datetime for events
+          eventDatetimeStart: item.eventDatetimeStart || undefined, // Pass through event datetime for events
+          eventDatetimeEnd: item.eventDatetimeEnd || undefined,
         };
       })
     : [];
@@ -1316,12 +1317,14 @@ const OnboardingScreen = () => {
       ]}
     >
       <StatusBar style="dark" />
-      <CustomTouchable
-        style={commonOnboardingStyles.header}
-        onPress={handleBack}
-      >
-        <ArrowLeftSvg />
-      </CustomTouchable>
+      {stepData?.type !== "final-slide" && (
+        <CustomTouchable
+          style={commonOnboardingStyles.header}
+          onPress={handleBack}
+        >
+          <ArrowLeftSvg />
+        </CustomTouchable>
+      )}
 
       {(stepData?.type === "option-list" ||
         stepData?.type === "budget-selection" ||

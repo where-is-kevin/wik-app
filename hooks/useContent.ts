@@ -9,6 +9,7 @@ import Constants from "expo-constants";
 type Content = {
   id: string;
   category: string;
+  subcategory?: string;
   title: string | null;
   rating: number;
   price: number | string | null;
@@ -17,6 +18,7 @@ type Content = {
   latitude: number;
   longitude: number;
   googleMapsUrl: string;
+  googlePlacesImageUrl?: string;
   internalImages: string[] | null;
   bookingUrl: string | null;
   websiteUrl: string | null;
@@ -27,7 +29,7 @@ type Content = {
   updatedAt?: string;
   internalImageUrls: string[] | null;
   address: string;
-  addressShort?: string;
+  addressShort?: string | null;
   addressLong?: string;
   userLiked?: boolean;
   userDisliked?: boolean;
@@ -35,7 +37,9 @@ type Content = {
   contentShareUrl: string;
   similarity: number | string;
   distance?: number;
-  eventDatetime?: string | null;
+  eventDatetimeStart?: string | null;
+  eventDatetimeEnd?: string | null;
+  audienceType?: string[];
 };
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
@@ -79,8 +83,7 @@ const fetchContent = async (
       cleanParams.longitude = params.longitude.toString();
     if (params.category_filter !== undefined)
       cleanParams.category_filter = params.category_filter;
-    if (params.type !== undefined)
-      cleanParams.type = params.type;
+    if (params.type !== undefined) cleanParams.type = params.type;
 
     const queryString = new URLSearchParams(cleanParams).toString();
     url += `?${queryString}`;
@@ -200,7 +203,16 @@ export function useInfiniteContent({
   const jwt = authData?.accessToken || null;
 
   return useInfiniteQuery({
-    queryKey: ["content", "infinite", query, latitude, longitude, limit, type, !!jwt],
+    queryKey: [
+      "content",
+      "infinite",
+      query,
+      latitude,
+      longitude,
+      limit,
+      type,
+      !!jwt,
+    ],
     queryFn: async ({ pageParam = 0 }) => {
       const params: ContentParams = {
         query,
@@ -249,7 +261,8 @@ export function useContent(
     return (
       params.latitude !== undefined ||
       params.longitude !== undefined ||
-      (params.category_filter !== undefined && params.category_filter.trim() !== "") ||
+      (params.category_filter !== undefined &&
+        params.category_filter.trim() !== "") ||
       params.type !== undefined
     );
   };

@@ -109,19 +109,27 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
 
   // Render the masonry container
   const renderMasonryContainer: ListRenderItem<MasonryContainer> = useCallback(
-    ({ item }) => (
-      <View>
-        <View style={styles.rowContainer}>
-          {renderColumn(item.leftColumn)}
-          {renderColumn(item.rightColumn)}
-        </View>
-        {item.showLoader && (
-          <View style={styles.footerLoader}>
-            <AnimatedLoader />
+    ({ item }) => {
+      // Determine justification based on column content
+      const hasLeftColumn = item.leftColumn.length > 0;
+      const hasRightColumn = item.rightColumn.length > 0;
+      const justifyContent =
+        hasLeftColumn && hasRightColumn ? "center" : "flex-start";
+
+      return (
+        <View>
+          <View style={[styles.rowContainer, { justifyContent }]}>
+            {renderColumn(item.leftColumn)}
+            {renderColumn(item.rightColumn)}
           </View>
-        )}
-      </View>
-    ),
+          {item.showLoader && (
+            <View style={styles.footerLoader}>
+              <AnimatedLoader />
+            </View>
+          )}
+        </View>
+      );
+    },
     [renderColumn]
   );
 
@@ -196,7 +204,9 @@ const styles = {
     marginBottom: verticalScale(8),
     paddingHorizontal: horizontalScale(20),
   },
-  columnContainer: {},
+  columnContainer: {
+    flex: 1,
+  },
   cardContainer: {
     marginBottom: verticalScale(8),
   },

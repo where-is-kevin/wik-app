@@ -19,15 +19,18 @@ import SendSvgSmall from "../SvgComponents/SendSvgSmall";
 import RatingStarSvg from "../SvgComponents/RatingStarSvg";
 import PinBucketSvg from "../SvgComponents/PinBucketSvg";
 
-// Format event datetime to "Wed, Sept 4th • 6:00 pm"
-const formatEventDateTime = (dateTimeString?: string): string => {
-  if (!dateTimeString) return "";
+// Format event datetime to "Wed, Sept 4th • 6:00 pm - 8:00 pm" or "Wed, Sept 4th • 6:00 pm"
+const formatEventDateTime = (
+  startDateTimeString?: string,
+  endDateTimeString?: string
+): string => {
+  if (!startDateTimeString) return "";
 
   try {
-    const date = new Date(dateTimeString);
-    const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
-    const month = date.toLocaleDateString("en-US", { month: "short" });
-    const day = date.getDate();
+    const startDate = new Date(startDateTimeString);
+    const dayName = startDate.toLocaleDateString("en-US", { weekday: "short" });
+    const month = startDate.toLocaleDateString("en-US", { month: "short" });
+    const day = startDate.getDate();
     const suffix =
       day === 1 || day === 21 || day === 31
         ? "st"
@@ -36,7 +39,7 @@ const formatEventDateTime = (dateTimeString?: string): string => {
         : day === 3 || day === 23
         ? "rd"
         : "th";
-    const time = date
+    const startTime = startDate
       .toLocaleTimeString("en-US", {
         hour: "numeric",
         minute: "2-digit",
@@ -44,7 +47,26 @@ const formatEventDateTime = (dateTimeString?: string): string => {
       })
       .toLowerCase();
 
-    return `${dayName}, ${month} ${day}${suffix} • ${time}`;
+    let timeRange = startTime;
+
+    // If end datetime exists and is different from start, add it to the range
+    if (endDateTimeString) {
+      const endDate = new Date(endDateTimeString);
+      const endTime = endDate
+        .toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        })
+        .toLowerCase();
+
+      // Only show end time if it's different from start time
+      if (endTime !== startTime) {
+        timeRange = `${startTime} - ${endTime}`;
+      }
+    }
+
+    return `${dayName}, ${month} ${day}${suffix} • ${timeRange}`;
   } catch (error) {
     console.log("Error formatting event datetime:", error);
     return "";
@@ -85,7 +107,8 @@ interface CardData {
   tags?: string;
   similarity: number | string;
   distance?: number;
-  eventDatetime?: string; // For event type items
+  eventDatetimeStart?: string; // For event type items
+  eventDatetimeEnd?: string;
 }
 
 interface CardContentOverlayProps {
@@ -178,14 +201,14 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
         {/* Rating, Price, Distance OR Event DateTime */}
         <View style={styles.infoRow}>
           {(item.category === "event" || item.category === "events") &&
-          item.eventDatetime ? (
+          item.eventDatetimeStart ? (
             // Show event datetime for events
             <>
               <CustomText
                 fontFamily="Inter-Medium"
                 style={[styles.infoText, { color: colors.background }]}
               >
-                {formatEventDateTime(item.eventDatetime)}
+                {formatEventDateTime(item.eventDatetimeStart, item.eventDatetimeEnd)}
               </CustomText>
               {formatPrice(item.price) && (
                 <>

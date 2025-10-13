@@ -25,7 +25,8 @@ export interface CardData {
   tags?: string;
   similarity: string | number;
   distance?: number;
-  eventDatetime?: string;
+  eventDatetimeStart?: string;
+  eventDatetimeEnd?: string;
 }
 
 interface SwipeCardsProps {

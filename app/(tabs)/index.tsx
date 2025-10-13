@@ -169,7 +169,8 @@ const SwipeableCards = () => {
           ? parseFloat(item.similarity) || 0
           : item.similarity,
       distance: item.distance,
-      eventDatetime: (item as any).eventDatetime, // Add event datetime for events
+      eventDatetimeStart: item.eventDatetimeStart, // Add event datetime for events
+      eventDatetimeEnd: item.eventDatetimeEnd,
     }));
 
     return filtered;

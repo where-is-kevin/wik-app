@@ -134,14 +134,13 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     overflow: "hidden",
     position: "relative",
-    width: 160,
     flex: 1,
   },
   container: {
     flex: 1,
   },
   imageContainer: {
-    width: 160,
+    width: "100%",
     borderRadius: 8,
     overflow: "hidden",
     position: "relative", // Added for absolute positioning of overlays

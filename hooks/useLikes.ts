@@ -21,7 +21,8 @@ type Content = {
   googleMapsUrl: string;
   internalImages: string[] | null;
   internalImageUrls: string[] | null;
-  eventDatetime: string | null;
+  eventDatetimeStart?: string | null;
+  eventDatetimeEnd?: string | null;
   bookingUrl: string | null;
   websiteUrl: string | null;
   description: string | null;
