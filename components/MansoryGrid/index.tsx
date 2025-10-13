@@ -190,7 +190,8 @@ const styles = {
   },
   rowContainer: {
     flexDirection: "row" as const,
-    justifyContent: "space-between" as const,
+    justifyContent: "center" as const,
+    gap: horizontalScale(10),
     alignItems: "flex-start" as const,
     marginBottom: verticalScale(8),
     paddingHorizontal: horizontalScale(20),

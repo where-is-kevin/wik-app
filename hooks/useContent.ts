@@ -241,8 +241,26 @@ export function useContent(
   const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken || null;
 
+  // Helper function to check if params are meaningful
+  const hasMeaningfulParams = (params?: BasicContentParams) => {
+    if (!params) return false;
+
+    // Check if any of the parameters have meaningful values
+    return (
+      params.latitude !== undefined ||
+      params.longitude !== undefined ||
+      (params.category_filter !== undefined && params.category_filter.trim() !== "") ||
+      params.type !== undefined
+    );
+  };
+
   // Determine if we should fetch based on permission status and location data
   const shouldFetch = () => {
+    // Don't fetch if we don't have any meaningful parameters
+    if (!hasMeaningfulParams(params)) {
+      return false;
+    }
+
     // If no permission status provided, fetch immediately (old behavior)
     if (!locationPermissionStatus) return true;
 

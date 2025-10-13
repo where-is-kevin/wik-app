@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, Platform, TouchableOpacity } from "react-native";
+import { View, StyleSheet, Platform, TouchableOpacity, Alert } from "react-native";
 import MapView, { Marker, Callout } from "react-native-maps";
 import { useLocation } from "@/contexts/LocationContext";
 import { useUserLocation } from "@/contexts/UserLocationContext";
@@ -99,12 +99,26 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
       // Get fresh current location directly from GPS
       const { status } = await Location.getForegroundPermissionsAsync();
       if (status !== Location.PermissionStatus.GRANTED) {
+        Alert.alert(
+          'Location Permission Required',
+          'Please enable location access in your device settings to use this feature.',
+          [{ text: 'OK' }]
+        );
         return;
       }
 
-      const currentPosition = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.BestForNavigation,
-      });
+      // Try with high accuracy first, fallback to balanced accuracy if it fails
+      let currentPosition;
+      try {
+        currentPosition = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.BestForNavigation,
+        });
+      } catch (highAccuracyError) {
+        console.log('High accuracy location failed, trying balanced accuracy:', highAccuracyError);
+        currentPosition = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+      }
 
       const realLocation = {
         latitude: currentPosition.coords.latitude,
@@ -124,6 +138,7 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
       }
     } catch (error) {
       console.log('Error getting current location:', error);
+
       // Fallback to deviceLocation if GPS fails
       if (deviceLocation && mapRef.current) {
         const userRegion = {
@@ -133,6 +148,20 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
           longitudeDelta: 0.005,
         };
         mapRef.current.animateToRegion(userRegion, 1000);
+
+        // Inform user that we're using cached location
+        Alert.alert(
+          'Using Cached Location',
+          'Unable to get fresh GPS coordinates. Using your last known location instead.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        // No fallback available
+        Alert.alert(
+          'Location Error',
+          'Unable to get your current location. Please check your location settings and try again.',
+          [{ text: 'OK' }]
+        );
       }
     }
   }, [deviceLocation, mapRef]);
@@ -210,7 +239,7 @@ const CustomMapView: React.FC<CustomMapViewProps> = ({
       </MapView>
 
       {/* Custom Location Button */}
-      {deviceLocation && permissionStatus === 'granted' && (
+      {deviceLocation && permissionStatus === Location.PermissionStatus.GRANTED && (
         <TouchableOpacity
           style={[styles.locationButton, { top: topPosition }]}
           onPress={handleLocationPress}

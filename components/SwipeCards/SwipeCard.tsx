@@ -77,13 +77,18 @@ export const SwipeCard = React.memo<SwipeCardProps>(function SwipeCard({
 
     // Simplified content for next card - no gradient
     return (
-      <View style={[styles.gradientOverlay, { backgroundColor: "rgba(11, 46, 52, 0.4)" }]}>
+      <View
+        style={[
+          styles.gradientOverlay,
+          { backgroundColor: "rgba(11, 46, 52, 0.4)" },
+        ]}
+      >
         <View style={styles.cardContent}>
           <CustomText
             fontFamily="Inter-SemiBold"
             style={[styles.cardTitle, { color: colors.background }]}
           >
-            {item.title || item.address || item.category || 'Unknown'}
+            {item.title || item.address || item.category || "Unknown"}
           </CustomText>
         </View>
       </View>

@@ -1,15 +1,16 @@
 import * as React from "react";
-import Svg, { Path, Rect } from "react-native-svg";
+import Svg, { Path, Rect, Polygon } from "react-native-svg";
 
 const PigeonSvg = ({ ...props }) => (
-  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" {...props}>
-    <Rect width={12} height={12} fill="#3C62FA" />
-    <Path d="M12 12V0L24 12H12Z" fill="#F84808" />
-    <Path d="M12 24V12L24 24H12Z" fill="#3C62FA" />
-    <Path d="M12 12L12 24L2.00275e-06 12L12 12Z" fill="#3C62FA" />
-    <Path d="M24 12L24 24L12 12L24 12Z" fill="#131314" />
-    <Rect x={3.42871} y={3.42859} width={5.14286} height={5.14286} fill="white" />
-    <Rect x={5.14307} y={3.42859} width={3.42857} height={3.42857} fill="#131314" />
+  <Svg width={24} height={24} viewBox="0 0 350.01 350" fill="none" {...props}>
+    <Polygon
+      points="175 350 175 349.99 0 174.99 0 0 175 0 175 175 350 350 175 350"
+      fill="#3C62FA"
+    />
+    <Path d="M175,175V0l175,175h-175,0Z" fill="#F84808" />
+    <Path d="M350.01,175v175l-175-175h175Z" fill="#131314" />
+    <Rect x="50.01" y="50" width="75" height="75" fill="#FFFFFF" />
+    <Rect x="75.01" y="50" width="50" height="50" fill="#131314" />
   </Svg>
 );
 

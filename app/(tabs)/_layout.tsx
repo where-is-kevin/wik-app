@@ -123,7 +123,7 @@ export default function TabLayout() {
           {
             height:
               Platform.OS === "ios" && bottom > 0
-                ? verticalScale(45) + bottom
+                ? verticalScale(42) + bottom
                 : verticalScale(60) +
                   bottom +
                   (Platform.OS === "android" ? verticalScale(8) : 0),

@@ -165,7 +165,7 @@ export const OnboardingCompanyModal: React.FC<OnboardingCompanyModalProps> = ({
           <OnboardingSearch
             value={searchQuery}
             onChangeText={handleSearchChange}
-            placeholder="Company"
+            placeholder="Start typing"
             autoFocus={false}
             autoCorrect={false}
             spellCheck={false}

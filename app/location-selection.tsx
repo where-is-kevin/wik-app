@@ -42,6 +42,7 @@ const LocationSelectionScreen = () => {
   const [selectedLocation, setSelectedLocation] = useState<
     LocationData | undefined
   >();
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const {
     results: searchResults,
@@ -109,7 +110,8 @@ const LocationSelectionScreen = () => {
   };
 
   const handleConfirm = async () => {
-    if (selectedLocation) {
+    if (selectedLocation && !isUpdating) {
+      setIsUpdating(true);
       try {
         let locationValue = "";
 
@@ -153,6 +155,8 @@ const LocationSelectionScreen = () => {
         router.back();
       } catch {
         // Silently handle location preference errors
+      } finally {
+        setIsUpdating(false);
       }
     }
   };
@@ -181,18 +185,22 @@ const LocationSelectionScreen = () => {
           Change Location
         </CustomText>
 
-        <CustomTouchable onPress={handleConfirm} disabled={!selectedLocation}>
+        <CustomTouchable
+          onPress={handleConfirm}
+          disabled={!selectedLocation || isUpdating}
+        >
           <CustomText
             style={[
               styles.confirmText,
               {
-                color: selectedLocation
-                  ? colors.light_blue
-                  : colors.gray_regular,
+                color:
+                  selectedLocation && !isUpdating
+                    ? colors.light_blue
+                    : colors.gray_regular,
               },
             ]}
           >
-            Done
+            {isUpdating ? "..." : "Done"}
           </CustomText>
         </CustomTouchable>
       </CustomView>

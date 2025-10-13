@@ -77,7 +77,7 @@ const SwipeCardTooltips = ({ onComplete }: SwipeCardTooltipsProps) => {
             fontFamily="Inter-SemiBold"
             style={[styles.actionText, { color: colors.background }]}
           >
-            BOOK
+            VISIT
           </CustomText>
         </CustomView>
 
@@ -121,10 +121,10 @@ const SwipeCardTooltips = ({ onComplete }: SwipeCardTooltipsProps) => {
 const styles = StyleSheet.create({
   overlay: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: verticalScale(10), // Match the paddingBottom from SwipeCards
+    top: verticalScale(0), // Adjust top position to better align with card
+    left: horizontalScale(24), // Match renderCardContainer paddingHorizontal
+    right: horizontalScale(24), // Match renderCardContainer paddingHorizontal
+    bottom: verticalScale(15), // Slightly more bottom margin to account for card positioning
     zIndex: 1000,
     borderRadius: 16,
   },
@@ -183,27 +183,27 @@ const styles = StyleSheet.create({
   },
   topGesture: {
     position: "absolute",
-    top: "5%",
+    top: "4%",
     alignSelf: "center",
     alignItems: "center",
   },
   leftGesture: {
     position: "absolute",
-    left: horizontalScale(40),
+    left: horizontalScale(20),
     top: "50%",
     alignItems: "center",
     transform: [{ translateY: -25 }],
   },
   rightGesture: {
     position: "absolute",
-    right: horizontalScale(40),
+    right: horizontalScale(20),
     top: "50%",
     alignItems: "center",
     transform: [{ translateY: -25 }],
   },
   bottomGesture: {
     position: "absolute",
-    bottom: "5%",
+    bottom: "4%",
     alignSelf: "center",
     alignItems: "center",
   },

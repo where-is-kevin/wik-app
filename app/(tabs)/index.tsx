@@ -1,8 +1,8 @@
 import { useContent } from "@/hooks/useContent";
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { useAddLike } from "@/hooks/useLikes";
 import { getErrorMessage } from "@/utilities/errorUtils";
-import { StyleSheet, Linking, Alert, View } from "react-native";
+import { StyleSheet, View, Linking, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { ErrorScreen } from "@/components/ErrorScreen";
 import CustomView from "@/components/CustomView";
@@ -27,6 +27,8 @@ import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
 import ModeHeader from "@/components/Header/ModeHeader";
 import { useToast } from "@/contexts/ToastContext";
 import { useMode } from "@/contexts/ModeContext";
+import SwipeCardTooltips from "@/components/Tooltips/SwipeCardTooltips";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const SwipeableCards = () => {
   const router = useRouter();
@@ -69,6 +71,13 @@ const SwipeableCards = () => {
     error,
     refetch,
   } = useContent(locationParams, getPermissionStatus());
+
+  // Reset pagination when new content is loaded
+  React.useEffect(() => {
+    if (content && content.length > 0) {
+      setCurrentOffset(0);
+    }
+  }, [content]);
   const { colors } = useTheme();
   const { trackSuggestion } = useAnalyticsContext();
   const { showToast } = useToast();
@@ -82,6 +91,35 @@ const SwipeableCards = () => {
     setIsCreateBucketBottomSheetVisible,
   ] = useState(false);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+  const [showSwipeTooltips, setShowSwipeTooltips] = useState(false);
+
+  // Check if this is the first time user visits the main tab
+  useEffect(() => {
+    const checkFirstTimeUser = async () => {
+      try {
+        const hasSeenTooltips = await AsyncStorage.getItem(
+          "hasSeenSwipeTooltips"
+        );
+        if (!hasSeenTooltips) {
+          setShowSwipeTooltips(true);
+        }
+      } catch (error) {
+        console.log("Error checking first time user:", error);
+      }
+    };
+
+    checkFirstTimeUser();
+  }, []);
+
+  const handleTooltipsComplete = async () => {
+    try {
+      await AsyncStorage.setItem("hasSeenSwipeTooltips", "true");
+      setShowSwipeTooltips(false);
+    } catch (error) {
+      console.log("Error saving tooltips completion:", error);
+      setShowSwipeTooltips(false);
+    }
+  };
 
   // Mutation hooks
   const addBucketMutation = useAddBucket();
@@ -91,6 +129,8 @@ const SwipeableCards = () => {
 
   // Track when to refresh the card stack
   const [swipeKey, setSwipeKey] = useState<number>(0);
+  // Track current offset for pagination through existing data
+  const [currentOffset, setCurrentOffset] = useState<number>(0);
 
   // Transform your content data to match SwipeCards interface
   const transformedData: CardData[] = useMemo(() => {
@@ -98,39 +138,42 @@ const SwipeableCards = () => {
       return [];
     }
 
-    const filtered = content
-      .slice(0, 8) // Limit to 8 cards to match prerenderItems
-      .map((item) => ({
-        id: item.id,
-        title: item.title || "Untitled", // Handle null title
-        imageUrl:
-          item.internalImageUrls &&
-          Array.isArray(item.internalImageUrls) &&
-          item.internalImageUrls.length > 0
-            ? item.internalImageUrls[0]
-            : "",
-        price: item.price
-          ? typeof item.price === "number"
-            ? item.price.toString()
-            : item.price
-          : undefined,
-        rating: item?.rating ? item.rating.toString() : undefined,
-        category: item.category,
-        websiteUrl: item.websiteUrl || "",
-        address: item.addressShort || item.address || "",
-        isSponsored: item.isSponsored,
-        contentShareUrl: item.contentShareUrl,
-        tags: item.tags,
-        similarity:
-          typeof item.similarity === "string"
-            ? parseFloat(item.similarity) || 0
-            : item.similarity,
-        distance: item.distance,
-        eventDatetime: (item as any).eventDatetime, // Add event datetime for events
-      }));
+    // Calculate how many items we can show from current offset
+    const itemsPerBatch = 8;
+    const startIndex = currentOffset;
+    const endIndex = Math.min(startIndex + itemsPerBatch, content.length);
+
+    const filtered = content.slice(startIndex, endIndex).map((item) => ({
+      id: item.id,
+      title: item.title || "Untitled", // Handle null title
+      imageUrl:
+        item.internalImageUrls &&
+        Array.isArray(item.internalImageUrls) &&
+        item.internalImageUrls.length > 0
+          ? item.internalImageUrls[0]
+          : "",
+      price: item.price
+        ? typeof item.price === "number"
+          ? item.price.toString()
+          : item.price
+        : undefined,
+      rating: item?.rating ? item.rating.toString() : undefined,
+      category: item.category,
+      websiteUrl: item.websiteUrl || "",
+      address: item.addressShort || item.address || "",
+      isSponsored: item.isSponsored,
+      contentShareUrl: item.contentShareUrl,
+      tags: item.tags,
+      similarity:
+        typeof item.similarity === "string"
+          ? parseFloat(item.similarity) || 0
+          : item.similarity,
+      distance: item.distance,
+      eventDatetime: (item as any).eventDatetime, // Add event datetime for events
+    }));
 
     return filtered;
-  }, [content]);
+  }, [content, currentOffset]);
 
   const handleLike = useCallback(
     (item: CardData) => {
@@ -144,7 +187,10 @@ const SwipeableCards = () => {
         suggestion_type:
           (item.category as "venue" | "experience" | "event") || "unknown",
         category: item.category || "unknown",
-        similarity_score: typeof item.similarity === "string" ? parseFloat(item.similarity) || 0 : item.similarity,
+        similarity_score:
+          typeof item.similarity === "string"
+            ? parseFloat(item.similarity) || 0
+            : item.similarity,
         rating: item.rating ? parseFloat(item.rating) : undefined,
         price_range: item.price,
       });
@@ -174,7 +220,10 @@ const SwipeableCards = () => {
         suggestion_type:
           (item.category as "venue" | "experience" | "event") || "venue",
         category: item.category || "unknown",
-        similarity_score: typeof item.similarity === "string" ? parseFloat(item.similarity) || 0 : item.similarity,
+        similarity_score:
+          typeof item.similarity === "string"
+            ? parseFloat(item.similarity) || 0
+            : item.similarity,
         rating: item.rating ? parseFloat(item.rating) : undefined,
         price_range: item.price,
       });
@@ -222,7 +271,7 @@ const SwipeableCards = () => {
         return;
       }
 
-      // Handle analytics and URL opening asynchronously
+      // Handle analytics, liking, and URL opening asynchronously
       setTimeout(() => {
         // Track as save_suggestion
         trackSuggestion("save_suggestion", {
@@ -230,15 +279,35 @@ const SwipeableCards = () => {
           suggestion_type:
             (item.category as "venue" | "experience" | "event") || "venue",
           category: item.category || "unknown",
-          similarity_score: typeof item.similarity === "string" ? parseFloat(item.similarity) || 0 : item.similarity,
+          similarity_score:
+            typeof item.similarity === "string"
+              ? parseFloat(item.similarity) || 0
+              : item.similarity,
           rating: item.rating ? parseFloat(item.rating) : undefined,
           price_range: item.price,
         });
 
-        // Check if the item has a website URL and open it
+        // Like the item since the card is moving to next
+        const likeData = {
+          contentIds: [item.id],
+        };
+
+        addLikeMutation.mutate(likeData, {
+          onSuccess: () => {
+            showToast("Saved to your likes", "success");
+          },
+          onError: () => {
+            showToast("Failed to save your interest", "error");
+          },
+        });
+
+        // Also open the website URL
         if (item?.websiteUrl) {
           Linking.openURL(item.websiteUrl).catch(() => {
-            // Silently handle URL opening errors
+            Alert.alert(
+              "Unable to Open",
+              "Could not open the website for this content."
+            );
           });
         } else {
           Alert.alert(
@@ -248,7 +317,7 @@ const SwipeableCards = () => {
         }
       }, 0);
     },
-    [trackSuggestion]
+    [trackSuggestion, addLikeMutation, showToast]
   );
 
   // Track loading state for card refresh
@@ -256,14 +325,30 @@ const SwipeableCards = () => {
 
   // Refresh the card stack when cards are exhausted
   const handleComplete = useCallback(() => {
-    setIsRefreshing(true);
-    // Increment key to force Swiper to refresh with new data
-    setSwipeKey((prev) => prev + 1);
-    refetch().finally(() => {
-      // Small delay to ensure smooth transition
+    if (!content) return;
+
+    const itemsPerBatch = 8;
+    const nextOffset = currentOffset + itemsPerBatch;
+
+    // Check if we have more items in the existing data
+    if (nextOffset < content.length) {
+      // Show next batch from existing data without API call
+      setIsRefreshing(true);
+      setCurrentOffset(nextOffset);
+      setSwipeKey((prev) => prev + 1);
+
+      // Small delay for smooth transition
       setTimeout(() => setIsRefreshing(false), 500);
-    });
-  }, [refetch]);
+    } else {
+      // We've exhausted all data, make a new API call
+      setIsRefreshing(true);
+      setCurrentOffset(0); // Reset to beginning
+      setSwipeKey((prev) => prev + 1);
+      refetch().finally(() => {
+        setTimeout(() => setIsRefreshing(false), 500);
+      });
+    }
+  }, [content, currentOffset, refetch]);
 
   const handleCardTap = useCallback(
     (item: CardData) => {
@@ -330,6 +415,7 @@ const SwipeableCards = () => {
 
   const handleFilterApply = (filters: FilterType[]) => {
     setSelectedFilters(filters);
+    setCurrentOffset(0); // Reset pagination when filters change
     // The locationParams will automatically update due to the dependency on selectedFilters
   };
 
@@ -361,7 +447,10 @@ const SwipeableCards = () => {
         <CustomView bgColor={colors.overlay} style={{ flex: 1 }}>
           <ModeHeader />
           <CustomTouchable
-            style={[styles.filterSvgButton, { marginRight: horizontalScale(24) }]}
+            style={[
+              styles.filterSvgButton,
+              { marginRight: horizontalScale(24) },
+            ]}
             onPress={() => setIsFilterModalVisible(true)}
           >
             <CustomView style={styles.filterSvgContainer}>
@@ -419,8 +508,10 @@ const SwipeableCards = () => {
               />
             ) : (
               <ErrorScreen
-                title="You're on the edge of something amazing."
-                message="We're not live in your area just yet, but as soon as we reach 5000 signed up nearby we'll launch. To help us reach our goal, tell your friends so you can all be part of launching something amazing in your area."
+                title="Oops, there are no recommendations around you"
+                message="Please change your filters or location to find new recommendations."
+                buttonText="Change Location"
+                onRetry={() => router.push("/location-selection")}
               />
             )}
           </CustomView>
@@ -460,18 +551,24 @@ const SwipeableCards = () => {
             <AnimatedLoader />
           </CustomView>
         ) : (
-          <SwipeCards
-            key={swipeKey}
-            data={transformedData}
-            onSwipeLeft={handleSwipeLeft}
-            onSwipeRight={handleSwipeRight}
-            onSwipeUp={handleSwipeUp}
-            onComplete={handleComplete}
-            onCardTap={handleCardTap}
-            onBucketPress={handleShowBucketBottomSheet}
-            isLoading={isLoading}
-            showLoaderOnComplete={true}
-          />
+          <CustomView style={[styles.swipeContainer, { position: "relative" }]}>
+            <SwipeCards
+              key={swipeKey}
+              data={transformedData}
+              onSwipeLeft={handleSwipeLeft}
+              onSwipeRight={handleSwipeRight}
+              onSwipeUp={handleSwipeUp}
+              onComplete={handleComplete}
+              onCardTap={handleCardTap}
+              onBucketPress={handleShowBucketBottomSheet}
+              isLoading={isLoading}
+              showLoaderOnComplete={true}
+            />
+
+            {showSwipeTooltips && !isLoading && transformedData.length > 0 && (
+              <SwipeCardTooltips onComplete={handleTooltipsComplete} />
+            )}
+          </CustomView>
         )}
       </CustomView>
 

@@ -79,6 +79,13 @@ export type CreateUserInput = {
 
 const createUser = async (input: CreateUserInput): Promise<User> => {
   try {
+    // Always send empty arrays for onboarding likes/dislikes (temporarily disabled)
+    const modifiedInput = {
+      ...input,
+      onboardingLikes: [], // Always empty for now
+      onboardingDislikes: [], // Always empty for now
+    };
+
     return await createTimedAjax<User>({
       url: `${API_URL}/otp/register-request`,
       method: "POST",
@@ -86,7 +93,7 @@ const createUser = async (input: CreateUserInput): Promise<User> => {
         accept: "application/json",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(input),
+      body: JSON.stringify(modifiedInput),
       responseType: "json",
     });
   } catch (error: any) {

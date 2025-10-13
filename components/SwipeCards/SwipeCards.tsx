@@ -1,14 +1,6 @@
 // components/SwipeCards.tsx - Using rn-swiper-list with card stacking fix
 import React, { useCallback, useRef, useState, useEffect } from "react";
-import {
-  StyleSheet,
-  View,
-  Image,
-  Animated,
-  Linking,
-  Alert,
-  Platform,
-} from "react-native";
+import { StyleSheet, View, Animated, Platform, Image } from "react-native";
 import AnimatedLoader from "../Loader/AnimatedLoader";
 import { Swiper, type SwiperCardRefType } from "rn-swiper-list";
 import CustomText from "../CustomText";
@@ -16,11 +8,8 @@ import { OptimizedImageBackground } from "../OptimizedImage/OptimizedImage";
 import { CardContentOverlay } from "./CardContentOverlay";
 import { getImageSource } from "@/utilities/imageHelpers";
 import { useTheme } from "@/contexts/ThemeContext";
-import {
-  horizontalScale,
-  verticalScale,
-  scaleFontSize,
-} from "@/utilities/scaling";
+import { horizontalScale, verticalScale } from "@/utilities/scaling";
+import { STATIC_IMAGES } from "@/constants/images";
 
 export interface CardData {
   id: string;
@@ -73,14 +62,11 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
   const [swiperReady, setSwiperReady] = useState(false);
   const [isFirstLoad, setIsFirstLoad] = useState(true);
   const [loadedImageCount, setLoadedImageCount] = useState(0);
-  const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(
-    new Set()
-  );
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // Android-specific optimizations
   const isAndroid = Platform.OS === "android";
-  const preloadCount = isAndroid ? 3 : 4; // Enough for deck appearance but still fast
+  const preloadCount = isAndroid ? 2 : 3; // Reduced for faster Android loading
   const minLoadTime = 0; // No artificial delay - show as soon as images are ready
   const fadeDelay = 0; // No fade delay - instant appearance
 
@@ -94,13 +80,12 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
   const currentDataKey = `${dataLength}-${firstItemId}`;
 
   // Calculate how many images we need to wait for before showing cards (less than preloadCount for faster display)
-  const requiredImageCount = Math.min(dataLength, isAndroid ? 2 : 2); // Wait for just 2 images for deck
+  const requiredImageCount = Math.min(dataLength, isAndroid ? 1 : 2); // Wait for just 1 image on Android for speed
 
   // Reset image loading state when data changes
   useEffect(() => {
     if (currentDataKey !== lastProcessedDataRef.current) {
       setLoadedImageCount(0);
-      setImageLoadErrors(new Set());
     }
   }, [currentDataKey]);
 
@@ -110,19 +95,17 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
   }, []);
 
   // Image error callback
-  const handleImageError = useCallback((imageUrl: string) => {
-    setImageLoadErrors((prev) => {
-      const newSet = new Set(prev);
-      newSet.add(imageUrl);
-      return newSet;
-    });
+  const handleImageError = useCallback(() => {
     // Count errors as "loaded" to prevent infinite waiting
     setLoadedImageCount((prev) => prev + 1);
   }, []);
 
   // Check if enough images are ready - be more lenient for faster loading
-  const areImagesReady = loadedImageCount >= requiredImageCount || !hasData ||
-    (loadedImageCount > 0 && dataLength <= 2); // If we have few cards, just wait for 1 image
+  const areImagesReady =
+    loadedImageCount >= requiredImageCount ||
+    !hasData ||
+    (loadedImageCount > 0 && dataLength <= 2) ||
+    dataLength === 1; // For single cards, don't wait for image loading to show card
 
   // Main loading and ready state management
   useEffect(() => {
@@ -148,7 +131,6 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
     fadeAnim.setValue(0);
     setImagesLoaded(false);
     setSwiperReady(false);
-
 
     // Loading with small delay to ensure swiper is properly initialized
     let hasShown = false;
@@ -186,8 +168,8 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
           showCards();
         }
       },
-      isAndroid ? 400 : 300
-    ); // Very short fallback for guaranteed display
+      isAndroid ? 200 : 300
+    ); // Even shorter fallback for Android
 
     return () => clearInterval(interval);
   }, [
@@ -221,20 +203,8 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
     if (data && data[cardIndex]) {
       const card = data[cardIndex];
 
-      // Trigger URL linking instead of removing card
-      if (card?.websiteUrl) {
-        Linking.openURL(card.websiteUrl).catch(() => {
-          Alert.alert(
-            "Unable to Open",
-            "Could not open the website for this content."
-          );
-        });
-      } else {
-        Alert.alert("No Website", "No website is available for this content.");
-      }
-
-      // Don't call onSwipeUp to prevent card from being removed from stack
-      // The card should snap back to position due to the spring config
+      // Call the parent's onSwipeUp handler - let parent decide what to do
+      onSwipeUp(card);
     }
   };
 
@@ -253,7 +223,8 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
   const renderCard = useCallback(
     (card: CardData, index: number) => {
       const imageSource = getImageSource(card.imageUrl);
-      const isPreloadCard = index < preloadCount;
+      // For single cards, always treat as preload card; otherwise use preload count
+      const isPreloadCard = dataLength === 1 ? true : index < preloadCount;
 
       return (
         <View
@@ -276,7 +247,7 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
             }}
             onError={() => {
               if (isPreloadCard) {
-                handleImageError(card.imageUrl);
+                handleImageError();
               }
             }}
             cachePolicy="memory-disk"
@@ -300,55 +271,46 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
       preloadCount,
       handleImageLoad,
       handleImageError,
+      fullWidth,
+      dataLength,
     ]
   );
 
   const OverlayLabelRight = useCallback(() => {
     return (
       <View style={styles.overlayLabelRight}>
-        <View
-          style={[styles.overlayLabelBackground, { borderColor: colors.lime }]}
-        >
-          <CustomText style={[styles.overlayText, { color: colors.lime }]}>
-            LIKE
-          </CustomText>
-        </View>
+        <Image
+          source={STATIC_IMAGES.APPROVE_IMAGE}
+          style={styles.overlayIcon}
+          resizeMode="contain"
+        />
       </View>
     );
-  }, [colors]);
+  }, []);
 
   const OverlayLabelLeft = useCallback(() => {
     return (
       <View style={styles.overlayLabelLeft}>
-        <View
-          style={[styles.overlayLabelBackground, { borderColor: colors.bordo }]}
-        >
-          <CustomText style={[styles.overlayText, { color: colors.bordo }]}>
-            SKIP
-          </CustomText>
-        </View>
+        <Image
+          source={STATIC_IMAGES.CANCEL_IMAGE}
+          style={styles.overlayIcon}
+          resizeMode="contain"
+        />
       </View>
     );
-  }, [colors]);
+  }, []);
 
   const OverlayLabelTop = useCallback(() => {
     return (
       <View style={styles.overlayLabelTop}>
-        <View
-          style={[
-            styles.overlayLabelBackground,
-            { borderColor: colors.card_purple },
-          ]}
-        >
-          <CustomText
-            style={[styles.overlayText, { color: colors.card_purple }]}
-          >
-            VISIT
-          </CustomText>
-        </View>
+        <Image
+          source={STATIC_IMAGES.ARROW_UP}
+          style={styles.overlayIcon}
+          resizeMode="contain"
+        />
       </View>
     );
-  }, [colors]);
+  }, []);
 
   // Show only loader during completion to prevent card stacking
   if (isCompleting || (showLoaderOnComplete && isLoading)) {
@@ -362,12 +324,24 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
   }
 
   // Show loader while initial data is loading OR while images are being preloaded OR while swiper is preparing
-  if (isLoading || !imagesLoaded || !swiperReady) {
-    return (
-      <View style={styles.container}>
-        <AnimatedLoader />
-      </View>
-    );
+  // For single cards, bypass complex loading logic
+  if (dataLength === 1) {
+    if (isLoading) {
+      return (
+        <View style={styles.container}>
+          <AnimatedLoader />
+        </View>
+      );
+    }
+  } else {
+    // Multi-card loading logic
+    if (isLoading || !imagesLoaded || !swiperReady) {
+      return (
+        <View style={styles.container}>
+          <AnimatedLoader />
+        </View>
+      );
+    }
   }
 
   // If no data, return null to let parent handle empty state
@@ -399,48 +373,65 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
             OverlayLabelTop={OverlayLabelTop}
             disableBottomSwipe={true}
             disableTopSwipe={false}
-            swipeVelocityThreshold={isAndroid ? 120 : 150}
+            swipeVelocityThreshold={isAndroid ? 120 : 150} // Higher threshold for better direction detection
             swipeTopSpringConfig={{
-              damping: isAndroid ? 20 : 15,
-              stiffness: isAndroid ? 120 : 150,
-              mass: 1,
-              overshootClamping: false,
-              restDisplacementThreshold: 0.1,
+              damping: isAndroid ? 20 : 25, // Reduced damping for smoother upward movement
+              stiffness: isAndroid ? 200 : 250, // Higher stiffness for faster response
+              mass: 0.3, // Reduced mass for quicker animation
+              overshootClamping: true,
+              restDisplacementThreshold: 0.1, // Higher threshold for faster completion
               restSpeedThreshold: 0.1,
             }}
-            prerenderItems={Math.min(
-              data.length - 1,
-              preloadCount
-            )}
+            prerenderItems={
+              dataLength === 1
+                ? 1
+                : Math.max(0, Math.min(data.length - 1, preloadCount))
+            }
             keyExtractor={(item, index) =>
               `${item.id}-${index}-${currentDataKey}`
             }
-            // Configure overlay opacity ranges to make them mutually exclusive - very strict
-            inputOverlayLabelRightOpacityRange={[50, 120]}
+            // Configure overlay opacity ranges with much higher vertical threshold
+            inputOverlayLabelRightOpacityRange={[30, 120]} // Horizontal right range
             outputOverlayLabelRightOpacityRange={[0, 1]}
-            inputOverlayLabelLeftOpacityRange={[-120, -50]}
+            inputOverlayLabelLeftOpacityRange={[-120, -30]} // Horizontal left range
             outputOverlayLabelLeftOpacityRange={[1, 0]}
-            inputOverlayLabelTopOpacityRange={[-120, -50]}
-            outputOverlayLabelTopOpacityRange={[1, 0]}
-            // Enhanced card movement - more realistic pickup animation (Android optimized)
-            rotateInputRange={[-120, 0, 120]}
-            rotateOutputRange={[-Math.PI / 8, 0, Math.PI / 8]}
-            translateYRange={isAndroid ? [-10, 0, -10] : [-15, 0, -15]}
+            inputOverlayLabelTopOpacityRange={[-80, -200]} // Much higher vertical threshold - swipe up only appears with significant upward movement
+            outputOverlayLabelTopOpacityRange={[0, 1]}
+            // Enhanced card movement - smoother, less chaotic animations
+            rotateInputRange={[-150, 0, 150]} // Wider range for smoother rotation
+            rotateOutputRange={[-Math.PI / 12, 0, Math.PI / 12]} // Reduced rotation for less chaotic feel
+            translateYRange={isAndroid ? [-8, 0, -8] : [-12, 0, -12]} // Reduced Y translation
             swipeRightSpringConfig={{
-              damping: isAndroid ? 40 : 50,
-              stiffness: isAndroid ? 300 : 400,
-              mass: isAndroid ? 0.5 : 0.3,
+              damping: isAndroid ? 35 : 40, // Reduced damping for smoother horizontal swipes
+              stiffness: isAndroid ? 180 : 200, // Higher stiffness for faster response
+              mass: isAndroid ? 0.8 : 1.0, // Reduced mass for quicker animation
               overshootClamping: true,
-              restDisplacementThreshold: 0.01,
-              restSpeedThreshold: 0.01,
+              restDisplacementThreshold: 0.1, // Higher threshold for faster completion
+              restSpeedThreshold: 0.1,
             }}
             swipeLeftSpringConfig={{
-              damping: isAndroid ? 40 : 50,
-              stiffness: isAndroid ? 300 : 400,
-              mass: isAndroid ? 0.5 : 0.3,
+              damping: isAndroid ? 35 : 40, // Reduced damping for smoother horizontal swipes
+              stiffness: isAndroid ? 180 : 200, // Higher stiffness for faster response
+              mass: isAndroid ? 0.8 : 1.0, // Reduced mass for quicker animation
               overshootClamping: true,
-              restDisplacementThreshold: 0.01,
-              restSpeedThreshold: 0.01,
+              restDisplacementThreshold: 0.1, // Higher threshold for faster completion
+              restSpeedThreshold: 0.1,
+            }}
+            swipeBackXSpringConfig={{
+              damping: isAndroid ? 30 : 35, // Smooth bounce back on X-axis
+              stiffness: isAndroid ? 220 : 250, // High stiffness for quick return
+              mass: 0.5,
+              overshootClamping: false, // Allow small overshoot for natural bounce
+              restDisplacementThreshold: 0.1,
+              restSpeedThreshold: 0.1,
+            }}
+            swipeBackYSpringConfig={{
+              damping: isAndroid ? 30 : 35, // Smooth bounce back on Y-axis
+              stiffness: isAndroid ? 220 : 250, // High stiffness for quick return
+              mass: 0.5,
+              overshootClamping: false, // Allow small overshoot for natural bounce
+              restDisplacementThreshold: 0.1,
+              restSpeedThreshold: 0.1,
             }}
           />
         )}
@@ -486,30 +477,20 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   overlayLabelLeft: {
-    left: "50%",
+    left: "60%",
     top: "20%",
   },
   overlayLabelRight: {
-    right: "-15%",
+    left: "15%",
     top: "20%",
   },
   overlayLabelTop: {
-    top: "20%",
+    top: "40%",
     alignSelf: "center",
   },
-  overlayText: {
-    fontSize: scaleFontSize(18),
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  overlayLabelBackground: {
-    width: horizontalScale(120),
-    height: verticalScale(60),
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 3,
-    // borderColor: "rgba(255, 255, 255, 0.8)",
+  overlayIcon: {
+    width: horizontalScale(80),
+    height: verticalScale(80),
   },
   overlayLabelContainer: {
     borderRadius: 16,

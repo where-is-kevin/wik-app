@@ -11,9 +11,7 @@ import {
 } from "@/utilities/scaling";
 import { OnboardingSearch } from "./OnboardingSearch";
 import { commonOnboardingStyles } from "./OnboardingStyles";
-import { OnboardingFormLocationModal } from "./OnboardingLocationModal";
 import { OnboardingExpertiseModal } from "./OnboardingExpertiseModal";
-import { LocationData } from "./OnboardingLocationItem";
 import OnboardingSearchSvg from "../SvgComponents/OnboardingSearchSvg";
 import { getExpertiseColor } from "./ExpertiseTagsStore";
 
@@ -26,7 +24,6 @@ interface OnboardingBusinessPersonalFormSlideProps {
 
 export interface BusinessPersonalFormData {
   fullName: string;
-  currentLocation: string | LocationData;
   areasOfExpertise: string[];
 }
 
@@ -37,11 +34,9 @@ export const OnboardingBusinessPersonalFormSlide: React.FC<
   const [formData, setFormData] = useState<BusinessPersonalFormData>(
     initialData || {
       fullName: "",
-      currentLocation: "",
       areasOfExpertise: [],
     }
   );
-  const [showLocationModal, setShowLocationModal] = useState(false);
   const [showExpertiseModal, setShowExpertiseModal] = useState(false);
 
   const updateField = (field: keyof BusinessPersonalFormData, value: any) => {
@@ -50,36 +45,8 @@ export const OnboardingBusinessPersonalFormSlide: React.FC<
     onFormChange(newData);
   };
 
-  const handleLocationSelect = (location: LocationData) => {
-    updateField("currentLocation", location);
-  };
-
   const handleExpertiseSelect = (expertise: string[]) => {
     updateField("areasOfExpertise", expertise);
-  };
-
-  const getLocationDisplayValue = () => {
-    if (
-      typeof formData.currentLocation === "object" &&
-      formData.currentLocation?.name
-    ) {
-      return formData.currentLocation.name;
-    }
-    return typeof formData.currentLocation === "string"
-      ? formData.currentLocation
-      : "";
-  };
-
-  const getLocationForValidation = () => {
-    if (
-      typeof formData.currentLocation === "object" &&
-      formData.currentLocation?.name
-    ) {
-      return formData.currentLocation.name;
-    }
-    return typeof formData.currentLocation === "string"
-      ? formData.currentLocation
-      : "";
   };
 
   return (
@@ -135,27 +102,6 @@ export const OnboardingBusinessPersonalFormSlide: React.FC<
           />
         </CustomView>
 
-        {/* Current Location */}
-        <CustomView style={styles.inputContainer}>
-          <CustomText style={[styles.label, { color: colors.label_dark }]}>
-            Current Location
-          </CustomText>
-          <TouchableOpacity
-            onPress={() => setShowLocationModal(true)}
-            activeOpacity={0.7}
-          >
-            <CustomView pointerEvents="none">
-              <OnboardingSearch
-                value={getLocationDisplayValue()}
-                onChangeText={() => {}} // Disabled - modal handles input
-                placeholder="Start typing and select"
-                showIcon={true}
-                customStyles={{ marginBottom: 0 }}
-                editable={false}
-              />
-            </CustomView>
-          </TouchableOpacity>
-        </CustomView>
 
         {/* Areas of Expertise */}
         <CustomView style={styles.inputContainer}>
@@ -210,17 +156,6 @@ export const OnboardingBusinessPersonalFormSlide: React.FC<
         </CustomView>
       </KeyboardAwareScrollView>
 
-      {/* Location Modal */}
-      <OnboardingFormLocationModal
-        visible={showLocationModal}
-        onClose={() => setShowLocationModal(false)}
-        onLocationSelect={handleLocationSelect}
-        selectedLocation={
-          typeof formData.currentLocation === "object"
-            ? formData.currentLocation
-            : undefined
-        }
-      />
 
       {/* Expertise Modal */}
       <OnboardingExpertiseModal

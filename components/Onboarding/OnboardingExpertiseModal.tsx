@@ -28,7 +28,8 @@ export const OnboardingExpertiseModal: React.FC<
 > = ({ visible, onClose, onExpertiseSelect, selectedExpertise }) => {
   const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
-  const [tempSelectedExpertise, setTempSelectedExpertise] = useState<string[]>(selectedExpertise);
+  const [tempSelectedExpertise, setTempSelectedExpertise] =
+    useState<string[]>(selectedExpertise);
 
   // Sync temp state when modal becomes visible or selectedExpertise changes
   useEffect(() => {
@@ -105,7 +106,7 @@ export const OnboardingExpertiseModal: React.FC<
         <OnboardingSearch
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Areas of Expertise"
+          placeholder="Start typing"
           autoFocus={false}
           autoCorrect={false}
           spellCheck={false}

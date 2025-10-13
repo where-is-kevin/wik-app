@@ -64,8 +64,9 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
   const getContainerStyles = (): ViewStyle[] => {
     const baseStyles: ViewStyle[] = [
       styles.inputContainer,
-      isFocused ? styles.inputContainerFocused : {},
+      isFocused && editable !== false ? styles.inputContainerFocused : {},
       multiline ? styles.multilineContainer : {},
+      editable === false ? styles.inputContainerDisabled : {},
     ];
 
     // Only add fixedHeight if it exists and is greater than 0
@@ -79,7 +80,7 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
   const getInputStyles = (): TextStyle[] => {
     const baseStyles: TextStyle[] = [
       styles.input,
-      { color: colors.label_dark },
+      { color: editable === false ? colors.gray_regular : colors.label_dark },
       multiline ? styles.multilineInput : {},
     ];
 
@@ -178,6 +179,10 @@ const styles = StyleSheet.create({
   inputContainerFocused: {
     borderColor: "#5953FF",
     borderWidth: 1,
+  },
+  inputContainerDisabled: {
+    backgroundColor: "#F5F5F5",
+    borderColor: "#E5E5E6",
   },
   multilineContainer: {
     alignItems: "flex-start",

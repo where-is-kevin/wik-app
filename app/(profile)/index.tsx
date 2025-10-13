@@ -125,6 +125,7 @@ const UpdateProfile = () => {
             placeholder="Email"
             value={form.email}
             onChangeText={(text) => handleChange("email", text)}
+            editable={false}
           />
           {/* <CustomTextInput
             label="Travel destination"

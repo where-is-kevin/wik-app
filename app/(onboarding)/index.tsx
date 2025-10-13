@@ -97,7 +97,6 @@ const OnboardingScreen = () => {
   const [businessPersonalFormData, setBusinessPersonalFormData] =
     useState<BusinessPersonalFormData>({
       fullName: "",
-      currentLocation: "",
       areasOfExpertise: [],
     });
   const [businessWorkFormData, setBusinessWorkFormData] =
@@ -191,7 +190,9 @@ const OnboardingScreen = () => {
     isLoading: isContentLoading,
     error: contentError,
     refetch,
-  } = useContent({});
+  } = useContent({
+    category_filter: "event;venue;experience", // Load all content types for onboarding
+  });
 
 
   // Helper function to remove emojis from text (remove emoji at start + any trailing space)
@@ -338,22 +339,16 @@ const OnboardingScreen = () => {
         ]
       : [];
 
-    const currentLocation =
-      typeof businessPersonalFormData.currentLocation === "object"
-        ? businessPersonalFormData.currentLocation?.name || ""
-        : businessPersonalFormData.currentLocation || "";
-
     return {
       type: "business",
       travelingGoal: travelingGoal,
       connectionTags: connectionTags,
       industryTags: industryTags,
       networkingStyle: networkingStyle,
-      location: selectedLocation?.fullName || currentLocation,
+      location: selectedLocation?.fullName || "current location",
       onboardingLikes: swipeLikes,
       onboardingDislikes: swipeDislikes,
       fullName: businessPersonalFormData.fullName,
-      currentLocation: currentLocation,
       areasOfExpertise: businessPersonalFormData.areasOfExpertise,
       role: businessWorkFormData.role,
       company: businessWorkFormData.company,
@@ -410,10 +405,11 @@ const OnboardingScreen = () => {
             // Update query cache
             queryClient.setQueryData(["auth"], authData);
           }
-          // Save location preference before navigation
+          // Save location preference
           await saveLocationPreference();
 
-          await navigateAfterAuth();
+          // Move to next step (final slide) instead of navigating to app
+          setCurrentStepIndex(currentStepIndex + 1);
         } catch (error) {
           console.error("Error storing auth data:", error);
           // Save location preference even if auth storage fails
@@ -923,6 +919,12 @@ const OnboardingScreen = () => {
       return;
     }
 
+    // Check if we're on final-slide - navigate to app
+    if (stepData?.type === "final-slide") {
+      await navigateAfterAuth();
+      return;
+    }
+
     // Check if we're at the final leisure registration step (personal-form)
     if (
       currentStepIndex === currentFlow.length - 1 &&
@@ -1058,12 +1060,7 @@ const OnboardingScreen = () => {
     ) => {
       setBusinessPersonalFormData(data);
 
-      const locationValue =
-        typeof data.currentLocation === "object"
-          ? data.currentLocation?.name || ""
-          : data.currentLocation || "";
-      const isFormValid =
-        data.fullName.trim() !== "" && locationValue.trim() !== "";
+      const isFormValid = data.fullName.trim() !== "";
 
       if (stepData) {
         setSelections((prev) => ({
@@ -1282,13 +1279,9 @@ const OnboardingScreen = () => {
       return !travelName.trim();
     }
 
-    // For business personal form step, require full name and location
+    // For business personal form step, require full name
     if (stepData?.type === "business-personal-form") {
-      const locationValue =
-        typeof businessPersonalFormData.currentLocation === "object"
-          ? businessPersonalFormData.currentLocation?.name || ""
-          : businessPersonalFormData.currentLocation || "";
-      return !businessPersonalFormData.fullName.trim() || !locationValue.trim();
+      return !businessPersonalFormData.fullName.trim();
     }
 
     // For business work form step, require all fields

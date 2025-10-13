@@ -53,9 +53,9 @@ export type OnboardingStep = {
 const initialStep: OnboardingStep = {
   key: "userType",
   title: "Let's personalize your experience",
-  subtitle: "Are you travelling for business or leisure?",
+  subtitle: "Are you a business or leisure traveler?",
   type: "logo-selection",
-  options: ["💼 For business", "🏖️ For leisure"],
+  options: ["💼 Business", "🏖️ Leisure"],
   allowMultipleSelections: false,
 };
 
@@ -189,60 +189,50 @@ const businessSteps: OnboardingStep[] = [
     options: [],
     allowMultipleSelections: false,
   },
-  {
-    key: "businessPreferences",
-    title: "It all starts with a swipe!",
-    subtitle: "We'll suggest more of what you swipe right on.",
-    type: "card-swipe" as const,
-    options: [], // Not used for card swipe
-    cards: [
-      {
-        id: "coworking1",
-        title: "Modern Coworking Space",
-        description: "Network with entrepreneurs and remote workers",
-        imageUrl: "https://picsum.photos/id/1015/300/200", // Placeholder
-      },
-      {
-        id: "conference1",
-        title: "Tech Conference",
-        description: "Industry leaders sharing latest innovations",
-        imageUrl: "https://picsum.photos/id/1043/300/200", // Placeholder
-      },
-      {
-        id: "networking1",
-        title: "Business Networking Event",
-        description: "Connect with investors and potential partners",
-        imageUrl: "https://picsum.photos/id/1056/300/200", // Placeholder
-      },
-      {
-        id: "startup1",
-        title: "Startup Meetup",
-        description: "Meet founders and learn about new ventures",
-        imageUrl: "https://picsum.photos/id/1060/300/200", // Placeholder
-      },
-    ],
-  },
-  {
-    key: "businessFinalSlide",
-    title: "You're all set! Your business adventure is waiting",
-    subtitle:
-      "Finish setting up your profile to unlock your networking opportunities.",
-    type: "final-slide" as const,
-    options: [],
-  },
+  // {
+  //   key: "businessPreferences",
+  //   title: "It all starts with a swipe!",
+  //   subtitle: "We'll suggest more of what you swipe right on.",
+  //   type: "card-swipe" as const,
+  //   options: [], // Not used for card swipe
+  //   cards: [
+  //     {
+  //       id: "coworking1",
+  //       title: "Modern Coworking Space",
+  //       description: "Network with entrepreneurs and remote workers",
+  //       imageUrl: "https://picsum.photos/id/1015/300/200", // Placeholder
+  //     },
+  //     {
+  //       id: "conference1",
+  //       title: "Tech Conference",
+  //       description: "Industry leaders sharing latest innovations",
+  //       imageUrl: "https://picsum.photos/id/1043/300/200", // Placeholder
+  //     },
+  //     {
+  //       id: "networking1",
+  //       title: "Business Networking Event",
+  //       description: "Connect with investors and potential partners",
+  //       imageUrl: "https://picsum.photos/id/1056/300/200", // Placeholder
+  //     },
+  //     {
+  //       id: "startup1",
+  //       title: "Startup Meetup",
+  //       description: "Meet founders and learn about new ventures",
+  //       imageUrl: "https://picsum.photos/id/1060/300/200", // Placeholder
+  //     },
+  //   ],
+  // },
   {
     key: "businessPersonalName",
     title: "Firstly, who are you?",
-    subtitle:
-      "This information will be shown to others on the app for networking purposes",
+    subtitle: "Lets get to know you.",
     type: "business-personal-form" as const,
     options: [],
   },
   {
     key: "businessWorkInfo",
     title: "Tell us about your work",
-    subtitle:
-      "This information will be shown to others on the app for networking purposes",
+    subtitle: "Lets get to know you.",
     type: "business-work-form" as const,
     options: [],
   },
@@ -258,6 +248,13 @@ const businessSteps: OnboardingStep[] = [
     title: "Verify your identity",
     subtitle: "Enter the 6-digit code sent to ",
     type: "code-slide" as const,
+    options: [],
+  },
+  {
+    key: "businessFinalSlide",
+    title: "You're all set! Your business adventure is waiting",
+    subtitle: "",
+    type: "final-slide" as const,
     options: [],
   },
 ];
@@ -457,46 +454,39 @@ const leisureSteps: OnboardingStep[] = [
     options: [],
     allowMultipleSelections: false,
   },
-  {
-    key: "travelPreferences",
-    title: "It all starts with a swipe!",
-    subtitle: "We'll suggest more of what you swipe right on.",
-    type: "card-swipe" as const,
-    options: [], // Not used for card swipe
-    cards: [
-      {
-        id: "beach1",
-        title: "Tropical Beach Paradise",
-        description: "White sand beaches and crystal clear water",
-        imageUrl: "https://picsum.photos/id/1036/300/200", // Placeholder
-      },
-      {
-        id: "mountain1",
-        title: "Mountain Adventure",
-        description: "Breathtaking views and hiking trails",
-        imageUrl: "https://picsum.photos/id/1016/300/200", // Placeholder
-      },
-      {
-        id: "city1",
-        title: "Urban Exploration",
-        description: "City life, museums, and fine dining",
-        imageUrl: "https://picsum.photos/id/1029/300/200", // Placeholder
-      },
-      {
-        id: "historical1",
-        title: "Historical Journey",
-        description: "Ancient ruins and cultural heritage",
-        imageUrl: "https://picsum.photos/id/1024/300/200", // Placeholder
-      },
-    ],
-  },
-  {
-    key: "travelFinalSlide",
-    title: "You're all set! Your adventure is waiting",
-    subtitle: "Finish setting up your profile to unlock your favourites.",
-    type: "final-slide" as const,
-    options: [],
-  },
+  // {
+  //   key: "travelPreferences",
+  //   title: "It all starts with a swipe!",
+  //   subtitle: "We'll suggest more of what you swipe right on.",
+  //   type: "card-swipe" as const,
+  //   options: [], // Not used for card swipe
+  //   cards: [
+  //     {
+  //       id: "beach1",
+  //       title: "Tropical Beach Paradise",
+  //       description: "White sand beaches and crystal clear water",
+  //       imageUrl: "https://picsum.photos/id/1036/300/200", // Placeholder
+  //     },
+  //     {
+  //       id: "mountain1",
+  //       title: "Mountain Adventure",
+  //       description: "Breathtaking views and hiking trails",
+  //       imageUrl: "https://picsum.photos/id/1016/300/200", // Placeholder
+  //     },
+  //     {
+  //       id: "city1",
+  //       title: "Urban Exploration",
+  //       description: "City life, museums, and fine dining",
+  //       imageUrl: "https://picsum.photos/id/1029/300/200", // Placeholder
+  //     },
+  //     {
+  //       id: "historical1",
+  //       title: "Historical Journey",
+  //       description: "Ancient ruins and cultural heritage",
+  //       imageUrl: "https://picsum.photos/id/1024/300/200", // Placeholder
+  //     },
+  //   ],
+  // },
   {
     key: "travelName",
     title: "Firstly, what's your name?",
@@ -516,6 +506,13 @@ const leisureSteps: OnboardingStep[] = [
     title: "Verify your identity",
     subtitle: "Enter the 6-digit code sent to ",
     type: "code-slide" as const,
+    options: [],
+  },
+  {
+    key: "travelFinalSlide",
+    title: "You're all set! Your adventure is waiting",
+    subtitle: "",
+    type: "final-slide" as const,
     options: [],
   },
 ];

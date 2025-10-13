@@ -138,11 +138,14 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
     const renderCardContent = () => (
       <View style={styles.cardContent}>
         {item.isSponsored && (
-          <CustomView bgColor={colors.background} style={styles.sponsoredCard}>
+          <CustomView
+            bgColor={colors.background}
+            style={[styles.sponsoredCard, { borderColor: colors.light_blue }]}
+          >
             <SponsoredKevinSvg />
             <CustomText
               fontFamily="Inter-SemiBold"
-              style={styles.sponsoredText}
+              style={[styles.sponsoredText, { color: colors.light_blue }]}
             >
               SPONSORED
             </CustomText>
@@ -288,44 +291,23 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
       </View>
     );
 
-    if (item.isSponsored) {
-      return (
-        <>
-          {renderTopRow()}
-          <View style={styles.sponsoredOverlay}>
-            <TouchableOpacity
-              onPress={handleCardTap}
-              activeOpacity={0.95}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: 1,
-              }}
-            />
-            {renderCardContent()}
-          </View>
-        </>
-      );
-    }
-
     return (
       <>
-        <TouchableOpacity
-          onPress={handleCardTap}
-          activeOpacity={0.95}
-          style={styles.fullCardTouchable}
+        {/* Render buttons outside of the gradient overlay */}
+        {renderTopRow()}
+
+        <LinearGradient
+          colors={["rgba(242, 242, 243, 0)", "#0B2E34"]}
+          style={styles.gradientOverlay}
         >
-          {renderTopRow()}
-          <LinearGradient
-            colors={["rgba(242, 242, 243, 0)", "rgba(11, 46, 52, 0.7)"]}
-            style={styles.gradientOverlay}
+          <TouchableOpacity
+            onPress={handleCardTap}
+            activeOpacity={0.95}
+            style={styles.cardTouchableArea}
           >
             {renderCardContent()}
-          </LinearGradient>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </LinearGradient>
       </>
     );
   }
@@ -338,6 +320,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: horizontalScale(20),
     paddingTop: verticalScale(20),
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    elevation: 10,
   },
   rightTopSection: {
     alignSelf: "flex-end",
@@ -350,20 +338,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   sponsoredCard: {
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 9.35,
+    paddingVertical: 9.35,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#3C62FA",
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "flex-start",
     flexDirection: "row",
-    gap: 5,
+    gap: 6,
   },
   sponsoredText: {
-    color: "#3C62FA",
-    fontSize: scaleFontSize(8),
+    fontSize: scaleFontSize(10),
   },
   row: {
     flexDirection: "row",
@@ -376,6 +362,8 @@ const styles = StyleSheet.create({
     borderRadius: 1000,
     justifyContent: "center",
     alignItems: "center",
+    zIndex: 20,
+    elevation: 20,
   },
   shareButton: {
     width: 30,
@@ -383,13 +371,15 @@ const styles = StyleSheet.create({
     borderRadius: 1000,
     justifyContent: "center",
     alignItems: "center",
+    zIndex: 20,
+    elevation: 20,
   },
   cardContent: {
     paddingHorizontal: horizontalScale(20),
     paddingBottom: verticalScale(20),
   },
   cardTitle: {
-    fontSize: scaleFontSize(24),
+    fontSize: scaleFontSize(26),
     marginTop: verticalScale(8),
   },
   priceText: {
@@ -422,7 +412,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: "60%",
+    height: "100%",
     justifyContent: "flex-end",
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
@@ -476,13 +466,9 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: "white",
   },
-  fullCardTouchable: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  cardTouchableArea: {
+    flex: 1,
     width: "100%",
-    height: "100%",
+    justifyContent: "flex-end",
   },
 });
