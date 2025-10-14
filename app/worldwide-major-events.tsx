@@ -112,8 +112,10 @@ const WorldwideMajorEventsScreen: React.FC = () => {
         />
       </ScrollView>
 
-      {/* Floating Map Button */}
-      <FloatingMapButton onPress={handleMapPress} hasTabBar={false} />
+      {/* Floating Map Button - Only show if there are events available */}
+      {majorEvents.length > 0 && (
+        <FloatingMapButton onPress={handleMapPress} hasTabBar={false} />
+      )}
     </View>
   );
 };

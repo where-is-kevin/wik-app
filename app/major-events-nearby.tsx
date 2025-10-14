@@ -592,8 +592,10 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
         </View>
       </Animated.ScrollView>
 
-      {/* Floating Map Button */}
-      <FloatingMapButton onPress={handleMapPress} hasTabBar={false} />
+      {/* Floating Map Button - Only show if there are events available */}
+      {(majorEvents.length > 0 || localEvents.length > 0) && (
+        <FloatingMapButton onPress={handleMapPress} hasTabBar={false} />
+      )}
     </View>
   );
 };

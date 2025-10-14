@@ -42,9 +42,9 @@ const PaginatedContentList = () => {
   // Handle string | string[] type from useLocalSearchParams
   const normalizeQuery = (query: string | string[] | undefined): string => {
     if (Array.isArray(query)) {
-      return query[0] || "cake";
+      return query[0] || "";
     }
-    return query || "cake";
+    return query || "";
   };
 
   // State management
@@ -172,7 +172,7 @@ const PaginatedContentList = () => {
 
     debounceTimeoutRef.current = setTimeout(() => {
       if (text.trim() === "") {
-        setSearchQuery("cake");
+        setSearchQuery("");
       }
     }, 500);
   }, []);
@@ -337,8 +337,10 @@ const PaginatedContentList = () => {
           onRetry={() => refetch()}
         />
 
-        {/* Floating Map Button */}
-        <FloatingMapButton onPress={handleOpenMap} hasTabBar={true} />
+        {/* Floating Map Button - Only show if there's data available */}
+        {transformedData.length > 0 && (
+          <FloatingMapButton onPress={handleOpenMap} hasTabBar={true} />
+        )}
       </CustomView>
     );
   }
@@ -437,8 +439,10 @@ const PaginatedContentList = () => {
           onCreateBucket={handleCreateBucket}
         />
 
-        {/* Floating Map Button */}
-        <FloatingMapButton onPress={handleOpenMap} hasTabBar={true} />
+        {/* Floating Map Button - Only show if there's data available */}
+        {transformedData.length > 0 && (
+          <FloatingMapButton onPress={handleOpenMap} hasTabBar={true} />
+        )}
       </CustomView>
     </>
   );

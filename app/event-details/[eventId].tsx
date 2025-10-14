@@ -18,6 +18,7 @@ import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import CustomText from "@/components/CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useUserLocation } from "@/contexts/UserLocationContext";
 import {
   horizontalScale,
   scaleFontSize,
@@ -44,6 +45,7 @@ import RatingStarSvg from "@/components/SvgComponents/RatingStarSvg";
 import MapView, { Marker } from "react-native-maps";
 import { formatSimilarity } from "@/utilities/formatSimilarity";
 import { formatDistance } from "@/utilities/formatDistance";
+import { shouldShowValidDistance } from "@/utilities/distanceHelpers";
 import { trimString, trimOrNull } from "@/utilities/stringHelpers";
 
 // Using SVG placeholder via OptimizedImage error handling
@@ -55,6 +57,7 @@ interface EventDetailsScreenProps {}
 
 const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   const { colors } = useTheme();
+  const { userLocation } = useUserLocation();
   const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
@@ -598,7 +601,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                   )}
 
                   {contentData?.rating &&
-                    (contentData?.distance || contentData?.price) && (
+                    (shouldShowValidDistance(contentData?.distance, userLocation) || contentData?.price) && (
                       <View style={styles.dotSeparator}>
                         <View
                           style={[styles.dot, { backgroundColor: "#4A4A4F" }]}
@@ -606,19 +609,16 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                       </View>
                     )}
 
-                  {contentData?.distance != null &&
-                    typeof contentData.distance === "number" &&
-                    contentData.distance > 0 && (
+                  {shouldShowValidDistance(contentData?.distance, userLocation) && (
                       <CustomText
                         fontFamily="Inter-Medium"
                         style={[styles.infoText, { color: "#4A4A4F" }]}
                       >
-                        {formatDistance(contentData.distance)}
+                        {formatDistance(contentData.distance!)}
                       </CustomText>
                     )}
 
-                  {contentData?.distance != null &&
-                    contentData.distance > 0 &&
+                  {shouldShowValidDistance(contentData?.distance, userLocation) &&
                     contentData?.price != null && (
                       <View style={styles.dotSeparator}>
                         <View

@@ -263,6 +263,8 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
             contentFit="cover"
             priority="normal"
             showLoadingIndicator={true}
+            showErrorFallback={true}
+            borderRadius={10}
             fallbackImage={""}
           />
           <CustomView style={styles.bucketItemContent}>

@@ -599,8 +599,10 @@ const BusinessEventDetailsScreen = () => {
         </View>
       </Animated.ScrollView>
 
-      {/* Floating Map Button */}
-      <FloatingMapButton onPress={handleMapPress} hasTabBar={false} />
+      {/* Floating Map Button - Only show if there are local events available */}
+      {localEvents.length > 0 && (
+        <FloatingMapButton onPress={handleMapPress} hasTabBar={false} />
+      )}
 
       {/* Bucket Bottom Sheets */}
       <BucketBottomSheet

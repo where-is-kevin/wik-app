@@ -238,7 +238,7 @@ export function useInfiniteContent({
       return nextOffset < lastPage.total ? nextOffset : undefined;
     },
     initialPageParam: 0,
-    enabled: !!API_URL && !!query && enabled,
+    enabled: !!API_URL && enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
   });

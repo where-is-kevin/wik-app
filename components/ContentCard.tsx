@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import CustomText from "@/components/CustomText";
 import CustomTouchable from "./CustomTouchableOpacity";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useUserLocation } from "@/contexts/UserLocationContext";
 import CategoryTag from "./Tag/CategoryTag";
 import OptimizedImage from "./OptimizedImage/OptimizedImage";
 import {
@@ -12,6 +13,7 @@ import {
   verticalScale,
 } from "@/utilities/scaling";
 import { formatDistance } from "@/utilities/formatDistance";
+import { shouldShowDistance } from "@/utilities/distanceHelpers";
 import PinBucketSvg from "./SvgComponents/PinBucketSvg";
 import { ImagePlaceholder } from "./OptimizedImage/ImagePlaceholder";
 
@@ -31,6 +33,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
   onBucketPress,
 }) => {
   const { colors } = useTheme();
+  const { userLocation } = useUserLocation();
 
   const handleBucketPress = () => {
     if (onBucketPress && item.id) {
@@ -120,7 +123,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
                 <Ionicons name="star" size={11} color="#666" />
                 <CustomText style={styles.distance}>{item.rating}</CustomText>
               </View>
-              {(!!item.price || !!item.distance) && (
+              {(!!item.price || shouldShowDistance(item.distance, userLocation)) && (
                 <CustomText style={styles.separator}>•</CustomText>
               )}
             </>
@@ -129,15 +132,15 @@ const ContentCard: React.FC<ContentCardProps> = ({
           {!!item.price && (
             <>
               <CustomText style={styles.distance}>{item.price}</CustomText>
-              {!!item.distance && (
+              {shouldShowDistance(item.distance, userLocation) && (
                 <CustomText style={styles.separator}>•</CustomText>
               )}
             </>
           )}
 
-          {!!item.distance && (
+          {shouldShowDistance(item.distance, userLocation) && (
             <CustomText style={styles.distance}>
-              {formatDistance(item.distance)}
+              {formatDistance(item.distance!)}
             </CustomText>
           )}
         </View>

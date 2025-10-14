@@ -712,8 +712,10 @@ const WorldwideBusinessEventsScreen: React.FC<
         </View>
       </Animated.ScrollView>
 
-      {/* Floating Map Button */}
-      <FloatingMapButton onPress={handleMapPress} hasTabBar={false} />
+      {/* Floating Map Button - Only show if there are any events or locations available */}
+      {(majorEvents.length > 0 || localEvents.length > 0 || cities.length > 0) && (
+        <FloatingMapButton onPress={handleMapPress} hasTabBar={false} />
+      )}
     </View>
   );
 };

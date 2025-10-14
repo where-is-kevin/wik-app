@@ -14,6 +14,8 @@ import {
 } from "@/utilities/scaling";
 import { formatTags } from "@/utilities/formatTags";
 import { formatDistance } from "@/utilities/formatDistance";
+import { useUserLocation } from "@/contexts/UserLocationContext";
+import { shouldShowDistance } from "@/utilities/distanceHelpers";
 import SponsoredKevinSvg from "../SvgComponents/SponsoredKevinSvg";
 import SendSvgSmall from "../SvgComponents/SendSvgSmall";
 import RatingStarSvg from "../SvgComponents/RatingStarSvg";
@@ -127,6 +129,7 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
     hideButtons,
     onCardTap,
   }) {
+    const { userLocation } = useUserLocation();
     const handleBucketPress = useCallback(() => {
       onBucketPress?.(item.id);
     }, [onBucketPress, item.id]);
@@ -238,16 +241,16 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
                 </View>
               )}
 
-              {!!item.rating && !!item.distance && (
+              {!!item.rating && shouldShowDistance(item.distance, userLocation) && (
                 <View style={styles.dotSeparator}>
                   <View style={styles.whiteDot} />
                 </View>
               )}
-              {!!item.distance && (
+              {shouldShowDistance(item.distance, userLocation) && (
                 <CustomText
                   style={[styles.infoText, { color: colors.background }]}
                 >
-                  {formatDistance(item.distance)}
+                  {formatDistance(item.distance!)}
                 </CustomText>
               )}
             </>

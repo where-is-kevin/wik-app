@@ -192,12 +192,12 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
 
   const containerStyles: StyleProp<ViewStyle>[] = [
     styles.container,
+    style, // Apply margin, padding, and position styles to container
     getBorderRadiusViewStyle(),
   ];
 
   const imageStyles: StyleProp<ImageStyle>[] = [
     styles.image,
-    style,
     getBorderRadiusImageStyle(),
   ];
 
@@ -250,6 +250,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
           <ImagePlaceholder
             containerWidth={containerDimensions?.width}
             containerHeight={containerDimensions?.height}
+            borderRadius={borderRadius}
           />
         )}
 

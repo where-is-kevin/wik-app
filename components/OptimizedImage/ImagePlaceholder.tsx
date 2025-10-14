@@ -7,6 +7,7 @@ interface ImagePlaceholderProps {
   containerHeight?: number;
   backgroundColor?: string;
   iconColor?: string;
+  borderRadius?: number;
 }
 
 export const ImagePlaceholder: React.FC<ImagePlaceholderProps> = ({
@@ -14,6 +15,7 @@ export const ImagePlaceholder: React.FC<ImagePlaceholderProps> = ({
   containerHeight,
   backgroundColor = "#F5F5F5",
   iconColor = "#9CA3AF",
+  borderRadius,
 }) => {
   // Calculate icon size based on container dimensions
   const getIconSize = () => {
@@ -35,7 +37,7 @@ export const ImagePlaceholder: React.FC<ImagePlaceholderProps> = ({
   const iconSize = getIconSize();
 
   return (
-    <View style={[styles.container, { backgroundColor }]}>
+    <View style={[styles.container, { backgroundColor, borderRadius }]}>
       <ImagePlaceholderSvg
         width={iconSize}
         height={iconSize}
