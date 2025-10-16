@@ -34,7 +34,7 @@ const PrivacyPolicyScreen = () => {
 
         <View style={styles.webViewContainer}>
           <WebView
-            source={{ uri: "https://whereiskevin.com/privacy-policy" }}
+            source={{ uri: "https://whereiskevin.com/privacy" }}
             style={styles.webView}
             startInLoadingState={true}
             renderLoading={() => <LoadingIndicator />}

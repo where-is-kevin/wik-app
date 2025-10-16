@@ -293,6 +293,11 @@ export function useContent(
     queryKey: ["content", "basic", params, !!jwt], // Include JWT status in query key
     queryFn: () => fetchContent(params, jwt),
     enabled: !!API_URL && shouldFetch(),
+    staleTime: 2 * 60 * 1000, // 2 minutes - serve cached data faster
+    gcTime: 10 * 60 * 1000, // 10 minutes cache time
+    refetchOnWindowFocus: false, // Don't refetch when app regains focus
+    refetchOnMount: false, // Don't refetch if we have cached data
+    networkMode: 'offlineFirst', // Use cache first for faster loading
   });
 }
 

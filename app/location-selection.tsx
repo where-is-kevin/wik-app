@@ -26,7 +26,6 @@ import {
   createSelectedLocationPreference,
 } from "@/utilities/locationHelpers";
 import * as Location from "expo-location";
-import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useUpdateUserLocation } from "@/hooks/useUser";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -66,7 +65,8 @@ const LocationSelectionScreen = () => {
       }
     };
     loadData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // loadAllLocations is not stable from useLocationSearch hook
 
   useEffect(() => {
     if (searchTimeoutRef.current) {
@@ -89,7 +89,8 @@ const LocationSelectionScreen = () => {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchQuery]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]); // Functions from useLocationSearch are not stable
 
   const handleLocationPress = (location: LocationData) => {
     setSelectedLocation(location);
@@ -151,12 +152,19 @@ const LocationSelectionScreen = () => {
         // Update the user location using the dedicated API endpoint
         await updateUserLocationMutation.mutateAsync(locationValue);
 
-        // Navigate back
-        router.back();
-      } catch {
-        // Silently handle location preference errors
+      } catch (error) {
+        console.warn("Location update failed:", error);
+        // Continue to navigate back even if location update fails
       } finally {
         setIsUpdating(false);
+        // Always navigate back, regardless of success or failure
+        try {
+          router.back();
+        } catch (navError) {
+          console.warn("Navigation back failed:", navError);
+          // Fallback: try to navigate to the main tab
+          router.push("/(tabs)");
+        }
       }
     }
   };

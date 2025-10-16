@@ -174,7 +174,7 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
     }
 
     try {
-      return bucketsArray
+      const transformedBuckets = bucketsArray
         .filter((bucket: any) => bucket && typeof bucket === "object") // Filter out null/undefined items
         .map((bucket: any) => {
           // Ensure required properties exist with fallbacks
@@ -195,11 +195,28 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
             contentIds,
           };
         });
+
+      // Sort buckets: those containing the selected item first
+      if (selectedLikeItemId) {
+        return transformedBuckets.sort((a, b) => {
+          const aContainsItem = a.contentIds.includes(selectedLikeItemId);
+          const bContainsItem = b.contentIds.includes(selectedLikeItemId);
+
+          // If a contains the item and b doesn't, a should come first (return -1)
+          // If b contains the item and a doesn't, b should come first (return 1)
+          // If both contain or both don't contain, maintain original order (return 0)
+          if (aContainsItem && !bContainsItem) return -1;
+          if (bContainsItem && !aContainsItem) return 1;
+          return 0;
+        });
+      }
+
+      return transformedBuckets;
     } catch (error) {
       console.error("Error transforming bucket data:", error);
       return [];
     }
-  }, [buckets]);
+  }, [buckets, selectedLikeItemId]);
 
   // Calculate snap points for bottom sheet
   const snapPoints = useMemo(() => {

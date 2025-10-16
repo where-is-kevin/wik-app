@@ -2,7 +2,7 @@ import { useContent } from "@/hooks/useContent";
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { useAddLike } from "@/hooks/useLikes";
 import { getErrorMessage } from "@/utilities/errorUtils";
-import { StyleSheet, View, Linking, Alert } from "react-native";
+import { StyleSheet, View, Linking, Alert, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { ErrorScreen } from "@/components/ErrorScreen";
 import CustomView from "@/components/CustomView";
@@ -29,6 +29,8 @@ import { useToast } from "@/contexts/ToastContext";
 import { useMode } from "@/contexts/ModeContext";
 import SwipeCardTooltips from "@/components/Tooltips/SwipeCardTooltips";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import QuestionMarkSvg from "@/components/SvgComponents/QuestionMarkSvg";
+import QuestionMarkActiveSvg from "@/components/SvgComponents/QuestionMarkActiveSvg";
 
 const SwipeableCards = () => {
   const router = useRouter();
@@ -92,6 +94,8 @@ const SwipeableCards = () => {
   ] = useState(false);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [showSwipeTooltips, setShowSwipeTooltips] = useState(false);
+  const [showQuestionMarkTooltips, setShowQuestionMarkTooltips] =
+    useState(false);
 
   // Check if this is the first time user visits the main tab
   useEffect(() => {
@@ -121,6 +125,29 @@ const SwipeableCards = () => {
     }
   };
 
+  const handleQuestionMarkPress = () => {
+    setShowQuestionMarkTooltips(true);
+  };
+
+  const handleQuestionMarkTooltipsComplete = () => {
+    setShowQuestionMarkTooltips(false);
+  };
+
+  // Auto-dismiss question mark tooltips after 5 seconds
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (showQuestionMarkTooltips) {
+      timer = setTimeout(() => {
+        setShowQuestionMarkTooltips(false);
+      }, 5000);
+    }
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [showQuestionMarkTooltips]);
+
   // Mutation hooks
   const addBucketMutation = useAddBucket();
   const createBucketMutation = useCreateBucket();
@@ -139,7 +166,8 @@ const SwipeableCards = () => {
     }
 
     // Calculate how many items we can show from current offset
-    const itemsPerBatch = 8;
+    // Platform-specific batch size: iOS can handle more cards efficiently
+    const itemsPerBatch = Platform.OS === "ios" ? 8 : 6;
     const startIndex = currentOffset;
     const endIndex = Math.min(startIndex + itemsPerBatch, content.length);
 
@@ -169,8 +197,8 @@ const SwipeableCards = () => {
           ? parseFloat(item.similarity) || 0
           : item.similarity,
       distance: item.distance,
-      eventDatetimeStart: item.eventDatetimeStart, // Add event datetime for events
-      eventDatetimeEnd: item.eventDatetimeEnd,
+      eventDatetimeStart: item.eventDatetimeStart || undefined, // Add event datetime for events
+      eventDatetimeEnd: item.eventDatetimeEnd || undefined,
     }));
 
     return filtered;
@@ -328,7 +356,7 @@ const SwipeableCards = () => {
   const handleComplete = useCallback(() => {
     if (!content) return;
 
-    const itemsPerBatch = 8;
+    const itemsPerBatch = Platform.OS === "ios" ? 8 : 6; // Match the platform-specific batch size
     const nextOffset = currentOffset + itemsPerBatch;
 
     // Check if we have more items in the existing data
@@ -447,23 +475,30 @@ const SwipeableCards = () => {
       <View style={{ flex: 1, backgroundColor: "#FFF", zIndex: -1 }}>
         <CustomView bgColor={colors.overlay} style={{ flex: 1 }}>
           <ModeHeader />
-          <CustomTouchable
-            style={[
-              styles.filterSvgButton,
-              { marginRight: horizontalScale(24) },
-            ]}
-            onPress={() => setIsFilterModalVisible(true)}
-          >
-            <CustomView style={styles.filterSvgContainer}>
-              <FilterSvg />
-              {selectedFilters.length < 3 && (
-                <CustomView
-                  bgColor={colors.light_blue}
-                  style={styles.filterIndicatorDot}
-                />
-              )}
-            </CustomView>
-          </CustomTouchable>
+          <CustomView style={styles.headerButtonsRow}>
+            <CustomTouchable
+              style={[styles.questionMarkButton, styles.questionMarkButtonDisabled]}
+              onPress={undefined} // Disabled when loading
+              disabled={true}
+            >
+              <QuestionMarkSvg />
+            </CustomTouchable>
+
+            <CustomTouchable
+              style={styles.filterSvgButton}
+              onPress={() => setIsFilterModalVisible(true)}
+            >
+              <CustomView style={styles.filterSvgContainer}>
+                <FilterSvg />
+                {selectedFilters.length < 3 && (
+                  <CustomView
+                    bgColor={colors.light_blue}
+                    style={styles.filterIndicatorDot}
+                  />
+                )}
+              </CustomView>
+            </CustomTouchable>
+          </CustomView>
 
           <CustomView style={styles.swipeContainer}>
             <AnimatedLoader />
@@ -483,9 +518,77 @@ const SwipeableCards = () => {
   // Show empty state when no data is available AND we're not loading/refreshing
   if (!transformedData.length && !isRefreshing) {
     return (
-      <>
+      <View style={{ flex: 1, backgroundColor: "#FFF", zIndex: -1 }}>
+        <CustomView bgColor={colors.overlay} style={{ flex: 1 }}>
+          <ModeHeader />
+          <CustomView style={styles.headerButtonsRow}>
+            <CustomTouchable
+              style={[styles.questionMarkButton, styles.questionMarkButtonDisabled]}
+              onPress={undefined} // Disabled when no cards available
+              disabled={true}
+            >
+              <QuestionMarkSvg />
+            </CustomTouchable>
+
+            <CustomTouchable
+              style={styles.filterSvgButton}
+              onPress={() => setIsFilterModalVisible(true)}
+            >
+              <CustomView style={styles.filterSvgContainer}>
+                <FilterSvg />
+                {selectedFilters.length < 3 && (
+                  <CustomView
+                    bgColor={colors.light_blue}
+                    style={styles.filterIndicatorDot}
+                  />
+                )}
+              </CustomView>
+            </CustomTouchable>
+          </CustomView>
+
+          <CustomView style={styles.errorContainer}>
+            {selectedFilters.length < 3 ? (
+              <ErrorScreen
+                title="No results for your filters"
+                message="Try changing your filters to see more content in your area."
+              />
+            ) : (
+              <ErrorScreen
+                title="Oops, there are no recommendations around you"
+                message="Please change your location to find new recommendations."
+                buttonText="Change Location"
+                onRetry={() => router.push("/location-selection")}
+              />
+            )}
+          </CustomView>
+        </CustomView>
+
+        <FilterModal
+          isVisible={isFilterModalVisible}
+          onClose={() => setIsFilterModalVisible(false)}
+          onApply={handleFilterApply}
+          selectedFilters={selectedFilters}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: "#FFF", zIndex: -1 }}>
+      <CustomView bgColor={colors.overlay} style={{ flex: 1 }}>
         <ModeHeader />
-        <CustomView style={styles.content}>
+        <CustomView style={styles.headerButtonsRow}>
+          <CustomTouchable
+            style={styles.questionMarkButton}
+            onPress={handleQuestionMarkPress}
+          >
+            {showQuestionMarkTooltips ? (
+              <QuestionMarkActiveSvg />
+            ) : (
+              <QuestionMarkSvg />
+            )}
+          </CustomTouchable>
+
           <CustomTouchable
             style={styles.filterSvgButton}
             onPress={() => setIsFilterModalVisible(true)}
@@ -500,52 +603,7 @@ const SwipeableCards = () => {
               )}
             </CustomView>
           </CustomTouchable>
-
-          <CustomView style={styles.errorContainer}>
-            {selectedFilters.length < 3 ? (
-              <ErrorScreen
-                title="No results for your filters"
-                message="Try changing your filters to see more content in your area."
-              />
-            ) : (
-              <ErrorScreen
-                title="Oops, there are no recommendations around you"
-                message="Please change your filters or location to find new recommendations."
-                buttonText="Change Location"
-                onRetry={() => router.push("/location-selection")}
-              />
-            )}
-          </CustomView>
         </CustomView>
-
-        <FilterModal
-          isVisible={isFilterModalVisible}
-          onClose={() => setIsFilterModalVisible(false)}
-          onApply={handleFilterApply}
-          selectedFilters={selectedFilters}
-        />
-      </>
-    );
-  }
-
-  return (
-    <View style={{ flex: 1, backgroundColor: "#FFF", zIndex: -1 }}>
-      <CustomView bgColor={colors.overlay} style={{ flex: 1 }}>
-        <ModeHeader />
-        <CustomTouchable
-          style={[styles.filterSvgButton, { marginRight: horizontalScale(24) }]}
-          onPress={() => setIsFilterModalVisible(true)}
-        >
-          <CustomView style={styles.filterSvgContainer}>
-            <FilterSvg />
-            {selectedFilters.length < 3 && (
-              <CustomView
-                bgColor={colors.light_blue}
-                style={styles.filterIndicatorDot}
-              />
-            )}
-          </CustomView>
-        </CustomTouchable>
 
         {isRefreshing ? (
           <CustomView style={styles.swipeContainer}>
@@ -569,6 +627,14 @@ const SwipeableCards = () => {
             {showSwipeTooltips && !isLoading && transformedData.length > 0 && (
               <SwipeCardTooltips onComplete={handleTooltipsComplete} />
             )}
+
+            {showQuestionMarkTooltips &&
+              !isLoading &&
+              transformedData.length > 0 && (
+                <SwipeCardTooltips
+                  onComplete={handleQuestionMarkTooltipsComplete}
+                />
+              )}
           </CustomView>
         )}
       </CustomView>
@@ -637,10 +703,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingBottom: verticalScale(5),
   },
-  filterSvgButton: {
+  headerButtonsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: horizontalScale(24),
     marginTop: verticalScale(16),
     marginBottom: verticalScale(10),
-    alignSelf: "flex-end",
+  },
+  questionMarkButton: {
+    // Left aligned - just the icon, no background
+  },
+  questionMarkButtonDisabled: {
+    opacity: 0.4, // Make it visually disabled
+  },
+  filterSvgButton: {
+    // Right aligned, no longer needs alignSelf: "flex-end"
   },
   filterSvgContainer: {
     position: "relative",

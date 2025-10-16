@@ -21,7 +21,7 @@ import SendSvgSmall from "../SvgComponents/SendSvgSmall";
 import RatingStarSvg from "../SvgComponents/RatingStarSvg";
 import PinBucketSvg from "../SvgComponents/PinBucketSvg";
 
-// Format event datetime to "Wed, Sept 4th • 6:00 pm - 8:00 pm" or "Wed, Sept 4th • 6:00 pm"
+// Format event datetime to "Wed, Sept 4th • 6:00 pm - 8:00 pm" or "Wed, Sept 4th • 6:00 pm" (UTC time)
 const formatEventDateTime = (
   startDateTimeString?: string,
   endDateTimeString?: string
@@ -30,9 +30,17 @@ const formatEventDateTime = (
 
   try {
     const startDate = new Date(startDateTimeString);
-    const dayName = startDate.toLocaleDateString("en-US", { weekday: "short" });
-    const month = startDate.toLocaleDateString("en-US", { month: "short" });
-    const day = startDate.getDate();
+
+    // Use UTC methods to avoid local timezone conversion
+    const dayName = startDate.toLocaleDateString("en-US", {
+      weekday: "short",
+      timeZone: "UTC"
+    });
+    const month = startDate.toLocaleDateString("en-US", {
+      month: "short",
+      timeZone: "UTC"
+    });
+    const day = startDate.getUTCDate();
     const suffix =
       day === 1 || day === 21 || day === 31
         ? "st"
@@ -41,11 +49,14 @@ const formatEventDateTime = (
         : day === 3 || day === 23
         ? "rd"
         : "th";
+
+    // Format time in UTC
     const startTime = startDate
       .toLocaleTimeString("en-US", {
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
+        timeZone: "UTC",
       })
       .toLowerCase();
 
@@ -59,6 +70,7 @@ const formatEventDateTime = (
           hour: "numeric",
           minute: "2-digit",
           hour12: true,
+          timeZone: "UTC",
         })
         .toLowerCase();
 

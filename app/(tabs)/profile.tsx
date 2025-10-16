@@ -10,12 +10,12 @@ import { useLikes } from "@/hooks/useLikes";
 import { useUser } from "@/hooks/useUser";
 import { ErrorScreen } from "@/components/ErrorScreen";
 import { bucketsHaveContent, likesHaveContent } from "@/utilities/hasContent";
+import { getErrorMessage } from "@/utilities/errorUtils";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useMemo, useCallback, useState } from "react";
+import React, { useMemo, useCallback } from "react";
 import { ScrollView, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQueryClient } from "@tanstack/react-query";
 
 // Using SVG placeholder via component error handling
 
@@ -23,7 +23,6 @@ const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const router = useRouter();
-  const queryClient = useQueryClient();
 
   const { data: user, isLoading, isError, error, refetch } = useUser();
   const {
@@ -216,10 +215,8 @@ const ProfileScreen = () => {
     return (
       <CustomView style={{ flex: 1 }}>
         <ErrorScreen
-          title="Failed to load profile"
-          message={
-            error?.message || "Please check your connection and try again"
-          }
+          title={getErrorMessage(error).title}
+          message={getErrorMessage(error).message}
           onRetry={handleRetry}
         />
       </CustomView>
