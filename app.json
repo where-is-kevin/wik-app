@@ -28,7 +28,6 @@
         "ACCESS_FINE_LOCATION",
         "INTERNET"
       ],
-      "locationPermissionReason": "Allow Kevin to use your location to show nearby events and content.",
       "package": "com.whereiskevin.wikapp",
       "googleServicesFile": "./google-services.json"
     },
@@ -126,6 +125,11 @@
         {
           "ios": {
             "useFrameworks": "static"
+          },
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0"
           }
         }
       ]
