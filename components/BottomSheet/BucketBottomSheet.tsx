@@ -56,7 +56,6 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
   onCreateNew,
   selectedLikeItemId,
 }) => {
-
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -90,13 +89,10 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
     isLoading: bucketsLoading,
     error: bucketsError,
     refetch: refetchBuckets,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
   } = useBuckets(
     undefined, // no search query
     isVisible, // only enabled when bottom sheet is visible
-    20 // standard page size
+    100 // larger page size to get all items at once
   );
 
   // Helper function to safely get image URL
@@ -150,12 +146,15 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
 
     if (buckets?.pages) {
       // InfiniteData structure: { pages: [{ items: [...] }, { items: [...] }], pageParams: [...] }
-      bucketsArray = buckets.pages.flatMap((page: any) => {
+      const allItems = buckets.pages.flatMap((page: any) => {
         if (page?.items && Array.isArray(page.items)) {
           return page.items;
         }
         return [];
       });
+
+      // No deduplication needed since each bucket should have a unique ID
+      bucketsArray = allItems;
     } else if (
       (buckets as any)?.items &&
       Array.isArray((buckets as any).items)
@@ -176,9 +175,9 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
     try {
       const transformedBuckets = bucketsArray
         .filter((bucket: any) => bucket && typeof bucket === "object") // Filter out null/undefined items
-        .map((bucket: any) => {
+        .map((bucket: any, index: number) => {
           // Ensure required properties exist with fallbacks
-          const id = bucket?.id || `bucket-${Math.random()}`;
+          const id = bucket?.id || `bucket-fallback-${index}`;
           const title =
             bucket?.bucketName || bucket?.title || "Untitled Bucket";
           const contentIds = Array.isArray(bucket?.contentIds)
@@ -246,16 +245,10 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
     }
   }, [insets?.top]);
 
-  // Handle load more buckets
-  const handleLoadMore = () => {
-    if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  };
 
   // Render bucket item for FlatList
   const renderBucketItem = ({ item }: { item: BucketItem }) => {
-    if (!item) return null;
+    if (!item || !item.id) return null;
 
     try {
       const isItemInBucket =
@@ -313,16 +306,6 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
     }
   };
 
-  // Render footer for loading more
-  const renderFooter = () => {
-    if (!isFetchingNextPage) return null;
-
-    return (
-      <CustomView style={styles.loadingFooter}>
-        <AnimatedLoader customAnimationStyle={{ width: 80, height: 80 }} />
-      </CustomView>
-    );
-  };
 
   const renderContent = () => {
     if (bucketsLoading && !bucketItems.length) {
@@ -385,12 +368,13 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
       <FlatList
         data={bucketItems}
         renderItem={renderBucketItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => {
+          // Create unique keys by combining ID and index
+          const baseKey = item?.id || `bucket-fallback-${index}`;
+          return `bucket-${baseKey}-${index}`;
+        }}
         contentContainerStyle={styles.flatListContent}
         showsVerticalScrollIndicator={false}
-        onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={renderFooter}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         style={styles.flatList}
       />
@@ -545,16 +529,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: scaleFontSize(14),
-  },
-  loadingFooter: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: verticalScale(20),
-  },
-  loadingFooterText: {
-    marginLeft: 8,
-    fontSize: scaleFontSize(12),
   },
   emptyContainer: {
     flex: 1,

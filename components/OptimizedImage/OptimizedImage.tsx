@@ -14,8 +14,7 @@ import { ImagePlaceholder } from "./ImagePlaceholder";
 
 // Legacy fallback - SVG placeholder now used via error handling
 
-// Global cache of failed URLs to prevent retries
-const failedUrls = new Set<string>();
+// Removed global failed URLs cache - let expo-image handle retries internally
 
 type ImagePriority = "low" | "normal" | "high";
 type CachePolicy = "memory" | "disk" | "memory-disk" | "none";
@@ -26,7 +25,7 @@ const DEFAULT_AVATARS = {
 
 interface OptimizedImageProps {
   source: string | ImageSource | { uri: string };
-  style?: StyleProp<ImageStyle>;
+  style?: StyleProp<ViewStyle>;
   contentFit?: ImageContentFit;
   placeholder?: string;
   showLoadingIndicator?: boolean;
@@ -101,7 +100,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   onError,
   transition = 200,
   priority = "normal",
-  cachePolicy = "memory-disk",
+  cachePolicy = "disk",
   borderRadius,
   overlayComponent,
   accessibilityLabel,
@@ -144,25 +143,11 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
     setIsLoading(false);
     setHasError(true);
 
-    // Add this URL to global failed cache to prevent future attempts
-    const imageUrl = typeof source === "string" ? source : (source as any)?.uri;
-    if (imageUrl) {
-      failedUrls.add(imageUrl);
-    }
-
+    // Let expo-image handle retries internally - no manual failed URL tracking
     onError?.(error);
   };
 
   const getImageSource = (): string | ImageSource => {
-    const imageUrl = typeof source === "string" ? source : (source as any)?.uri;
-
-    // If this URL has previously failed, don't attempt again
-    if (imageUrl && failedUrls.has(imageUrl)) {
-      if (fallbackImage) return fallbackImage;
-      if (useDefaultAvatar) return DEFAULT_AVATARS[defaultAvatarType];
-      return ""; // Will show SVG placeholder
-    }
-
     if (isSourceEmpty(source) && useDefaultAvatar) {
       return DEFAULT_AVATARS[defaultAvatarType];
     }
@@ -203,16 +188,10 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
 
   const renderContent = () => {
     const currentSource = getImageSource();
-    const imageUrl = typeof source === "string" ? source : (source as any)?.uri;
 
-    // Check if this URL is in the failed cache or if we have an error
+    // Only show placeholder for actual errors or empty sources
     const shouldShowPlaceholder =
       (hasError && !fallbackImage && !useDefaultAvatar && showErrorFallback) ||
-      (imageUrl &&
-        failedUrls.has(imageUrl) &&
-        !fallbackImage &&
-        !useDefaultAvatar &&
-        showErrorFallback) ||
       (isSourceEmpty(source) && !useDefaultAvatar && showErrorFallback);
 
     const isUsingDefaultAvatar =
@@ -232,7 +211,8 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
           cachePolicy={cachePolicy}
           accessibilityLabel={accessibilityLabel}
           recyclingKey={
-            typeof currentSource === "string" ? currentSource : undefined
+            typeof currentSource === "string" ? currentSource :
+            (currentSource as any)?.uri || undefined
           }
         />
 
