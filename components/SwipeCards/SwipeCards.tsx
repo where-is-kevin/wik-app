@@ -109,7 +109,7 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
     loadedImageCount: 0,
     requiredImageCount,
     hasData,
-    dataLength
+    dataLength,
   });
 
   // Update ref values when they change
@@ -118,12 +118,17 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
     loadedImageCount,
     requiredImageCount,
     hasData,
-    dataLength
+    dataLength,
   };
 
   // Optimized callback to show cards immediately when images are ready
   const checkAndShowCards = useCallback(() => {
-    const { imagesLoaded: currentImagesLoaded, requiredImageCount: currentRequiredImageCount, hasData: currentHasData, dataLength: currentDataLength } = stateRef.current;
+    const {
+      imagesLoaded: currentImagesLoaded,
+      requiredImageCount: currentRequiredImageCount,
+      hasData: currentHasData,
+      dataLength: currentDataLength,
+    } = stateRef.current;
     const currentLoadedImageCount = imageCountRef.current;
 
     // Check current state values directly to avoid stale closures
@@ -158,7 +163,11 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
     const newCount = imageCountRef.current;
 
     // Only trigger checkAndShowCards once when requirements are met
-    if (newCount >= requiredImageCount && !hasTriggeredShowRef.current && !imagesLoaded) {
+    if (
+      newCount >= requiredImageCount &&
+      !hasTriggeredShowRef.current &&
+      !imagesLoaded
+    ) {
       hasTriggeredShowRef.current = true;
       setTimeout(checkAndShowCards, 0);
     }
@@ -170,7 +179,11 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
     const newCount = imageCountRef.current;
 
     // Only trigger checkAndShowCards once when requirements are met
-    if (newCount >= requiredImageCount && !hasTriggeredShowRef.current && !imagesLoaded) {
+    if (
+      newCount >= requiredImageCount &&
+      !hasTriggeredShowRef.current &&
+      !imagesLoaded
+    ) {
       hasTriggeredShowRef.current = true;
       setTimeout(checkAndShowCards, 0);
     }
@@ -224,11 +237,14 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
     }
 
     // Single fallback timer - no polling interval needed
-    fallbackTimerRef.current = setTimeout(() => {
-      if (!hasShown) {
-        showCards();
-      }
-    }, isAndroid ? 100 : 200);
+    fallbackTimerRef.current = setTimeout(
+      () => {
+        if (!hasShown) {
+          showCards();
+        }
+      },
+      isAndroid ? 100 : 200
+    );
 
     return () => {
       if (fallbackTimerRef.current) {
@@ -567,11 +583,11 @@ const styles = StyleSheet.create({
 const MemoizedSwipeCards = React.memo(SwipeCards, (prevProps, nextProps) => {
   // Only re-render if meaningful props have changed
   const meaningfulProps = [
-    'data',
-    'isLoading',
-    'hideButtons',
-    'showLoaderOnComplete',
-    'fullWidth'
+    "data",
+    "isLoading",
+    "hideButtons",
+    "showLoaderOnComplete",
+    "fullWidth",
   ] as const;
 
   for (const prop of meaningfulProps) {
