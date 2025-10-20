@@ -7,29 +7,23 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { scaleFontSize, verticalScale } from "@/utilities/scaling";
 // import AddImageButton from "../Button/AddImageButton";
 // import * as ImagePicker from "expo-image-picker";
-import NextButton from "../Button/NextButton";
 
 interface PersonalDetailsFormProps {
   onFormChange: (formData: PersonalFormData) => void;
   formData: PersonalFormData;
-  onPressNext: () => void;
 }
 
 export interface PersonalFormData {
   firstName: string;
   lastName: string;
   email: string;
-  home: string;
   travelDestination: string;
-  // profileImage: string | null;
-  password: string;
   personalSummary: string;
 }
 
 export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
   onFormChange,
   formData,
-  onPressNext,
 }) => {
   const { colors } = useTheme();
 
@@ -46,13 +40,9 @@ export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
       formData.firstName.trim() !== "" &&
       formData.lastName.trim() !== "" &&
       formData.email.trim() !== "" &&
-      formData.home.trim() !== "" &&
-      formData.travelDestination.trim() !== "" &&
-      formData.password.trim() !== ""
+      formData.travelDestination.trim() !== ""
     );
   };
-
-  const isButtonDisabled = !isFormValid();
 
   // const handleImageSelection = async () => {
   //   // Request permission to access the media library
@@ -140,42 +130,12 @@ export const OnboardingForm: React.FC<PersonalDetailsFormProps> = ({
 
       <CustomView style={styles.formGroup}>
         <CustomTextInput
-          label="Home city"
-          value={formData.home}
-          onChangeText={(text) => handleChange("home", text)}
-          placeholder="Enter your home address"
-        />
-      </CustomView>
-
-      <CustomView style={styles.formGroup}>
-        <CustomTextInput
           label="Travel destination"
           value={formData.travelDestination}
           onChangeText={(text) => handleChange("travelDestination", text)}
           placeholder="Enter your travel destination"
         />
       </CustomView>
-
-      {/* custom view for the password input */}
-      <CustomView style={styles.formGroup}>
-        <CustomTextInput
-          label="Password"
-          value={formData.password}
-          onChangeText={(text) => handleChange("password", text)}
-          placeholder="Enter your password"
-          secureTextEntry={true}
-        />
-      </CustomView>
-      <NextButton
-        onPress={onPressNext}
-        customStyles={[
-          { marginVertical: 0, marginTop: verticalScale(12) },
-          isButtonDisabled ? styles.nextButtonDisabled : {},
-        ]}
-        bgColor={colors.lime}
-        title="Next"
-        disabled={isButtonDisabled}
-      />
     </KeyboardAwareScrollView>
   );
 };

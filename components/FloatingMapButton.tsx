@@ -49,8 +49,8 @@ const FloatingMapButton: React.FC<FloatingMapButtonProps> = ({
         {
           bottom: hasTabBar
             ? insets.bottom > 0
-              ? insets.bottom + 0
-              : verticalScale(24) // With tab bar: close to tab bar
+              ? verticalScale(20) // More space above the taller tab bar
+              : verticalScale(20) // With tab bar: space from tab bar
             : insets.bottom > 0
             ? insets.bottom + verticalScale(32)
             : verticalScale(40), // Without tab bar: more space from edge

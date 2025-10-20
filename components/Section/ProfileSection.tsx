@@ -1,4 +1,5 @@
 import { useTheme } from "@/contexts/ThemeContext";
+import { useUserLocation } from "@/contexts/UserLocationContext";
 import {
   horizontalScale,
   scaleFontSize,
@@ -7,12 +8,12 @@ import {
 import { useRouter } from "expo-router";
 import { StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withSpring, 
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
   withDelay,
-  runOnJS 
+  runOnJS,
 } from "react-native-reanimated";
 import CustomText from "../CustomText";
 import CustomTouchable from "../CustomTouchableOpacity";
@@ -28,7 +29,7 @@ type ProfileSectionProps = {
     firstName: string;
     lastName: string;
     email: string;
-    profileImageUrl?: string;
+    profileImage?: string;
     personalSummary?: string;
     location?: string;
     home?: string;
@@ -39,6 +40,7 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors } = useTheme();
+  const { userLocation } = useUserLocation();
 
   // Animation values
   const profileImageY = useSharedValue(-100);
@@ -48,12 +50,12 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
   const locationY = useSharedValue(-30);
   const locationOpacity = useSharedValue(0);
 
-  // Default fallback image for profile
-  const DEFAULT_PROFILE_IMAGE =
-    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&h=200&auto=format";
-
   const onEditPress = () => {
     router.push("/(profile)");
+  };
+
+  const onLocationPress = () => {
+    router.push("/location-selection");
   };
 
   // Helper function to get valid image URL
@@ -65,23 +67,37 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
   };
 
   // Get safe profile image source
-  const validProfileImageUrl =
-    getValidImageUrl(user?.profileImageUrl) || DEFAULT_PROFILE_IMAGE;
+  const validProfileImageUrl = getValidImageUrl(user?.profileImage);
 
   // Start animations when user data is available
   React.useEffect(() => {
     if (user) {
       // Profile image animation
       profileImageY.value = withSpring(0, { damping: 15, stiffness: 100 });
-      profileImageOpacity.value = withSpring(1, { damping: 15, stiffness: 100 });
-      
+      profileImageOpacity.value = withSpring(1, {
+        damping: 15,
+        stiffness: 100,
+      });
+
       // Name animation (delayed)
-      nameY.value = withDelay(150, withSpring(0, { damping: 15, stiffness: 100 }));
-      nameOpacity.value = withDelay(150, withSpring(1, { damping: 15, stiffness: 100 }));
-      
+      nameY.value = withDelay(
+        150,
+        withSpring(0, { damping: 15, stiffness: 100 })
+      );
+      nameOpacity.value = withDelay(
+        150,
+        withSpring(1, { damping: 15, stiffness: 100 })
+      );
+
       // Location tags animation (more delayed)
-      locationY.value = withDelay(300, withSpring(0, { damping: 15, stiffness: 100 }));
-      locationOpacity.value = withDelay(300, withSpring(1, { damping: 15, stiffness: 100 }));
+      locationY.value = withDelay(
+        300,
+        withSpring(0, { damping: 15, stiffness: 100 })
+      );
+      locationOpacity.value = withDelay(
+        300,
+        withSpring(1, { damping: 15, stiffness: 100 })
+      );
     }
   }, [user]);
 
@@ -94,14 +110,14 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
   const nameStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: nameY.value }],
     opacity: nameOpacity.value,
-    alignItems: 'center',
-    width: '100%',
+    alignItems: "center",
+    width: "100%",
   }));
 
   const locationStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: locationY.value }],
     opacity: locationOpacity.value,
-    width: '100%',
+    width: "100%",
   }));
 
   return (
@@ -114,26 +130,40 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
     >
       {/* Profile Image */}
       <Animated.View style={profileImageStyle}>
-        <OptimizedImage
-          source={{ uri: validProfileImageUrl }}
-          style={styles.profileImage}
-          resizeMode="cover"
-          priority="high"
-          showLoader={false} // Avatar usually doesn't need loader as it's small
-          fallbackSource={DEFAULT_PROFILE_IMAGE}
-        />
+        {validProfileImageUrl ? (
+          <CustomView bgColor={colors.gray_regular} style={styles.profileImage}>
+            <OptimizedImage
+              source={{ uri: validProfileImageUrl }}
+              style={styles.profileImage}
+              contentFit="cover"
+              priority="high"
+              showLoadingIndicator={false}
+            />
+          </CustomView>
+        ) : (
+          <CustomView
+            bgColor={colors.border_gray}
+            style={styles.profileImage}
+          />
+        )}
       </Animated.View>
 
       {/* Name and Edit Icon */}
       <Animated.View style={nameStyle}>
-        <CustomView bgColor={colors.onboarding_gray} style={styles.nameContainer}>
+        <CustomView
+          bgColor={colors.onboarding_gray}
+          style={styles.nameContainer}
+        >
           <CustomText
             fontFamily="Inter-Bold"
             style={[styles.profileName, { color: colors.profile_name_black }]}
           >
             {user?.firstName || "Placeholder Name"}
           </CustomText>
-          <CustomTouchable onPress={onEditPress} bgColor={colors.onboarding_gray}>
+          <CustomTouchable
+            onPress={onEditPress}
+            bgColor={colors.onboarding_gray}
+          >
             <EditSvg />
           </CustomTouchable>
         </CustomView>
@@ -155,7 +185,8 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
             !user?.personalSummary && { marginTop: verticalScale(10) },
           ]}
         >
-          <CustomView
+          <CustomTouchable
+            onPress={onLocationPress}
             bgColor={colors.profile_name_black}
             style={styles.locationTag}
           >
@@ -164,22 +195,25 @@ const ProfileSection = ({ user }: ProfileSectionProps) => {
               fontFamily="Inter-Medium"
               style={[styles.locationText, { color: colors.text_white }]}
             >
-              {user?.location || "No location"}
+              {userLocation?.displayName || "Current Location"}
             </CustomText>
-          </CustomView>
+          </CustomTouchable>
 
-          <CustomView
+          {/* <CustomView
             bgColor={colors.opacity_lime}
             style={styles.secondaryLocationTag}
           >
             <HomeSvg />
             <CustomText
               fontFamily="Inter-Medium"
-              style={[styles.locationText, { color: colors.profile_name_black }]}
+              style={[
+                styles.locationText,
+                { color: colors.profile_name_black },
+              ]}
             >
               {user?.home || "No location"}
             </CustomText>
-          </CustomView>
+          </CustomView> */}
         </CustomView>
       </Animated.View>
     </CustomView>

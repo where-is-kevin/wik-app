@@ -1,13 +1,24 @@
 import CustomView from "@/components/CustomView";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import AskKevinSection from "@/components/Section/AskKevinSection";
+import { MajorEventsSection } from "@/components/Section/MajorEventsSection";
+import { MajorEventData } from "@/components/Cards/MajorEventsCard";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useMode } from "@/contexts/ModeContext";
+import { useToast } from "@/contexts/ToastContext";
+import ModeHeader from "@/components/Header/ModeHeader";
+import FloatingMapButton from "@/components/FloatingMapButton";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { StyleSheet, View, TouchableOpacity } from "react-native";
+import { StyleSheet, Animated } from "react-native";
 import MasonryGrid, { LikeItem } from "@/components/MansoryGrid";
-import { horizontalScale, verticalScale } from "@/utilities/scaling";
+import {
+  horizontalScale,
+  scaleFontSize,
+  verticalScale,
+} from "@/utilities/scaling";
 import CustomText from "@/components/CustomText";
+import { useUserLocation } from "@/contexts/UserLocationContext";
 import { useLocation } from "@/contexts/LocationContext";
 import {
   BucketBottomSheet,
@@ -17,25 +28,56 @@ import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBo
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import { useInfiniteContent } from "@/hooks/useContent";
 import { StatusBar } from "expo-status-bar";
-import FloatingMapButton from "@/components/FloatingMapButton";
+import { ErrorScreen } from "@/components/ErrorScreen";
 
 const PaginatedContentList = () => {
   const { query } = useLocalSearchParams();
   const { colors } = useTheme();
+  const { mode } = useMode();
+  const { showToast } = useToast();
   const router = useRouter();
-  const { location: contextLocation } = useLocation();
+  const { getApiLocationParams } = useUserLocation();
+  const { location: deviceLocation } = useLocation();
 
   // Handle string | string[] type from useLocalSearchParams
   const normalizeQuery = (query: string | string[] | undefined): string => {
     if (Array.isArray(query)) {
-      return query[0] || "cake";
+      return query[0] || "";
     }
-    return query || "cake";
+    return query || "";
   };
 
   // State management
   const [searchQuery, setSearchQuery] = useState(normalizeQuery(query));
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [majorEventsHeight, setMajorEventsHeight] = useState(0);
+
+  // Animated scroll value for smooth animations
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Major Events visibility with smooth animation
+  const majorEventsOpacity = scrollY.interpolate({
+    inputRange: [0, 50, 100],
+    outputRange: [1, 1, 0],
+    extrapolate: "clamp",
+  });
+
+  // Major Events height animation to prevent gap
+  const majorEventsScaleY = scrollY.interpolate({
+    inputRange: [0, 50, 100],
+    outputRange: [1, 1, 0],
+    extrapolate: "clamp",
+  });
+
+  // Major Events margin animation - use measured height
+  const majorEventsMarginAnim = scrollY.interpolate({
+    inputRange: [0, 50, 100],
+    outputRange: [0, 0, -majorEventsHeight], // Negative margin equal to actual height
+    extrapolate: "clamp",
+  });
+
+  // Check if Major Events should be visible (only for business mode)
+  const shouldShowMajorEvents = false; // Hidden for release
 
   // Bucket functionality state
   const [selectedLikeItemId, setSelectedLikeItemId] = useState<string | null>(
@@ -53,6 +95,9 @@ const PaginatedContentList = () => {
   const createBucketMutation = useCreateBucket();
 
   // Use infinite query - works with or without location
+  // Get location params - only includes lat/lng if user chose "Current Location"
+  const locationParams = getApiLocationParams(deviceLocation || undefined);
+
   const {
     data,
     fetchNextPage,
@@ -64,29 +109,60 @@ const PaginatedContentList = () => {
     refetch,
   } = useInfiniteContent({
     query: searchQuery,
-    latitude: contextLocation?.lat,
-    longitude: contextLocation?.lon,
-    limit: 20,
+    ...locationParams, // Conditionally spread lat/lng
+    limit: 12,
     enabled: true,
+    type: mode, // Pass the current mode as type
   });
 
-  // Flatten all pages into single array
+  // Get all items - use proper FlatList virtualization instead of windowing
   const allItems = data?.pages.flatMap((page) => page.items) ?? [];
 
   // Transform data for MasonryGrid
-  const PLACEHOLDER_IMAGE =
-    "https://images.unsplash.com/photo-1536236502598-7dd171f8e852?q=80&w=1974";
-
   const transformedData: LikeItem[] = allItems.map((item, index) => ({
     id: item.id,
     title: item.title,
     category: item.category,
-    foodImage: item.internalImageUrls?.[0] || PLACEHOLDER_IMAGE,
+    foodImage: item.internalImageUrls?.[0] || "", // Empty string will show SVG placeholder
     landscapeImage: "",
     hasIcon: true,
     contentShareUrl: item.contentShareUrl,
     height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall",
   }));
+
+  // Sample major events data for business mode with state
+  const [majorEvents, setMajorEvents] = useState<MajorEventData[]>([
+    {
+      id: "web-summit-2025",
+      title: "WebSummit",
+      location: "Lisbon",
+      dateRange: "November 11 - 14, 2025",
+      eventCount: "100+ Events",
+      imageUrl:
+        "https://images.unsplash.com/photo-1515187029135-18ee286d815b?q=80&w=1000",
+      isLiked: true,
+    },
+    {
+      id: "tech-crunch-disrupt",
+      title: "TechCrunch Disrupt",
+      location: "San Francisco",
+      dateRange: "October 28 - 30, 2025",
+      eventCount: "50+ Events",
+      imageUrl:
+        "https://images.unsplash.com/photo-1531058020387-3be344556be6?q=80&w=1000",
+      isLiked: true,
+    },
+    {
+      id: "ces-2026",
+      title: "CES 2026",
+      location: "Las Vegas",
+      dateRange: "January 7 - 10, 2026",
+      eventCount: "200+ Events",
+      imageUrl:
+        "https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?q=80&w=1000",
+      isLiked: false,
+    },
+  ]);
 
   // Handle input change with debounce
   const handleInputChange = useCallback((text: string) => {
@@ -96,7 +172,7 @@ const PaginatedContentList = () => {
 
     debounceTimeoutRef.current = setTimeout(() => {
       if (text.trim() === "") {
-        setSearchQuery("cake");
+        setSearchQuery("");
       }
     }, 500);
   }, []);
@@ -115,11 +191,6 @@ const PaginatedContentList = () => {
       fetchNextPage();
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  // Clean refresh handler
-  const handleRefresh = useCallback(() => {
-    refetch();
-  }, [refetch]);
 
   // Bucket functionality handlers
   const handleBucketPress = useCallback((likeItemId?: string) => {
@@ -145,12 +216,13 @@ const PaginatedContentList = () => {
 
           setIsBucketBottomSheetVisible(false);
           setSelectedLikeItemId(null);
+          showToast("Added to bucket", "success");
         } catch (error) {
-          console.error("Failed to add item to bucket:", error);
+          showToast("Failed to add to bucket", "error");
         }
       }
     },
-    [selectedLikeItemId, addBucketMutation]
+    [selectedLikeItemId, addBucketMutation, showToast]
   );
 
   const handleShowCreateBucketBottomSheet = useCallback(() => {
@@ -172,18 +244,21 @@ const PaginatedContentList = () => {
           });
           setIsCreateBucketBottomSheetVisible(false);
           setSelectedLikeItemId(null);
+          showToast("Bucket created", "success");
         } catch (error) {
-          console.error("Failed to create bucket:", error);
+          showToast("Failed to create bucket", "error");
         }
       }
     },
-    [selectedLikeItemId, createBucketMutation]
+    [selectedLikeItemId, createBucketMutation, showToast]
   );
 
   // Map navigation handler
   const handleOpenMap = useCallback(() => {
-    router.push(`/map-screen?source=content&query=${encodeURIComponent(searchQuery)}`);
-  }, [router, searchQuery]);
+    router.push(
+      `/map-screen?source=content&query=${encodeURIComponent(searchQuery)}&type=${mode}`
+    );
+  }, [router, searchQuery, mode]);
 
   const handleItemPress = useCallback(
     (item: LikeItem) => {
@@ -191,6 +266,26 @@ const PaginatedContentList = () => {
     },
     [router]
   );
+
+  // Major events handlers
+  const handleMajorEventPress = useCallback(
+    (event: MajorEventData) => {
+      router.push(`/business-events/${event.id}`);
+    },
+    [router]
+  );
+
+  const handleMajorEventLike = useCallback((event: MajorEventData) => {
+    setMajorEvents((prevEvents) =>
+      prevEvents.map((e) =>
+        e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
+      )
+    );
+  }, []);
+
+  const handleViewAllMajorEvents = useCallback(() => {
+    // TODO: Navigate to all major events page
+  }, []);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -203,15 +298,24 @@ const PaginatedContentList = () => {
 
   // Loading state
   const isInitialLoading = isLoading && allItems.length === 0;
-  const isRefreshing = isLoading && !!data;
 
   if (isInitialLoading) {
     return (
       <CustomView bgColor={colors.background} style={styles.container}>
-        <AskKevinSection
-          onSend={handleSend}
-          onInputChange={handleInputChange}
-        />
+        <CustomView
+          style={[
+            styles.headerContainer,
+            { backgroundColor: colors.background },
+          ]}
+        >
+          <ModeHeader />
+
+          <AskKevinSection
+            onSend={handleSend}
+            onInputChange={handleInputChange}
+          />
+        </CustomView>
+
         <CustomView style={styles.loadingContainer}>
           <AnimatedLoader />
         </CustomView>
@@ -227,17 +331,16 @@ const PaginatedContentList = () => {
           onSend={handleSend}
           onInputChange={handleInputChange}
         />
-        <CustomView style={styles.errorContainer}>
-          <CustomText style={styles.errorText}>
-            Failed to load content
-          </CustomText>
-          <CustomText style={styles.errorSubtext}>
-            {error?.message || "Please try again"}
-          </CustomText>
-          <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
-            <CustomText style={styles.retryButtonText}>Try Again</CustomText>
-          </TouchableOpacity>
-        </CustomView>
+        <ErrorScreen
+          title="Failed to load content"
+          message={error?.message || "Please try again"}
+          onRetry={() => refetch()}
+        />
+
+        {/* Floating Map Button - Only show if there's data available */}
+        {transformedData.length > 0 && (
+          <FloatingMapButton onPress={handleOpenMap} hasTabBar={true} />
+        )}
       </CustomView>
     );
   }
@@ -246,13 +349,55 @@ const PaginatedContentList = () => {
     <>
       <StatusBar style="dark" />
       <CustomView bgColor={colors.background} style={styles.container}>
-        <AskKevinSection
-          onSend={handleSend}
-          onInputChange={handleInputChange}
-        />
+        {/* Fixed header for both modes */}
+        <CustomView
+          style={[
+            styles.headerContainer,
+            { backgroundColor: colors.background },
+          ]}
+        >
+          <ModeHeader />
+          <AskKevinSection
+            onSend={handleSend}
+            onInputChange={handleInputChange}
+          />
 
-        {transformedData.length > 0 ? (
-          <View style={styles.contentContainer}>
+          {/* Major Events Section - Only show in business mode with smooth animation */}
+          {shouldShowMajorEvents && (
+            <Animated.View
+              style={{
+                opacity: majorEventsOpacity,
+                transform: [{ scaleY: majorEventsScaleY }],
+                marginBottom: majorEventsMarginAnim,
+                overflow: "hidden",
+              }}
+              onLayout={(event) => {
+                const { height } = event.nativeEvent.layout;
+                setMajorEventsHeight(height);
+              }}
+            >
+              <MajorEventsSection
+                events={majorEvents}
+                onEventPress={handleMajorEventPress}
+                onLikePress={handleMajorEventLike}
+                onViewAllPress={handleViewAllMajorEvents}
+              />
+            </Animated.View>
+          )}
+
+          <CustomView style={[styles.titleContainer]}>
+            <CustomText
+              fontFamily="Inter-SemiBold"
+              style={[styles.curatedTitle, { color: colors.label_dark }]}
+            >
+              Curated just for you today
+            </CustomText>
+          </CustomView>
+        </CustomView>
+
+        {/* Content grid */}
+        <CustomView style={styles.contentContainer}>
+          {transformedData.length > 0 ? (
             <MasonryGrid
               data={transformedData}
               onBucketPress={handleBucketPress}
@@ -260,22 +405,24 @@ const PaginatedContentList = () => {
               onLoadMore={handleLoadMore}
               hasNextPage={hasNextPage}
               isFetchingNextPage={isFetchingNextPage}
-              refreshing={isRefreshing}
-              onRefresh={handleRefresh}
               showVerticalScrollIndicator={false}
               contentContainerStyle={styles.masonryContentContainer}
+              onScroll={
+                mode === "business"
+                  ? Animated.event(
+                      [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                      { useNativeDriver: false }
+                    )
+                  : undefined
+              }
             />
-          </View>
-        ) : (
-          <CustomView style={styles.errorContainer}>
-            <CustomText style={styles.errorText}>
-              No results found for "{searchQuery}"
-            </CustomText>
-            <CustomText style={styles.errorSubtext}>
-              Try searching for something else
-            </CustomText>
-          </CustomView>
-        )}
+          ) : (
+            <ErrorScreen
+              title={`No results found`}
+              message="Try searching for something else or changing mode"
+            />
+          )}
+        </CustomView>
 
         {/* Bucket Bottom Sheets */}
         <BucketBottomSheet
@@ -291,10 +438,10 @@ const PaginatedContentList = () => {
           onClose={handleCloseCreateBucketBottomSheet}
           onCreateBucket={handleCreateBucket}
         />
-        
-        {/* Floating Map Button */}
-        {allItems.length > 0 && (
-          <FloatingMapButton onPress={handleOpenMap} />
+
+        {/* Floating Map Button - Only show if there's data available */}
+        {transformedData.length > 0 && (
+          <FloatingMapButton onPress={handleOpenMap} hasTabBar={true} />
         )}
       </CustomView>
     </>
@@ -308,44 +455,22 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
   },
+  headerContainer: {
+    backgroundColor: "transparent",
+  },
+  titleContainer: {
+    paddingHorizontal: horizontalScale(24),
+    paddingBottom: verticalScale(4),
+  },
+  curatedTitle: {
+    fontSize: scaleFontSize(16),
+  },
   contentContainer: {
     flex: 1,
   },
   masonryContentContainer: {
-    marginTop: verticalScale(12),
-    paddingHorizontal: horizontalScale(24),
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  errorText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  errorSubtext: {
-    fontSize: 16,
-    color: "#999",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: "#6C63FF",
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  retryButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-    textAlign: "center",
+    paddingTop: verticalScale(8),
+    paddingBottom: verticalScale(20),
   },
 });
 

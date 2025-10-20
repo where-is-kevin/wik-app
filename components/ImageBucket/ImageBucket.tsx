@@ -1,12 +1,5 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  FlatList,
-} from "react-native";
+import React from "react";
+import { View, TouchableOpacity, StyleSheet, FlatList } from "react-native";
 import CustomView from "../CustomView";
 import {
   horizontalScale,
@@ -18,6 +11,10 @@ import { useTheme } from "@/contexts/ThemeContext";
 import CustomTouchable from "../CustomTouchableOpacity";
 import ShareButton from "../Button/ShareButton";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
+import { ImagePlaceholder } from "../OptimizedImage/ImagePlaceholder";
+
+// Local placeholder image - moved outside component to prevent re-creation
+// Using SVG placeholder via OptimizedImage error handling
 
 interface BucketItem {
   id?: string;
@@ -49,26 +46,36 @@ const getValidImageUrl = (image: string | number): string | null => {
   return null;
 };
 
+// Helper function to check if content exists at position (not just image URL)
+const hasContentAtPosition = (
+  images: (string | number)[],
+  position: number
+): boolean => {
+  if (!Array.isArray(images) || position >= images.length) {
+    return false;
+  }
+  // Check if there's actual content (not empty string, null, or undefined)
+  const content = images[position];
+  return (
+    content !== null && content !== undefined && content !== "" && content !== 0
+  );
+};
+
 // Helper function to get safe images array
 const getSafeImages = (images: (string | number)[]): (string | null)[] => {
   if (!Array.isArray(images)) {
     return [null, null, null];
   }
 
-  // Filter out invalid entries and get first 3 valid URLs
-  const validImages = images
-    .map((img) => getValidImageUrl(img))
-    .filter((img) => img !== null);
-
-  // Return exactly 3 entries, padding with null if needed
+  // Get first 3 images and validate each one individually
   return [
-    validImages[0] || null,
-    validImages[1] || null,
-    validImages[2] || null,
+    getValidImageUrl(images[0]),
+    getValidImageUrl(images[1]),
+    getValidImageUrl(images[2]),
   ];
 };
 
-export const ImageBucket: React.FC<ImageBucketProps> = ({
+const ImageBucketComponent: React.FC<ImageBucketProps> = ({
   title,
   images,
   onPress,
@@ -77,11 +84,8 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
 }) => {
   const { colors } = useTheme();
 
-  // Local placeholder image
-  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
-
-  // Get safe images with validation
-  const safeImages = getSafeImages(images);
+  // Get safe images with validation - memoized to prevent re-renders
+  const safeImages = React.useMemo(() => getSafeImages(images), [images]);
 
   return (
     <CustomView style={styles.container}>
@@ -90,43 +94,60 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
         {/* Main large image (left side) */}
         <CustomView style={styles.mainImageContainer}>
           <OptimizedImage
-            source={safeImages[0] ? { uri: safeImages[0] } : PLACEHOLDER_IMAGE}
+            source={safeImages[0] ? { uri: safeImages[0] } : ""}
             style={styles.mainImage}
-            resizeMode="cover"
+            contentFit="cover"
             priority="normal"
-            showLoader={true}
-            fallbackSource={PLACEHOLDER_IMAGE}
+            showLoadingIndicator={true}
+            borderRadius={12}
+            overlayComponent={!safeImages[0] ? <ImagePlaceholder /> : undefined}
           />
         </CustomView>
 
         {/* Right column with two smaller images */}
         <CustomView style={styles.rightColumn}>
           <CustomView style={styles.smallImageContainer}>
-            <OptimizedImage
-              source={
-                safeImages[1] ? { uri: safeImages[1] } : PLACEHOLDER_IMAGE
-              }
-              style={styles.smallImage}
-              resizeMode="cover"
-              priority="normal"
-              showLoader={true}
-              fallbackSource={PLACEHOLDER_IMAGE}
-            />
+            {hasContentAtPosition(images, 1) ? (
+              <OptimizedImage
+                source={safeImages[1] ? { uri: safeImages[1] } : ""}
+                style={styles.smallImage}
+                contentFit="cover"
+                priority="normal"
+                showLoadingIndicator={true}
+                borderRadius={12}
+                overlayComponent={!safeImages[1] ? <ImagePlaceholder /> : undefined}
+              />
+            ) : (
+              <View
+                style={[
+                  styles.smallImage,
+                  { backgroundColor: "#F5F5F5", borderRadius: 12 },
+                ]}
+              />
+            )}
           </CustomView>
 
           <CustomView
             style={[styles.smallImageContainer, styles.bottomImageContainer]}
           >
-            <OptimizedImage
-              source={
-                safeImages[2] ? { uri: safeImages[2] } : PLACEHOLDER_IMAGE
-              }
-              style={styles.smallImage}
-              resizeMode="cover"
-              priority="normal"
-              showLoader={true}
-              fallbackSource={PLACEHOLDER_IMAGE}
-            />
+            {hasContentAtPosition(images, 2) ? (
+              <OptimizedImage
+                source={safeImages[2] ? { uri: safeImages[2] } : ""}
+                style={styles.smallImage}
+                contentFit="cover"
+                priority="normal"
+                showLoadingIndicator={true}
+                borderRadius={12}
+                overlayComponent={!safeImages[2] ? <ImagePlaceholder /> : undefined}
+              />
+            ) : (
+              <View
+                style={[
+                  styles.smallImage,
+                  { backgroundColor: "#F5F5F5", borderRadius: 12 },
+                ]}
+              />
+            )}
           </CustomView>
         </CustomView>
       </TouchableOpacity>
@@ -149,6 +170,36 @@ export const ImageBucket: React.FC<ImageBucketProps> = ({
     </CustomView>
   );
 };
+
+// Custom comparison function for React.memo
+const arePropsEqual = (
+  prevProps: ImageBucketProps,
+  nextProps: ImageBucketProps
+) => {
+  // Check if title, bucketShareUrl changed
+  if (
+    prevProps.title !== nextProps.title ||
+    prevProps.bucketShareUrl !== nextProps.bucketShareUrl
+  ) {
+    return false;
+  }
+
+  // Check if images array changed (deep comparison)
+  if (prevProps.images.length !== nextProps.images.length) {
+    return false;
+  }
+
+  for (let i = 0; i < prevProps.images.length; i++) {
+    if (prevProps.images[i] !== nextProps.images[i]) {
+      return false;
+    }
+  }
+
+  // Don't compare onPress/onMorePress functions - they can change
+  return true;
+};
+
+export const ImageBucket = React.memo(ImageBucketComponent, arePropsEqual);
 
 // Buckets section component with horizontal FlatList
 const BucketsSection: React.FC<BucketsSectionProps> = ({
@@ -204,8 +255,6 @@ const BucketsSection: React.FC<BucketsSectionProps> = ({
     </CustomView>
   );
 };
-
-const { width } = Dimensions.get("window");
 
 const styles = StyleSheet.create({
   container: {
@@ -280,6 +329,9 @@ const styles = StyleSheet.create({
   },
   itemSeparator: {
     width: horizontalScale(12),
+  },
+  grayBackground: {
+    borderRadius: 12,
   },
 });
 

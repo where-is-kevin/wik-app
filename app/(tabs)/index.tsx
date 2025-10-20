@@ -1,8 +1,10 @@
 import { useContent } from "@/hooks/useContent";
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { useAddLike } from "@/hooks/useLikes";
 import { getErrorMessage } from "@/utilities/errorUtils";
-import { StyleSheet, TouchableOpacity, Linking } from "react-native";
+import { StyleSheet, View, Linking, Alert, Platform } from "react-native";
+import { useRouter } from "expo-router";
+import { ErrorScreen } from "@/components/ErrorScreen";
 import CustomView from "@/components/CustomView";
 import { horizontalScale, verticalScale } from "@/utilities/scaling";
 import {
@@ -10,33 +12,40 @@ import {
   BucketItem,
 } from "@/components/BottomSheet/BucketBottomSheet";
 import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { useAddDislike } from "@/hooks/useDislikes";
 import { useLocation } from "@/contexts/LocationContext";
-import CustomText from "@/components/CustomText";
-import { CardData, SwipeCards } from "@/components/SwipeCards/SwipeCards";
+import { useUserLocation } from "@/contexts/UserLocationContext";
+import SwipeCards, { CardData } from "@/components/SwipeCards/SwipeCards";
 import FilterModal, { FilterType } from "@/components/FilterModal/FilterModal";
 import FilterSvg from "@/components/SvgComponents/FilterSvg";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
+import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
+import ModeHeader from "@/components/Header/ModeHeader";
+import { useToast } from "@/contexts/ToastContext";
+import { useMode } from "@/contexts/ModeContext";
+import SwipeCardTooltips from "@/components/Tooltips/SwipeCardTooltips";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import QuestionMarkSvg from "@/components/SvgComponents/QuestionMarkSvg";
+import QuestionMarkActiveSvg from "@/components/SvgComponents/QuestionMarkActiveSvg";
 
 const SwipeableCards = () => {
-  const { location, hasPermission, permissionStatus } = useLocation();
+  const router = useRouter();
+  const { location: deviceLocation, permissionStatus } = useLocation();
+  const { getApiLocationParams } = useUserLocation();
+  const { mode } = useMode();
   const [selectedFilters, setSelectedFilters] = useState<FilterType[]>([
     "events",
     "venues",
     "experiences",
   ]);
 
-  // Simple params - just use current location from context
+  // Use UserLocationContext to determine if we should send coordinates
   const locationParams = {
-    latitude: location?.lat,
-    longitude: location?.lon,
+    ...getApiLocationParams(deviceLocation || undefined),
     category_filter:
       selectedFilters.length > 0
         ? selectedFilters
@@ -48,13 +57,14 @@ const SwipeableCards = () => {
             })
             .join(";")
         : "event;venue;experience",
+    type: mode, // Add the current mode as type
   };
 
   // Convert permission status to the format expected by useContent
   const getPermissionStatus = () => {
-    if (permissionStatus === 'granted') return 'granted';
-    if (permissionStatus === 'denied') return 'denied';
-    return 'undetermined';
+    if (permissionStatus === "granted") return "granted";
+    if (permissionStatus === "denied") return "denied";
+    return "undetermined";
   };
 
   const {
@@ -63,17 +73,80 @@ const SwipeableCards = () => {
     error,
     refetch,
   } = useContent(locationParams, getPermissionStatus());
+
+  // Reset pagination when new content is loaded
+  React.useEffect(() => {
+    if (content && content.length > 0) {
+      setCurrentOffset(0);
+    }
+  }, [content]);
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
+  const { trackSuggestion } = useAnalyticsContext();
+  const { showToast } = useToast();
 
   const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] =
     useState(false);
+
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [
     isCreateBucketBottomSheetVisible,
     setIsCreateBucketBottomSheetVisible,
   ] = useState(false);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+  const [showSwipeTooltips, setShowSwipeTooltips] = useState(false);
+  const [showQuestionMarkTooltips, setShowQuestionMarkTooltips] =
+    useState(false);
+
+  // Check if this is the first time user visits the main tab
+  useEffect(() => {
+    const checkFirstTimeUser = async () => {
+      try {
+        const hasSeenTooltips = await AsyncStorage.getItem(
+          "hasSeenSwipeTooltips"
+        );
+        if (!hasSeenTooltips) {
+          setShowSwipeTooltips(true);
+        }
+      } catch (error) {
+        console.log("Error checking first time user:", error);
+      }
+    };
+
+    checkFirstTimeUser();
+  }, []);
+
+  const handleTooltipsComplete = async () => {
+    try {
+      await AsyncStorage.setItem("hasSeenSwipeTooltips", "true");
+      setShowSwipeTooltips(false);
+    } catch (error) {
+      console.log("Error saving tooltips completion:", error);
+      setShowSwipeTooltips(false);
+    }
+  };
+
+  const handleQuestionMarkPress = () => {
+    setShowQuestionMarkTooltips(true);
+  };
+
+  const handleQuestionMarkTooltipsComplete = () => {
+    setShowQuestionMarkTooltips(false);
+  };
+
+  // Auto-dismiss question mark tooltips after 5 seconds
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (showQuestionMarkTooltips) {
+      timer = setTimeout(() => {
+        setShowQuestionMarkTooltips(false);
+      }, 5000);
+    }
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [showQuestionMarkTooltips]);
 
   // Mutation hooks
   const addBucketMutation = useAddBucket();
@@ -81,108 +154,244 @@ const SwipeableCards = () => {
   const addLikeMutation = useAddLike();
   const dislikeMutation = useAddDislike();
 
+  // Track when to refresh the card stack
+  const [swipeKey, setSwipeKey] = useState<number>(0);
+  // Track current offset for pagination through existing data
+  const [currentOffset, setCurrentOffset] = useState<number>(0);
+
   // Transform your content data to match SwipeCards interface
-
-  // Fixed: Now content is always an array, so we can map directly
-  const transformedData: CardData[] = content
-    ? content.map((item) => ({
-        id: item.id,
-        title: item.title,
-        imageUrl:
-          item.internalImageUrls && item.internalImageUrls.length > 0
-            ? item.internalImageUrls[0]
-            : item.googlePlacesImageUrl,
-        price: item.price ? item.price.toString() : undefined,
-        rating: item?.rating ? item.rating.toString() : undefined,
-        category: item.category,
-        websiteUrl: item.websiteUrl || "",
-        address: item.address || "",
-        isSponsored: item.isSponsored,
-        contentShareUrl: item.contentShareUrl,
-        tags: item.tags,
-        similarity: item.similarity,
-        distance: item.distance,
-      }))
-    : [];
-
-  const handleLike = (item: CardData) => {
-    if (!item) {
-      console.error("No item provided to handleLike");
-      return;
+  const transformedData: CardData[] = useMemo(() => {
+    if (!content || content.length === 0) {
+      return [];
     }
 
-    const likeData = {
-      contentIds: [item.id],
-    };
+    // Calculate how many items we can show from current offset
+    // Platform-specific batch size: iOS can handle more cards efficiently
+    const itemsPerBatch = Platform.OS === "ios" ? 8 : 6;
+    const startIndex = currentOffset;
+    const endIndex = Math.min(startIndex + itemsPerBatch, content.length);
 
-    addLikeMutation.mutate(likeData, {
-      onError: (error) => {
-        console.error("Failed to add like:", error);
-      },
-    });
-  };
+    const filtered = content.slice(startIndex, endIndex).map((item) => ({
+      id: item.id,
+      title: item.title || "Untitled", // Handle null title
+      imageUrl:
+        item.internalImageUrls &&
+        Array.isArray(item.internalImageUrls) &&
+        item.internalImageUrls.length > 0
+          ? item.internalImageUrls[0]
+          : "",
+      price: item.price
+        ? typeof item.price === "number"
+          ? item.price.toString()
+          : item.price
+        : undefined,
+      rating: item?.rating ? item.rating.toString() : undefined,
+      category: item.category,
+      websiteUrl: item.websiteUrl || "",
+      address: item.addressShort || item.address || "",
+      isSponsored: item.isSponsored,
+      contentShareUrl: item.contentShareUrl,
+      tags: item.tags,
+      similarity:
+        typeof item.similarity === "string"
+          ? parseFloat(item.similarity) || 0
+          : item.similarity,
+      distance: item.distance,
+      eventDatetimeStart: item.eventDatetimeStart || undefined, // Add event datetime for events
+      eventDatetimeEnd: item.eventDatetimeEnd || undefined,
+    }));
 
-  const handleDislike = (item: CardData) => {
-    if (!item) {
-      console.error("No item provided to handleLike");
-      return;
-    }
+    return filtered;
+  }, [content, currentOffset]);
 
-    const dislikeData = {
-      contentIds: [item.id],
-    };
+  const handleLike = useCallback(
+    (item: CardData) => {
+      if (!item) {
+        return;
+      }
 
-    dislikeMutation.mutate(dislikeData, {
-      onError: (error) => {
-        console.error("Failed to add like:", error);
-      },
-    });
-  };
-
-  const handleSwipeLeft = (item: CardData) => {
-    if (!item) {
-      console.error("No item provided to handleSwipeLeft");
-      return;
-    }
-    handleDislike(item);
-  };
-
-  const handleSwipeRight = (item: CardData) => {
-    if (!item) {
-      console.error("No item provided to handleSwipeRight");
-      return;
-    }
-    handleLike(item);
-  };
-
-  const handleSwipeUp = (item: CardData) => {
-    if (!item) {
-      console.error("No item provided to handleSwipeUp");
-      return;
-    }
-
-    // Check if the item has a website URL and open it
-    if (item?.websiteUrl) {
-      Linking.openURL(item.websiteUrl).catch((err) => {
-        // console.error("Failed to open URL:", err);
+      // Track suggestion analytics
+      trackSuggestion("swipe_right", {
+        suggestion_id: item.id,
+        suggestion_type:
+          (item.category as "venue" | "experience" | "event") || "unknown",
+        category: item.category || "unknown",
+        similarity_score:
+          typeof item.similarity === "string"
+            ? parseFloat(item.similarity) || 0
+            : item.similarity,
+        rating: item.rating ? parseFloat(item.rating) : undefined,
+        price_range: item.price,
       });
-    } else {
-      // console.log("No website URL available for this item");
-    }
-  };
 
-  // Simplified: Just refetch new content when cards are exhausted
+      const likeData = {
+        contentIds: [item.id],
+      };
+
+      addLikeMutation.mutate(likeData, {
+        onError: () => {
+          showToast("Failed to save your interest", "error");
+        },
+      });
+    },
+    [addLikeMutation, trackSuggestion, showToast]
+  );
+
+  const handleDislike = useCallback(
+    (item: CardData) => {
+      if (!item) {
+        return;
+      }
+
+      // Track suggestion analytics
+      trackSuggestion("swipe_left", {
+        suggestion_id: item.id,
+        suggestion_type:
+          (item.category as "venue" | "experience" | "event") || "venue",
+        category: item.category || "unknown",
+        similarity_score:
+          typeof item.similarity === "string"
+            ? parseFloat(item.similarity) || 0
+            : item.similarity,
+        rating: item.rating ? parseFloat(item.rating) : undefined,
+        price_range: item.price,
+      });
+
+      const dislikeData = {
+        contentIds: [item.id],
+      };
+
+      dislikeMutation.mutate(dislikeData, {
+        onError: () => {
+          // Silently handle dislike errors
+        },
+      });
+    },
+    [dislikeMutation, trackSuggestion]
+  );
+
+  const handleSwipeLeft = useCallback(
+    (item: CardData) => {
+      if (!item) {
+        return;
+      }
+
+      // Handle dislike asynchronously without blocking UI
+      setTimeout(() => handleDislike(item), 0);
+    },
+    [handleDislike]
+  );
+
+  const handleSwipeRight = useCallback(
+    (item: CardData) => {
+      if (!item) {
+        return;
+      }
+
+      // Handle like asynchronously without blocking UI
+      setTimeout(() => handleLike(item), 0);
+    },
+    [handleLike]
+  );
+
+  const handleSwipeUp = useCallback(
+    (item: CardData) => {
+      if (!item) {
+        return;
+      }
+
+      // Handle analytics, liking, and URL opening asynchronously
+      setTimeout(() => {
+        // Track as save_suggestion
+        trackSuggestion("save_suggestion", {
+          suggestion_id: item.id,
+          suggestion_type:
+            (item.category as "venue" | "experience" | "event") || "venue",
+          category: item.category || "unknown",
+          similarity_score:
+            typeof item.similarity === "string"
+              ? parseFloat(item.similarity) || 0
+              : item.similarity,
+          rating: item.rating ? parseFloat(item.rating) : undefined,
+          price_range: item.price,
+        });
+
+        // Like the item since the card is moving to next
+        const likeData = {
+          contentIds: [item.id],
+        };
+
+        addLikeMutation.mutate(likeData, {
+          onSuccess: () => {
+            showToast("Saved to your likes", "success");
+          },
+          onError: () => {
+            showToast("Failed to save your interest", "error");
+          },
+        });
+
+        // Also open the website URL
+        if (item?.websiteUrl) {
+          Linking.openURL(item.websiteUrl).catch(() => {
+            Alert.alert(
+              "Unable to Open",
+              "Could not open the website for this content."
+            );
+          });
+        } else {
+          Alert.alert(
+            "No Website",
+            "No website is available for this content."
+          );
+        }
+      }, 0);
+    },
+    [trackSuggestion, addLikeMutation, showToast]
+  );
+
+  // Track loading state for card refresh
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Refresh the card stack when cards are exhausted
   const handleComplete = useCallback(() => {
-    // console.log("All cards swiped, fetching new content...");
-    refetch();
-  }, []);
+    if (!content) return;
 
-  const handleShowBucketBottomSheet = (itemId?: string) => {
+    const itemsPerBatch = Platform.OS === "ios" ? 8 : 6; // Match the platform-specific batch size
+    const nextOffset = currentOffset + itemsPerBatch;
+
+    // Check if we have more items in the existing data
+    if (nextOffset < content.length) {
+      // Show next batch from existing data without API call
+      setIsRefreshing(true);
+      setCurrentOffset(nextOffset);
+      setSwipeKey((prev) => prev + 1);
+
+      // Small delay for smooth transition
+      setTimeout(() => setIsRefreshing(false), 500);
+    } else {
+      // We've exhausted all data, make a new API call
+      setIsRefreshing(true);
+      setCurrentOffset(0); // Reset to beginning
+      setSwipeKey((prev) => prev + 1);
+      refetch().finally(() => {
+        setTimeout(() => setIsRefreshing(false), 500);
+      });
+    }
+  }, [content, currentOffset, refetch]);
+
+  const handleCardTap = useCallback(
+    (item: CardData) => {
+      router.push(`/event-details/${item.id}`);
+    },
+    [router]
+  );
+
+  const handleShowBucketBottomSheet = useCallback((itemId?: string) => {
     if (itemId) {
       setSelectedItemId(itemId);
     }
     setIsBucketBottomSheetVisible(true);
-  };
+  }, []);
 
   const handleCloseBucketBottomSheet = () => {
     setIsBucketBottomSheetVisible(false);
@@ -199,10 +408,9 @@ const SwipeableCards = () => {
 
         setIsBucketBottomSheetVisible(false);
         setSelectedItemId(null);
-
-        // console.log(`Successfully added item to bucket "${item.title}"`);
+        showToast("Added to bucket", "success");
       } catch (error) {
-        // console.error("Failed to add item to bucket:", error);
+        showToast("Failed to add to bucket", "error");
       }
     }
   };
@@ -227,14 +435,16 @@ const SwipeableCards = () => {
         });
         setIsCreateBucketBottomSheetVisible(false);
         setSelectedItemId(null);
+        showToast("Bucket created", "success");
       } catch (error) {
-        console.error("Failed to create bucket:", error);
+        showToast("Failed to create bucket", "error");
       }
     }
   };
 
   const handleFilterApply = (filters: FilterType[]) => {
     setSelectedFilters(filters);
+    setCurrentOffset(0); // Reset pagination when filters change
     // The locationParams will automatically update due to the dependency on selectedFilters
   };
 
@@ -242,35 +452,145 @@ const SwipeableCards = () => {
     const errorMessage = getErrorMessage(error);
     return (
       <CustomView style={styles.errorContainer}>
-        <CustomText style={styles.errorTitle}>{errorMessage.title}</CustomText>
-        <CustomText style={styles.errorText}>{errorMessage.message}</CustomText>
-        <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
-          <CustomText style={styles.retryButtonText}>Check Again</CustomText>
-        </TouchableOpacity>
+        <ErrorScreen
+          title={errorMessage.title}
+          message={errorMessage.message}
+          buttonText="Check Again"
+          onRetry={refetch}
+        />
       </CustomView>
     );
   }
 
   // Check if we're still waiting for location decision
-  const waitingForLocation = getPermissionStatus() === 'undetermined' || 
-    (getPermissionStatus() === 'granted' && !location?.lat && !location?.lon);
+  const waitingForLocation =
+    getPermissionStatus() === "undetermined" ||
+    (getPermissionStatus() === "granted" &&
+      !deviceLocation?.lat &&
+      !deviceLocation?.lon);
 
-  // Show loading state
+  // Show loading state with header still visible (initial load, location waiting)
   if (isLoading || waitingForLocation) {
     return (
-      <SafeAreaView style={{ backgroundColor: "#fff", flex: 1 }}>
-        <AnimatedLoader />
-      </SafeAreaView>
+      <View style={{ flex: 1, backgroundColor: "#FFF", zIndex: -1 }}>
+        <CustomView bgColor={colors.overlay} style={{ flex: 1 }}>
+          <ModeHeader />
+          <CustomView style={styles.headerButtonsRow}>
+            <CustomTouchable
+              style={[styles.questionMarkButton, styles.questionMarkButtonDisabled]}
+              onPress={undefined} // Disabled when loading
+              disabled={true}
+            >
+              <QuestionMarkSvg />
+            </CustomTouchable>
+
+            <CustomTouchable
+              style={styles.filterSvgButton}
+              onPress={() => setIsFilterModalVisible(true)}
+            >
+              <CustomView style={styles.filterSvgContainer}>
+                <FilterSvg />
+                {selectedFilters.length < 3 && (
+                  <CustomView
+                    bgColor={colors.light_blue}
+                    style={styles.filterIndicatorDot}
+                  />
+                )}
+              </CustomView>
+            </CustomTouchable>
+          </CustomView>
+
+          <CustomView style={styles.swipeContainer}>
+            <AnimatedLoader />
+          </CustomView>
+        </CustomView>
+
+        <FilterModal
+          isVisible={isFilterModalVisible}
+          onClose={() => setIsFilterModalVisible(false)}
+          onApply={handleFilterApply}
+          selectedFilters={selectedFilters}
+        />
+      </View>
     );
   }
 
-  // Show empty state when no data is available AND we're not loading
-  if (!transformedData.length) {
+  // Show empty state when no data is available AND we're not loading/refreshing
+  if (!transformedData.length && !isRefreshing) {
     return (
-      <>
-        <CustomView style={styles.content}>
+      <View style={{ flex: 1, backgroundColor: "#FFF", zIndex: -1 }}>
+        <CustomView bgColor={colors.overlay} style={{ flex: 1 }}>
+          <ModeHeader />
+          <CustomView style={styles.headerButtonsRow}>
+            <CustomTouchable
+              style={[styles.questionMarkButton, styles.questionMarkButtonDisabled]}
+              onPress={undefined} // Disabled when no cards available
+              disabled={true}
+            >
+              <QuestionMarkSvg />
+            </CustomTouchable>
+
+            <CustomTouchable
+              style={styles.filterSvgButton}
+              onPress={() => setIsFilterModalVisible(true)}
+            >
+              <CustomView style={styles.filterSvgContainer}>
+                <FilterSvg />
+                {selectedFilters.length < 3 && (
+                  <CustomView
+                    bgColor={colors.light_blue}
+                    style={styles.filterIndicatorDot}
+                  />
+                )}
+              </CustomView>
+            </CustomTouchable>
+          </CustomView>
+
+          <CustomView style={styles.errorContainer}>
+            {selectedFilters.length < 3 ? (
+              <ErrorScreen
+                title="No results for your filters"
+                message="Try changing your filters to see more content in your area."
+              />
+            ) : (
+              <ErrorScreen
+                title="Oops, there are no recommendations around you"
+                message="Please change your location to find new recommendations."
+                buttonText="Change Location"
+                onRetry={() => router.push("/location-selection")}
+              />
+            )}
+          </CustomView>
+        </CustomView>
+
+        <FilterModal
+          isVisible={isFilterModalVisible}
+          onClose={() => setIsFilterModalVisible(false)}
+          onApply={handleFilterApply}
+          selectedFilters={selectedFilters}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: "#FFF", zIndex: -1 }}>
+      <CustomView bgColor={colors.overlay} style={{ flex: 1 }}>
+        <ModeHeader />
+        <CustomView style={styles.headerButtonsRow}>
           <CustomTouchable
-            style={[styles.filterSvgButton, { marginTop: insets.top }]}
+            style={styles.questionMarkButton}
+            onPress={handleQuestionMarkPress}
+          >
+            {showQuestionMarkTooltips ? (
+              <QuestionMarkActiveSvg />
+            ) : (
+              <QuestionMarkSvg />
+            )}
+          </CustomTouchable>
+
+          <CustomTouchable
+            style={styles.filterSvgButton}
             onPress={() => setIsFilterModalVisible(true)}
           >
             <CustomView style={styles.filterSvgContainer}>
@@ -283,69 +603,42 @@ const SwipeableCards = () => {
               )}
             </CustomView>
           </CustomTouchable>
-
-          <CustomView style={styles.errorContainer}>
-            {selectedFilters.length < 3 ? (
-              <>
-                <CustomText style={styles.errorTitle}>
-                  No results for your filters
-                </CustomText>
-                <CustomText style={styles.errorText}>
-                  Try changing your filters to see more content in your area.
-                </CustomText>
-              </>
-            ) : (
-              <>
-                <CustomText style={styles.errorTitle}>
-                  You're on the edge of something amazing.
-                </CustomText>
-                <CustomText style={styles.errorText}>
-                  {`We're not live in your area just yet, but as soon as we reach 5000 signed up nearby we'll launch. To help us reach our goal, tell your friends so you can all be part of launching something amazing in your area.`}
-                </CustomText>
-              </>
-            )}
-          </CustomView>
         </CustomView>
 
-        <FilterModal
-          isVisible={isFilterModalVisible}
-          onClose={() => setIsFilterModalVisible(false)}
-          onApply={handleFilterApply}
-          selectedFilters={selectedFilters}
-        />
-      </>
-    );
-  }
-
-  return (
-    <>
-      <CustomView style={styles.content}>
-        <CustomTouchable
-          style={[styles.filterSvgButton, { marginTop: insets.top }]}
-          onPress={() => setIsFilterModalVisible(true)}
-        >
-          <CustomView style={styles.filterSvgContainer}>
-            <FilterSvg />
-            {selectedFilters.length < 3 && (
-              <CustomView
-                bgColor={colors.light_blue}
-                style={styles.filterIndicatorDot}
-              />
-            )}
+        {isRefreshing ? (
+          <CustomView style={styles.swipeContainer}>
+            <AnimatedLoader />
           </CustomView>
-        </CustomTouchable>
+        ) : (
+          <CustomView style={[styles.swipeContainer, { position: "relative" }]}>
+            <SwipeCards
+              key={swipeKey}
+              data={transformedData}
+              onSwipeLeft={handleSwipeLeft}
+              onSwipeRight={handleSwipeRight}
+              onSwipeUp={handleSwipeUp}
+              onComplete={handleComplete}
+              onCardTap={handleCardTap}
+              onBucketPress={handleShowBucketBottomSheet}
+              isLoading={isLoading}
+              showLoaderOnComplete={true}
+            />
 
-        <CustomView style={[styles.swipeContainer]}>
-          <SwipeCards
-            data={transformedData}
-            onSwipeLeft={handleSwipeLeft}
-            onSwipeRight={handleSwipeRight}
-            onSwipeUp={handleSwipeUp}
-            onComplete={handleComplete}
-            onBucketPress={handleShowBucketBottomSheet}
-          />
-        </CustomView>
+            {showSwipeTooltips && !isLoading && transformedData.length > 0 && (
+              <SwipeCardTooltips onComplete={handleTooltipsComplete} />
+            )}
+
+            {showQuestionMarkTooltips &&
+              !isLoading &&
+              transformedData.length > 0 && (
+                <SwipeCardTooltips
+                  onComplete={handleQuestionMarkTooltipsComplete}
+                />
+              )}
+          </CustomView>
+        )}
       </CustomView>
+
       <BucketBottomSheet
         isVisible={isBucketBottomSheetVisible}
         onClose={handleCloseBucketBottomSheet}
@@ -366,7 +659,7 @@ const SwipeableCards = () => {
         onApply={handleFilterApply}
         selectedFilters={selectedFilters}
       />
-    </>
+    </View>
   );
 };
 
@@ -397,59 +690,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  errorTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  errorText: {
-    color: "#666",
-    fontSize: 16,
-    marginBottom: 30,
-    textAlign: "center",
-    lineHeight: 24,
-    paddingHorizontal: 20,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    padding: 20,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 30,
-    textAlign: "center",
-    lineHeight: 24,
-    paddingHorizontal: 20,
-  },
-  retryButton: {
-    backgroundColor: "#6C63FF",
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
-  retryButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
   content: {
     flex: 1,
     paddingHorizontal: horizontalScale(24),
@@ -463,10 +703,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingBottom: verticalScale(5),
   },
+  headerButtonsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: horizontalScale(24),
+    marginTop: verticalScale(16),
+    marginBottom: verticalScale(10),
+  },
+  questionMarkButton: {
+    // Left aligned - just the icon, no background
+  },
+  questionMarkButtonDisabled: {
+    opacity: 0.4, // Make it visually disabled
+  },
   filterSvgButton: {
-    paddingVertical: verticalScale(4),
-    marginBottom: verticalScale(5),
-    alignSelf: "flex-end",
+    // Right aligned, no longer needs alignSelf: "flex-end"
   },
   filterSvgContainer: {
     position: "relative",

@@ -46,12 +46,12 @@ const CustomMarker: React.FC<CustomMarkerProps> = ({
             fill={isSelected ? colors[color] : "#FFFFFF"}
           />
         </View>
-        <CustomText
+        {/* <CustomText
           fontFamily="Inter-SemiBold"
           style={[styles.text, { color: textColor }]}
         >
           {similarity}%
-        </CustomText>
+        </CustomText> */}
       </View>
     </View>
   );
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 6,
-    paddingRight: 12,
+    paddingRight: 6,
     paddingLeft: 6,
     borderRadius: 50,
     borderWidth: 1.5,

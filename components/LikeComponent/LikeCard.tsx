@@ -11,19 +11,23 @@ import CustomView from "@/components/CustomView";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import CustomText from "@/components/CustomText";
 import ShareButton from "../Button/ShareButton";
-import BucketSvg from "../SvgComponents/BucketSvg";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
 import CategoryTag from "../Tag/CategoryTag";
+import PinBucketSvg from "../SvgComponents/PinBucketSvg";
+import { ImagePlaceholder } from "../OptimizedImage/ImagePlaceholder";
+
+// Using SVG placeholder instead of PNG for better quality
 
 interface ExperienceCard {
   id: string;
-  title: string;
+  title: string | null;
   foodImage: string;
   landscapeImage: string;
   hasIcon?: boolean;
   height?: "short" | "tall";
   category?: string;
   contentShareUrl: string;
+  address?: string;
 }
 
 interface LikeCardProps {
@@ -41,9 +45,6 @@ const LikeCard: React.FC<LikeCardProps> = ({
 }) => {
   const { colors } = useTheme();
 
-  // Local placeholder image
-  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
-
   // Helper function to get valid image URL
   const getValidImageUrl = (imageUrl: string): string | null => {
     if (typeof imageUrl === "string" && imageUrl.trim() !== "") {
@@ -52,10 +53,8 @@ const LikeCard: React.FC<LikeCardProps> = ({
     return null;
   };
 
-  const cardHeight =
-    item.height === "tall" ? verticalScale(217) : verticalScale(117);
-  const imageHeight =
-    item.height === "tall" ? verticalScale(187) : verticalScale(87);
+  const cardHeight = item.height === "tall" ? 248 : 170;
+  const imageHeight = item.height === "tall" ? 218 : 140;
 
   // Get safe image source
   const validImageUrl = getValidImageUrl(item.foodImage);
@@ -78,12 +77,13 @@ const LikeCard: React.FC<LikeCardProps> = ({
           onPress={onPress}
         >
           <OptimizedImage
-            source={validImageUrl ? { uri: validImageUrl } : PLACEHOLDER_IMAGE}
+            source={validImageUrl ? { uri: validImageUrl } : ""}
             style={styles.image}
-            resizeMode="cover"
+            contentFit="cover"
             priority="normal"
-            showLoader={true}
-            fallbackSource={PLACEHOLDER_IMAGE}
+            showLoadingIndicator={true}
+            borderRadius={8}
+            overlayComponent={!validImageUrl ? <ImagePlaceholder /> : undefined}
           />
 
           {/* Experience tag in top left */}
@@ -98,11 +98,11 @@ const LikeCard: React.FC<LikeCardProps> = ({
           {/* Bucket SVG icon in bottom right */}
           {item.hasIcon && (
             <CustomTouchable
-              bgColor={colors.label_dark}
+              bgColor={colors.lime}
               onPress={() => onBucketPress(item.id)}
               style={styles.bucketIconContainer}
             >
-              <BucketSvg />
+              <PinBucketSvg />
             </CustomTouchable>
           )}
         </CustomTouchable>
@@ -114,11 +114,13 @@ const LikeCard: React.FC<LikeCardProps> = ({
             style={[styles.title, { color: colors.label_dark }]}
             numberOfLines={1}
           >
-            {item.title}
+            {item.title || item.address || item.category || "Unknown"}
           </CustomText>
           <ShareButton
-            title={item.title}
-            message={`Check out this ${item.category}: ${item.title}`}
+            title={item.title || item.address || item.category || "Unknown"}
+            message={`Check out this ${item.category}: ${
+              item.title || item.address || item.category || "Unknown"
+            }`}
             url={item.contentShareUrl || ""}
           />
         </CustomView>
@@ -129,7 +131,7 @@ const LikeCard: React.FC<LikeCardProps> = ({
 
 const styles = StyleSheet.create({
   likeCard: {
-    borderRadius: 14,
+    borderRadius: 5,
     overflow: "hidden",
     position: "relative",
     flex: 1,
@@ -176,7 +178,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: horizontalScale(2),
   },
   title: {
-    fontSize: scaleFontSize(12.5),
+    fontSize: scaleFontSize(14),
     width: "80%",
   },
 });

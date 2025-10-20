@@ -7,12 +7,14 @@ type User = {
   firstName: string;
   lastName: string;
   email: string;
-  description: string;
+  description: string | null;
   location: string;
   home: string;
-  profileImageUrl: string;
+  profileImage: string; // Changed from profileImageUrl to profileImage
   personalSummary: string;
   createdAt: string;
+  homeGeom: [number, number]; // [longitude, latitude]
+  locationGeom: [number, number]; // [longitude, latitude]
 };
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
@@ -29,7 +31,7 @@ const fetchUser = async (jwt: string): Promise<User> => {
       responseType: "json",
     });
   } catch (error: any) {
-    console.error("Error fetching user:", error);
+    // Handle user fetch errors
     if (error?.response) {
       // Throw the actual API response so it can be accessed in the component
       throw error.response;
@@ -40,22 +42,79 @@ const fetchUser = async (jwt: string): Promise<User> => {
 
 // Create user function
 export type CreateUserInput = {
-  firstName: string;
-  lastName: string;
+  // Common fields (kept for backward compatibility)
+  firstName?: string;
+  lastName?: string;
   email: string;
-  home: string;
-  location: string;
-  password: string;
-  description: string;
-  personalSummary: string;
+  home?: string;
+  location?: string;
+  description?: string;
+  personalSummary?: string;
   onboardingLikes?: string[]; // Array of content IDs that user liked
   onboardingDislikes?: string[]; // Array of content IDs that user disliked
+
+  // New structured fields
+  type?: "leisure" | "business";
+  fullName?: string;
+
+  // Leisure-specific fields
+  travelingReason?: string[];
+  travelingTags?: string[];
+  minBudget?: number;
+  maxBudget?: number;
+  currency?: string;
+
+  // Business-specific fields
+  travelingGoal?: string[];
+  connectionTags?: string[];
+  industryTags?: string[];
+  networkingStyle?: string[];
+  currentLocation?: string;
+  role?: string;
+  company?: string;
+  industry?: string[];
+  stage?: string;
+  areasOfExpertise?: string[];
 };
 
 const createUser = async (input: CreateUserInput): Promise<User> => {
   try {
+    // Always send empty arrays for onboarding likes/dislikes (temporarily disabled)
+    const modifiedInput = {
+      ...input,
+      onboardingLikes: [], // Always empty for now
+      onboardingDislikes: [], // Always empty for now
+    };
+
     return await createTimedAjax<User>({
-      url: `${API_URL}/oauth2/user`,
+      url: `${API_URL}/otp/register-request`,
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(modifiedInput),
+      responseType: "json",
+    });
+  } catch (error: any) {
+    if (error?.response) {
+      // Throw the actual API response so it can be accessed in the component
+      throw error.response;
+    }
+    throw error;
+  }
+};
+
+// Validate registration code function
+export type ValidateRegistrationCodeInput = {
+  email: string;
+  otpCode: string;
+};
+
+const validateRegistrationCode = async (input: ValidateRegistrationCodeInput): Promise<any> => {
+  try {
+    return await createTimedAjax<any>({
+      url: `${API_URL}/otp/register-verify`,
       method: "POST",
       headers: {
         accept: "application/json",
@@ -87,9 +146,32 @@ const updateUser = async (jwt: string, updated: any): Promise<User> => {
       responseType: "json",
     });
   } catch (error: any) {
-    console.error("Error updating user:", error);
+    // Handle user update errors
     if (error?.response) {
       // Throw the actual API response so it can be accessed in the component
+      throw error.response;
+    }
+    throw error;
+  }
+};
+
+// Update user location function
+const updateUserLocation = async (jwt: string, location: string): Promise<any> => {
+  try {
+    return await createTimedAjax<any>({
+      url: `${API_URL}/oauth2/user/location`,
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        accept: "application/json",
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: JSON.stringify({ location }),
+      responseType: "json",
+    });
+  } catch (error: any) {
+    // Handle user location update errors
+    if (error?.response) {
       throw error.response;
     }
     throw error;
@@ -118,6 +200,14 @@ export function useCreateUser() {
   });
 }
 
+// Custom hook for validating registration code
+export function useValidateRegistrationCode() {
+  return useMutation({
+    mutationFn: validateRegistrationCode,
+    retry: false, // Disable retries
+  });
+}
+
 export function useUpdateUser() {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
@@ -130,6 +220,26 @@ export function useUpdateUser() {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["user"], data);
+    },
+  });
+}
+
+export function useUpdateUserLocation() {
+  const queryClient = useQueryClient();
+  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
+  const jwt = authData?.accessToken;
+
+  return useMutation({
+    mutationFn: async (location: string) => {
+      if (!jwt) throw new Error("No JWT found");
+      return updateUserLocation(jwt, location);
+    },
+    onSuccess: () => {
+      // Invalidate all content queries when location is updated
+      queryClient.invalidateQueries({ queryKey: ["content"] });
+      queryClient.invalidateQueries({ queryKey: ["infiniteContent"] });
+      // Also invalidate user data to refresh profile
+      queryClient.invalidateQueries({ queryKey: ["user"] });
     },
   });
 }

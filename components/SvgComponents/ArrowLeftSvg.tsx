@@ -1,14 +1,14 @@
 import * as React from "react";
 import Svg, { Path } from "react-native-svg";
-const SVGComponent = ({ ...props }) => (
-  <Svg width={30} height={30} viewBox="0 0 30 30" fill="none" {...props}>
+const ArrowLeftSvg = ({ ...props }) => (
+  <Svg width={17} height={27} viewBox="0 0 17 27" fill="none" {...props}>
     <Path
-      d="M18.75 24.375L9.375 15L18.75 5.625"
+      d="M14.1043 24.6094L3 13.505L14.1043 2.4007"
       stroke="#3C62FA"
-      strokeWidth={3.75}
+      strokeWidth={4.44174}
       strokeLinecap="round"
       strokeLinejoin="round"
     />
   </Svg>
 );
-export default SVGComponent;
+export default ArrowLeftSvg;

@@ -1,103 +1,556 @@
-import React, { useState, useEffect } from "react";
-import { StyleSheet, Alert } from "react-native";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Alert, BackHandler } from "react-native";
+import { useFocusEffect } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { useQueryClient } from "@tanstack/react-query";
+import * as SecureStore from "expo-secure-store";
 import { useRouter } from "expo-router";
-import { OnboardingOption } from "@/components/Onboarding/OnboardingOption";
 import { OnboardingProgressBar } from "@/components/Onboarding/OnboardingProgressBar";
+import { OnboardingLogoSlide } from "@/components/Onboarding/OnboardingLogoSlide";
+import { OnboardingOptionSlide } from "@/components/Onboarding/OnboardingOptionSlide";
+import { OnboardingPersonalFormSlide } from "@/components/Onboarding/OnboardingPersonalFormSlide";
+import { OnboardingCardSwipeSlide } from "@/components/Onboarding/OnboardingCardSwipeSlide";
+import { OnboardingSwipeUpModal } from "@/components/Modals/OnboardingSwipeUpModal";
+import { OnboardingTagSlide } from "@/components/Onboarding/OnboardingTagSlide";
+import { OnboardingBusinessTagSlide } from "@/components/Onboarding/OnboardingBusinessTagSlide";
+import { OnboardingBusinessPersonalFormSlide } from "@/components/Onboarding/OnboardingBusinessPersonalFormSlide";
+import { OnboardingBusinessWorkFormSlide } from "@/components/Onboarding/OnboardingBusinessWorkFormSlide";
+import { OnboardingFinalSlide } from "@/components/Onboarding/OnboardingFinalSlide";
+import { OnboardingBudgetSlide } from "@/components/Onboarding/OnboardingBudgetSlide";
+import { OnboardingLocationSlide } from "@/components/Onboarding/OnboardingLocationSlide";
+import { LocationData } from "@/components/Onboarding/OnboardingLocationItem";
+import { OnboardingTravelEmailSlide } from "@/components/Onboarding/OnboardingTravelEmailSlide";
+import { OnboardingTravelNameSlide } from "@/components/Onboarding/OnboardingTravelNameSlide";
+import { OnboardingCodeSlide } from "@/components/Onboarding/OnboardingCodeSlide";
+import { commonOnboardingStyles } from "@/components/Onboarding/OnboardingStyles";
 import {
   OnboardingSelections,
   OnboardingStep,
+  getBusinessFlow,
+  getLeisureFlow,
   onboardingSteps,
 } from "@/constants/onboardingSlides";
-import {
-  getTotalStepsForPath,
-  MAX_PATH_STEPS,
-} from "@/utilities/onboardingHelpers";
 import CustomView from "@/components/CustomView";
-import CustomText from "@/components/CustomText";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
-import {
-  horizontalScale,
-  scaleFontSize,
-  verticalScale,
-} from "@/utilities/scaling";
 import { useTheme } from "@/contexts/ThemeContext";
 import ArrowLeftSvg from "@/components/SvgComponents/ArrowLeftSvg";
 import NextButton from "@/components/Button/NextButton";
-import {
-  OnboardingForm,
-  PersonalFormData,
-} from "@/components/Onboarding/OnboardingForm";
-import SwipeCardTooltips from "@/components/Tooltips/SwipeCardTooltips";
-import LottieView from "lottie-react-native";
-import OnboardingAnimationStart from "@/assets/animations/onboarding-animation-start.json";
-import OnboardingAnimationEnd from "@/assets/animations/onboarding-animation-end.json";
+import { PersonalFormData } from "@/components/Onboarding/OnboardingForm";
+import { BusinessPersonalFormData } from "@/components/Onboarding/OnboardingBusinessPersonalFormSlide";
+import { BusinessWorkFormData } from "@/components/Onboarding/OnboardingBusinessWorkFormSlide";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { useCreateUser } from "@/hooks/useUser";
-import type { CreateUserInput } from "@/hooks/useUser";
-import { useAuth } from "@/hooks/useAuth";
+import { useCreateUser, useValidateRegistrationCode } from "@/hooks/useUser";
+import type {
+  CreateUserInput,
+  ValidateRegistrationCodeInput,
+} from "@/hooks/useUser";
 import { useContent } from "@/hooks/useContent";
-import { useLocationPermissionGuard } from "@/hooks/useLocationPermissionGuard";
-import AnimatedLoader from "@/components/Loader/AnimatedLoader";
-import { CardData, SwipeCards } from "@/components/SwipeCards/SwipeCards";
+import { CardData } from "@/components/SwipeCards/SwipeCards";
 import { getErrorMessage } from "@/utilities/errorUtils";
+import { verticalScale } from "@/utilities/scaling";
+import * as Location from "expo-location";
+import { useUserLocation } from "@/contexts/UserLocationContext";
+import { useMode } from "@/contexts/ModeContext";
+import {
+  createCurrentLocationPreference,
+  createSelectedLocationPreference,
+} from "@/utilities/locationHelpers";
 
 const OnboardingScreen = () => {
   const router = useRouter();
   const { mutate: createUser, isPending } = useCreateUser();
-  const { mutate: login } = useAuth();
+  const { mutate: validateRegistrationCode, isPending: isValidating } =
+    useValidateRegistrationCode();
+  const queryClient = useQueryClient();
   const { colors } = useTheme();
+  const { setUserLocation } = useUserLocation();
+  const { setMode } = useMode();
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [selections, setSelections] = useState<OnboardingSelections>({});
-  const [filteredSteps, setFilteredSteps] = useState<OnboardingStep[]>([]);
-  const [totalSteps, setTotalSteps] = useState<number>(MAX_PATH_STEPS);
+
+  const [currentFlow, setCurrentFlow] = useState<OnboardingStep[]>([]);
+  const [userType, setUserType] = useState<number | null>(null);
   const [personalFormData, setPersonalFormData] = useState<PersonalFormData>({
     firstName: "",
     lastName: "",
     email: "",
-    home: "",
     travelDestination: "",
     personalSummary: "",
-    password: "",
   });
   const [swipeLikes, setSwipeLikes] = useState<string[]>([]);
   const [swipeDislikes, setSwipeDislikes] = useState<string[]>([]);
-  const [showTutorial, setShowTutorial] = useState<boolean>(true);
+  const [showTutorial, setShowTutorial] = useState<boolean>(false);
+  const hasSwipedUpRef = useRef<boolean>(false);
+  const isVerifyingRef = useRef<boolean>(false);
+  const [showSwipeUpModal, setShowSwipeUpModal] = useState<boolean>(false);
+  const [budgetRange, setBudgetRange] = useState<{ min: number; max: number }>({
+    min: 50,
+    max: 200,
+  });
+  const [selectedLocation, setSelectedLocation] = useState<
+    LocationData | undefined
+  >();
+  const [travelEmail, setTravelEmail] = useState<string>("");
+  const [travelName, setTravelName] = useState<string>("");
+  const [verificationCode, setVerificationCode] = useState<string>("");
+  const [businessPersonalFormData, setBusinessPersonalFormData] =
+    useState<BusinessPersonalFormData>({
+      fullName: "",
+      areasOfExpertise: [],
+    });
+  const [businessWorkFormData, setBusinessWorkFormData] =
+    useState<BusinessWorkFormData>({
+      role: "",
+      company: "",
+      industry: [],
+      stage: "",
+    });
+
+  // Helper function to save location preference based on onboarding selection
+  const saveLocationPreference = useCallback(async () => {
+    // Try to get location from selectedLocation state or fallback to selections
+    const locationToSave =
+      selectedLocation ||
+      selections["travelDestination"] ||
+      selections["businessDestination"];
+
+    if (
+      locationToSave &&
+      typeof locationToSave === "object" &&
+      "fullName" in locationToSave
+    ) {
+      try {
+        // Always try to get device location first
+        const { status } = await Location.getForegroundPermissionsAsync();
+        let deviceLat = 0;
+        let deviceLng = 0;
+
+        if (status === Location.PermissionStatus.GRANTED) {
+          try {
+            const currentLocation = await Location.getCurrentPositionAsync();
+            deviceLat = currentLocation.coords.latitude;
+            deviceLng = currentLocation.coords.longitude;
+          } catch {
+            // Failed to get location but continue
+          }
+        }
+
+        if (locationToSave.isCurrentLocation) {
+          // User selected "Current Location" - save as current location type
+          const locationData = createCurrentLocationPreference(
+            deviceLat,
+            deviceLng,
+            "Current Location"
+          );
+          await setUserLocation(locationData);
+        } else {
+          // User selected a specific location - save without coordinates
+          const locationData = createSelectedLocationPreference(
+            locationToSave.fullName,
+            locationToSave.name + ", " + locationToSave.country,
+            locationToSave.id
+          );
+          await setUserLocation(locationData);
+        }
+      } catch (error) {
+        console.error("Failed to save location preference:", error);
+      }
+    }
+  }, [selectedLocation, selections, setUserLocation]);
+
+  // Simple navigation function - no complex auth checks during onboarding
+  const navigateAfterAuth = useCallback(async () => {
+    try {
+      // Set user mode based on their onboarding choice
+      if (userType !== null) {
+        const userMode = userType === 0 ? "business" : "leisure";
+        await setMode(userMode);
+      }
+
+      // Check location permission status
+      const { status } = await Location.getForegroundPermissionsAsync();
+
+      if (status === Location.PermissionStatus.GRANTED) {
+        // Permission already granted, go directly to tabs
+        router.push("/(tabs)");
+      } else {
+        // Permission needed, show permission screen
+        router.push("/(auth)/location-permission");
+      }
+    } catch (error) {
+      console.error("Error checking location permission:", error);
+      // On error, show permission screen to be safe
+      router.push("/(auth)/location-permission");
+    }
+  }, [router, userType, setMode]);
 
   const {
     data: content,
     isLoading: isContentLoading,
     error: contentError,
     refetch,
-  } = useContent({});
-
-  const { checkAndNavigate } = useLocationPermissionGuard({
-    redirectToTabs: true,
+  } = useContent({
+    category_filter: "event;venue;experience", // Load all content types for onboarding
   });
 
-  const stepData = filteredSteps[currentStepIndex];
+
+  // Helper function to remove emojis from text (remove emoji at start + any trailing space)
+  const removeEmojis = (text: string): string => {
+    // Remove emoji(s) at the start of the string, including complex emojis with variation selectors and ZWJ sequences
+    return text.replace(
+      /^[\u{1F000}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]+\s*/gu,
+      ""
+    );
+  };
+
+  // Helper function to create user input for leisure users
+  const createTravelUserInput = useCallback((): CreateUserInput => {
+    // Extract traveling reasons from selections
+    const travelingReasonStep = onboardingSteps.find(
+      (step) => step.key === "personalTravelReason"
+    );
+    const travelingReasonSelection = selections["personalTravelReason"];
+    const travelingReason = Array.isArray(travelingReasonSelection)
+      ? travelingReasonSelection
+          .map((index) => {
+            const option = travelingReasonStep?.options?.[index];
+            return option ? removeEmojis(option) : undefined;
+          })
+          .filter((item): item is string => Boolean(item))
+      : travelingReasonStep?.options?.[travelingReasonSelection as number]
+      ? [
+          removeEmojis(
+            travelingReasonStep.options[travelingReasonSelection as number]
+          ),
+        ]
+      : [];
+
+    // Extract traveling tags from selections (personalTravelFrequency is the tag selection step)
+    const travelingTagsStep = onboardingSteps.find(
+      (step) => step.key === "personalTravelFrequency"
+    );
+    const travelingTagsSelection = selections["personalTravelFrequency"];
+    const travelingTags = Array.isArray(travelingTagsSelection)
+      ? travelingTagsSelection
+          .map((index) => {
+            const tag = travelingTagsStep?.tags?.find(
+              (t) => t.number === index + 1
+            );
+            return tag?.text; // tag.text doesn't have emojis - emojis are in tag.icon
+          })
+          .filter((item): item is string => Boolean(item))
+      : [];
+
+    return {
+      type: "leisure",
+      travelingReason: travelingReason,
+      travelingTags: travelingTags,
+      minBudget: budgetRange.min,
+      maxBudget: budgetRange.max,
+      currency: "USD",
+      location: selectedLocation?.fullName || "current location",
+      onboardingLikes: swipeLikes,
+      onboardingDislikes: swipeDislikes,
+      fullName: travelName,
+      email: travelEmail,
+    };
+  }, [
+    travelName,
+    travelEmail,
+    selectedLocation,
+    selections,
+    budgetRange,
+    swipeLikes,
+    swipeDislikes,
+  ]);
+
+  // Helper function to create user input for business users
+  const createBusinessUserInput = useCallback((): CreateUserInput => {
+    // Extract traveling goals from selections
+    const travelingGoalStep = onboardingSteps.find(
+      (step) => step.key === "businessTravelReason"
+    );
+    const travelingGoalSelection = selections["businessTravelReason"];
+    const travelingGoal = Array.isArray(travelingGoalSelection)
+      ? travelingGoalSelection
+          .map((index) => {
+            const option = travelingGoalStep?.options?.[index];
+            return option ? removeEmojis(option) : undefined;
+          })
+          .filter((item): item is string => Boolean(item))
+      : travelingGoalStep?.options?.[travelingGoalSelection as number]
+      ? [
+          removeEmojis(
+            travelingGoalStep.options[travelingGoalSelection as number]
+          ),
+        ]
+      : [];
+
+    // Extract connection tags from selections
+    const connectionTagsStep = onboardingSteps.find(
+      (step) => step.key === "businessConnections"
+    );
+    const connectionTagsSelection = selections["businessConnections"];
+    const connectionTags = Array.isArray(connectionTagsSelection)
+      ? connectionTagsSelection
+          .map((index) => {
+            const tag = connectionTagsStep?.tags?.find(
+              (t) => t.number === index + 1
+            );
+            return tag?.text; // tag.text doesn't have emojis - emojis are in tag.icon
+          })
+          .filter((item): item is string => Boolean(item))
+      : [];
+
+    // Extract industry tags from selections
+    const industryTagsStep = onboardingSteps.find(
+      (step) => step.key === "businessIndustries"
+    );
+    const industryTagsSelection = selections["businessIndustries"];
+    const industryTags = Array.isArray(industryTagsSelection)
+      ? industryTagsSelection
+          .map((index) => {
+            const tag = industryTagsStep?.tags?.find(
+              (t) => t.number === index + 1
+            );
+            return tag?.text; // tag.text doesn't have emojis - emojis are in tag.icon
+          })
+          .filter((item): item is string => Boolean(item))
+      : [];
+
+    // Extract networking style from selections
+    const networkingStyleStep = onboardingSteps.find(
+      (step) => step.key === "businessNetworkStyle"
+    );
+    const networkingStyleSelection = selections["businessNetworkStyle"];
+    const networkingStyle = Array.isArray(networkingStyleSelection)
+      ? networkingStyleSelection
+          .map((index) => {
+            const option = networkingStyleStep?.options?.[index];
+            return option ? removeEmojis(option) : undefined;
+          })
+          .filter((item): item is string => Boolean(item))
+      : networkingStyleStep?.options?.[networkingStyleSelection as number]
+      ? [
+          removeEmojis(
+            networkingStyleStep.options[networkingStyleSelection as number]
+          ),
+        ]
+      : [];
+
+    return {
+      type: "business",
+      travelingGoal: travelingGoal,
+      connectionTags: connectionTags,
+      industryTags: industryTags,
+      networkingStyle: networkingStyle,
+      location: selectedLocation?.fullName || "current location",
+      onboardingLikes: swipeLikes,
+      onboardingDislikes: swipeDislikes,
+      fullName: businessPersonalFormData.fullName,
+      areasOfExpertise: businessPersonalFormData.areasOfExpertise,
+      role: businessWorkFormData.role,
+      company: businessWorkFormData.company,
+      industry: businessWorkFormData.industry,
+      stage: businessWorkFormData.stage,
+      email: travelEmail,
+    };
+  }, [
+    businessPersonalFormData,
+    businessWorkFormData,
+    travelEmail,
+    selectedLocation,
+    selections,
+    swipeLikes,
+    swipeDislikes,
+  ]);
+
+  // Function to handle code validation
+  const handleCodeValidation = useCallback(async () => {
+    if (verificationCode.length !== 6) return;
+
+    // Prevent double submissions
+    if (isVerifyingRef.current || isValidating) {
+      return;
+    }
+
+    isVerifyingRef.current = true;
+
+    const validationInput: ValidateRegistrationCodeInput = {
+      email: travelEmail,
+      otpCode: verificationCode,
+    };
+
+    validateRegistrationCode(validationInput, {
+      onSuccess: async (response) => {
+        try {
+          // Store auth data in secure storage and query cache (like login does)
+          if (response?.accessToken && response?.user) {
+            const authData = {
+              accessToken: response.accessToken,
+              tokenType: response.tokenType || "Bearer",
+              user: response.user,
+            };
+
+            // Store in secure storage
+            await Promise.all([
+              SecureStore.setItemAsync("authToken", authData.accessToken),
+              SecureStore.setItemAsync(
+                "authUser",
+                JSON.stringify(authData.user)
+              ),
+            ]);
+
+            // Update query cache
+            queryClient.setQueryData(["auth"], authData);
+          }
+          // Save location preference
+          await saveLocationPreference();
+
+          // Move to next step (final slide) instead of navigating to app
+          setCurrentStepIndex(currentStepIndex + 1);
+        } catch (error) {
+          console.error("Error storing auth data:", error);
+          // Save location preference even if auth storage fails
+          await saveLocationPreference();
+          await navigateAfterAuth(); // Continue anyway
+        } finally {
+          isVerifyingRef.current = false;
+        }
+      },
+      onError: (err: any) => {
+        isVerifyingRef.current = false;
+        // Always show user-friendly error message regardless of server error
+        Alert.alert(
+          "Verification Failed",
+          "The verification code is incorrect or has expired. Please try again."
+        );
+      },
+    });
+  }, [
+    verificationCode,
+    travelEmail,
+    validateRegistrationCode,
+    queryClient,
+    navigateAfterAuth,
+    saveLocationPreference,
+  ]);
+
+  const stepData = currentFlow[currentStepIndex];
   const currentSelection = stepData ? selections[stepData.key] : undefined;
+
+  // Auto-save default budget values when entering budget selection step
+  useEffect(() => {
+    if (stepData?.type === "budget-selection" && !selections[stepData.key]) {
+      setSelections((prev) => ({
+        ...prev,
+        [stepData.key]: budgetRange,
+      }));
+    }
+  }, [stepData?.key, stepData?.type, budgetRange, selections]);
+
+  // Function to handle resending verification code
+  const handleResendCode = useCallback(async () => {
+    // Use appropriate user input based on user type
+    const userInput =
+      userType === 0 ? createBusinessUserInput() : createTravelUserInput();
+
+    createUser(userInput, {
+      onSuccess: () => {
+        Alert.alert(
+          "Code Sent",
+          "A new verification code has been sent to your email.",
+          [{ text: "OK", style: "default" }]
+        );
+      },
+      onError: (err: any) => {
+
+        // Handle specific error cases - check for detail property first
+        const errorMessage =
+          err?.detail ||
+          err?.message ||
+          err?.response?.detail ||
+          err?.response?.message ||
+          "Unknown error";
+
+        // Check for duplicate email error
+        if (
+          errorMessage.toLowerCase().includes("email") &&
+          (errorMessage.toLowerCase().includes("exists") ||
+            errorMessage.toLowerCase().includes("taken") ||
+            errorMessage.toLowerCase().includes("already"))
+        ) {
+          Alert.alert("Email Already Registered", errorMessage, [
+            {
+              text: "Try Different Email",
+              style: "default",
+            },
+            {
+              text: "Sign In Instead",
+              onPress: () => router.push("/(auth)"),
+              style: "default",
+            },
+          ]);
+          return;
+        }
+
+        // Handle other API errors with detail
+        if (err?.detail) {
+          Alert.alert("Error", errorMessage, [
+            { text: "OK", style: "default" },
+          ]);
+          return;
+        }
+
+        // Default error message for other error types
+        Alert.alert(
+          "Error",
+          "Failed to resend verification code. Please try again.",
+          [{ text: "OK", style: "default" }]
+        );
+      },
+    });
+  }, [createUser, createTravelUserInput, createBusinessUserInput, userType, router]);
+
+  // Auto-submit when verification code is complete
+  useEffect(() => {
+    if (verificationCode.length === 6 && stepData?.type === "code-slide") {
+      handleCodeValidation();
+    }
+  }, [verificationCode, stepData?.type]); // Removed handleCodeValidation from dependencies
 
   // Transform content data to match SwipeCards interface (limit to 5 items)
   const transformedCardData: CardData[] = content
-    ? content.slice(0, 5).map((item) => ({
-        id: item.id,
-        title: item.title,
-        imageUrl:
-          item.internalImageUrls && item.internalImageUrls.length > 0
-            ? item.internalImageUrls[0]
-            : item.googlePlacesImageUrl,
-        price: item.price?.toString(),
-        rating: item?.rating?.toString(),
-        category: item.category,
-        websiteUrl: item.websiteUrl || "",
-        address: item.address || "",
-        isSponsored: item.isSponsored,
-        contentShareUrl: item.contentShareUrl,
-        tags: item.tags,
-        similarity: item.similarity,
-        distance: item.distance,
-      }))
+    ? content.slice(0, 5).map((item, index) => {
+        // Hardcoded percentages for onboarding cards
+        const hardcodedPercentages = [0.98, 0.98, 0.97, 0.96, 0.98];
+        const percentage = hardcodedPercentages[index] || 0.98;
+
+        return {
+          id: item.id,
+          title: item.title || "Untitled",
+          imageUrl:
+            item.internalImageUrls &&
+            Array.isArray(item.internalImageUrls) &&
+            item.internalImageUrls.length > 0
+              ? item.internalImageUrls[0]
+              : "",
+          price:
+            typeof item.price === "number" ? item.price.toString() : item.price || "",
+          rating: item?.rating?.toString() || "0",
+          category: item.category,
+          websiteUrl: item.websiteUrl || "",
+          address: item.addressShort || item.address || "",
+          isSponsored: item.isSponsored,
+          contentShareUrl: item.contentShareUrl,
+          tags: item.tags,
+          similarity: percentage, // Override with hardcoded percentage for onboarding
+          distance: item.distance,
+          eventDatetimeStart: item.eventDatetimeStart || undefined, // Pass through event datetime for events
+          eventDatetimeEnd: item.eventDatetimeEnd || undefined,
+        };
+      })
     : [];
 
   // Helper to get selected indices as array
@@ -121,35 +574,52 @@ const OnboardingScreen = () => {
   const selectedIndices = getSelectedIndices();
 
   useEffect(() => {
-    const initialSteps = onboardingSteps.filter((step) => !step.condition);
-    setFilteredSteps(initialSteps);
-  }, []);
+    // Start with just the initial step
+    const initialSteps = userType === null ? [getBusinessFlow()[0]] : [];
+    setCurrentFlow(initialSteps);
+  }, [userType]);
 
   useEffect(() => {
-    const newFilteredSteps = onboardingSteps.filter((step) => {
-      if (!step.condition) return true;
-      const { key, value } = step.condition;
-      const stepSelection = selections[key];
-
-      // Handle array selections - check if value exists in array
-      if (Array.isArray(stepSelection)) {
-        return stepSelection.includes(value);
-      }
-
-      // Handle single selection
-      return stepSelection === value;
-    });
-
-    setFilteredSteps(newFilteredSteps);
-
-    if (selections.userType !== undefined) {
-      const userTypeSelection = Array.isArray(selections.userType)
-        ? selections.userType[0]
-        : (selections.userType as number);
-      const path = userTypeSelection === 0 ? "business" : "personal";
-      setTotalSteps(getTotalStepsForPath(path));
+    // When user type is selected, switch to the appropriate flow
+    if (userType !== null) {
+      const flow = userType === 0 ? getBusinessFlow() : getLeisureFlow();
+      setCurrentFlow(flow);
     }
-  }, [selections]);
+  }, [userType]);
+
+  // Show tutorial only when content is loaded and we're on the card swipe slide
+  useEffect(() => {
+    const isCardSwipeSlide = stepData?.type === "card-swipe";
+    if (
+      isCardSwipeSlide &&
+      !isContentLoading &&
+      content &&
+      content.length > 0
+    ) {
+      setShowTutorial(true);
+    } else {
+      setShowTutorial(false);
+    }
+  }, [stepData, isContentLoading, content]);
+
+  // Handle Android back button to go to previous slide instead of exiting onboarding
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (currentStepIndex > 0) {
+          setCurrentStepIndex(currentStepIndex - 1);
+          return true; // Prevent default back action
+        }
+        return false; // Allow default back action (exit onboarding)
+      };
+
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress
+      );
+      return () => subscription.remove();
+    }, [currentStepIndex])
+  );
 
   const handleFormChange = (formData: PersonalFormData) => {
     setPersonalFormData(formData);
@@ -208,9 +678,35 @@ const OnboardingScreen = () => {
   };
 
   const handleSwipeUp = (item: CardData) => {
-    if (!item) return;
-    // For onboarding, you might want to handle this differently
-    console.log("Swiped up on:", item.title);
+    if (!item || !item.id) {
+      return;
+    }
+
+    // Show modal on first swipe up during onboarding
+    if (!hasSwipedUpRef.current) {
+      hasSwipedUpRef.current = true;
+      setShowSwipeUpModal(true);
+    }
+
+    // During onboarding, swipe up performs the same action as swipe right
+    setSwipeLikes((prevLikes) => {
+      // Prevent duplicates
+      if (prevLikes.includes(item.id)) {
+        return prevLikes;
+      }
+
+      // Add new item to existing array
+      return [...prevLikes, item.id];
+    });
+
+    // Remove from dislikes if it was there
+    setSwipeDislikes((prevDislikes) =>
+      prevDislikes.filter((id) => id !== item.id)
+    );
+  };
+
+  const handleCloseSwipeUpModal = () => {
+    setShowSwipeUpModal(false);
   };
 
   const handleSwipeComplete = () => {
@@ -283,70 +779,174 @@ const OnboardingScreen = () => {
       [stepData.key]: index,
     }));
 
+    // Set user type and let useEffect handle flow switching
+    setUserType(index);
+
     setTimeout(() => {
       setCurrentStepIndex(1);
     }, 150);
   };
 
-  const handleNext = async () => {
-    if (currentStepIndex === filteredSteps.length - 1) {
-      try {
-        const getSelectedOptionsString = () => {
-          return Object.entries(selections)
-            .map(([key, value]) => {
-              const step = onboardingSteps.find((s) => s.key === key);
-              if (!step || !step.options.length || value === undefined)
-                return null;
-              if (Array.isArray(value)) {
-                return value.map((i) => step.options[i]).join(", ");
-              }
-              return step.options[value];
-            })
-            .filter(Boolean)
-            .join(" | ");
-        };
+  const handleBudgetChange = (budget: { min: number; max: number }) => {
+    if (!stepData) return;
 
-        // Map personalFormData to CreateUserInput
-        const userInput: CreateUserInput = {
-          firstName: personalFormData.firstName,
-          lastName: personalFormData.lastName,
-          email: personalFormData.email,
-          home: personalFormData.home,
-          location: personalFormData.travelDestination,
-          password: personalFormData.password,
-          description: getSelectedOptionsString(),
-          personalSummary: personalFormData.personalSummary,
-          onboardingLikes: swipeLikes, // Array of liked content IDs
-          onboardingDislikes: swipeDislikes, // Array of disliked content IDs
-        };
+    setBudgetRange(budget);
+    setSelections((prev) => ({
+      ...prev,
+      [stepData.key]: budget,
+    }));
+  };
+
+  const handleLocationSelect = async (location: LocationData | undefined) => {
+    if (!stepData) return;
+
+    setSelectedLocation(location);
+    setSelections((prev) => ({
+      ...prev,
+      [stepData.key]: location,
+    }));
+
+    // Save location preference immediately when selected
+    if (location) {
+      try {
+        // Always try to get device location first
+        const { status } = await Location.getForegroundPermissionsAsync();
+        let deviceLat = 0;
+        let deviceLng = 0;
+
+        if (status === Location.PermissionStatus.GRANTED) {
+          try {
+            const currentLocation = await Location.getCurrentPositionAsync();
+            deviceLat = currentLocation.coords.latitude;
+            deviceLng = currentLocation.coords.longitude;
+          } catch {
+            // Failed to get location but continue
+          }
+        }
+
+        if (location.isCurrentLocation) {
+          // User selected "Current Location" - save as current location type
+          const locationData = createCurrentLocationPreference(
+            deviceLat,
+            deviceLng,
+            "Current Location"
+          );
+          await setUserLocation(locationData);
+        } else {
+          // User selected a specific location - save without coordinates
+          const locationData = createSelectedLocationPreference(
+            location.fullName,
+            location.name + ", " + location.country,
+            location.id
+          );
+          await setUserLocation(locationData);
+        }
+      } catch (error) {
+        console.error("Failed to immediately save location preference:", error);
+      }
+    }
+  };
+
+  const handleNext = async () => {
+    // If we're on travel-email step, call createUser to send OTP before moving to code verification
+    if (stepData?.type === "travel-email") {
+      try {
+        // Use appropriate user input based on user type
+        const userInput =
+          userType === 0 ? createBusinessUserInput() : createTravelUserInput();
+
+        createUser(userInput, {
+          onSuccess: () => {
+            // Clear verification code and move to next step (code verification) after OTP is sent
+            setVerificationCode("");
+            setCurrentStepIndex(currentStepIndex + 1);
+          },
+          onError: (err: any) => {
+
+            // Handle specific error cases - check for detail property first
+            const errorMessage =
+              err?.detail ||
+              err?.message ||
+              err?.response?.detail ||
+              err?.response?.message ||
+              "Unknown error";
+
+            // Check for duplicate email error
+            if (
+              errorMessage.toLowerCase().includes("email") &&
+              (errorMessage.toLowerCase().includes("exists") ||
+                errorMessage.toLowerCase().includes("taken") ||
+                errorMessage.toLowerCase().includes("already"))
+            ) {
+              Alert.alert("Email Already Registered", errorMessage, [
+                {
+                  text: "Try Different Email",
+                  style: "default",
+                },
+                {
+                  text: "Sign In Instead",
+                  onPress: () => router.push("/(auth)"),
+                  style: "default",
+                },
+              ]);
+              return;
+            }
+
+            // Handle other API errors with detail
+            if (err?.detail) {
+              Alert.alert("Registration Error", errorMessage, [
+                { text: "OK", style: "default" },
+              ]);
+              return;
+            }
+
+            // Default error message for other error types
+            Alert.alert(
+              "Error",
+              "Failed to send verification code. Please try again.",
+              [{ text: "OK", style: "default" }]
+            );
+          },
+        });
+      } catch {
+        // Error preparing user data - handle silently
+      }
+      return;
+    }
+
+    // Check if we're on code-slide (validate OTP) - manual button option
+    if (stepData?.type === "code-slide") {
+      handleCodeValidation();
+      return;
+    }
+
+    // Check if we're on final-slide - navigate to app
+    if (stepData?.type === "final-slide") {
+      await navigateAfterAuth();
+      return;
+    }
+
+    // Check if we're at the final leisure registration step (personal-form)
+    if (
+      currentStepIndex === currentFlow.length - 1 &&
+      stepData?.type === "personal-form"
+    ) {
+      try {
+        const userInput = createTravelUserInput();
 
         createUser(userInput, {
           onSuccess: async () => {
             try {
-              // After successful user creation, log in the user
-              login(
-                {
-                  username: userInput.email,
-                  password: userInput.password,
-                },
-                {
-                  onSuccess: async () => {
-                    // Navigate through location permission check instead of directly to tabs
-                    await checkAndNavigate();
-                  },
-                  onError: (loginErr: any) => {
-                    console.error("Login failed after signup", loginErr);
-                    router.push("/(auth)");
-                  },
-                }
-              );
-            } catch (loginErr) {
-              console.error("Login failed after signup", loginErr);
-              router.push("/(auth)");
+              // Save location preference before navigation
+              await saveLocationPreference();
+
+              // For leisure users, navigate directly to tabs after creation
+              await navigateAfterAuth();
+            } catch (error) {
+              console.error("Navigation failed after user creation", error);
             }
           },
           onError: (err: any) => {
-            console.error("Signup failed", err?.message || "Unknown error");
 
             // Handle specific error cases
             if (err?.status === 400) {
@@ -422,208 +1022,201 @@ const OnboardingScreen = () => {
 
   const renderLogoSelection = () => {
     if (!stepData) return null;
-
     return (
-      <CustomView style={styles.logoContent}>
-        <CustomView>
-          <LottieView
-            source={OnboardingAnimationStart}
-            autoPlay
-            loop
-            style={styles.logo}
-          />
-
-          <CustomText
-            fontFamily="Inter-SemiBold"
-            style={[styles.title, { color: colors.label_dark }]}
-          >
-            {stepData.title}
-          </CustomText>
-          <CustomText style={[styles.subtitle, { color: colors.gray_regular }]}>
-            {stepData.subtitle}
-          </CustomText>
-        </CustomView>
-
-        <CustomView style={styles.optionsContainer}>
-          {stepData.options.map((option, index) => (
-            <CustomTouchable
-              key={index}
-              style={[
-                styles.selectionButton,
-                selectedIndices.includes(index) ? styles.selectedButton : {},
-                styles.businessButton,
-              ]}
-              bgColor={colors.onboarding_gray}
-              onPress={() => handleLogoSelection(index)}
-            >
-              <CustomText
-                style={[
-                  styles.selectionButtonText,
-                  { color: colors.label_dark },
-                ]}
-              >
-                {option}
-              </CustomText>
-            </CustomTouchable>
-          ))}
-        </CustomView>
-      </CustomView>
+      <OnboardingLogoSlide
+        stepData={stepData}
+        selectedIndices={selectedIndices}
+        onSelection={handleLogoSelection}
+      />
     );
   };
 
   const renderOptionList = () => {
     if (!stepData) return null;
-
     return (
-      <CustomView style={styles.content}>
-        <CustomText style={styles.optionsTitle}>{stepData.subtitle}</CustomText>
-        <CustomText fontFamily="Inter-SemiBold" style={styles.optionsSubtitle}>
-          {stepData.title}
-        </CustomText>
-
-        <CustomView style={styles.optionsContainer}>
-          {stepData.options.map((option, index) => (
-            <OnboardingOption
-              key={index}
-              text={option}
-              selected={selectedIndices.includes(index)}
-              onPress={() => handleSelection(index)}
-              allowMultipleSelections={stepData.allowMultipleSelections}
-            />
-          ))}
-        </CustomView>
-      </CustomView>
+      <OnboardingOptionSlide
+        stepData={stepData}
+        selectedIndices={selectedIndices}
+        onSelection={handleSelection}
+      />
     );
   };
 
   const renderPersonalForm = () => {
     if (!stepData) return null;
+    return (
+      <OnboardingPersonalFormSlide
+        stepData={stepData}
+        formData={personalFormData}
+        onFormChange={handleFormChange}
+      />
+    );
+  };
+
+  const renderBusinessPersonalForm = () => {
+    if (!stepData) return null;
+
+    const handleBusinessPersonalFormChange = (
+      data: BusinessPersonalFormData
+    ) => {
+      setBusinessPersonalFormData(data);
+
+      const isFormValid = data.fullName.trim() !== "";
+
+      if (stepData) {
+        setSelections((prev) => ({
+          ...prev,
+          [stepData.key]: isFormValid ? 1 : 0,
+        }));
+      }
+    };
 
     return (
-      <CustomView style={styles.content}>
-        <CustomText
-          fontFamily="Inter-SemiBold"
-          style={[styles.formTitle, { color: colors.label_dark }]}
-        >
-          {stepData.subtitle}
-        </CustomText>
-        <CustomText
-          style={[styles.formSubtitle, { color: colors.gray_regular }]}
-        >
-          {stepData.title}
-        </CustomText>
+      <OnboardingBusinessPersonalFormSlide
+        title={stepData.title}
+        subtitle={stepData.subtitle}
+        onFormChange={handleBusinessPersonalFormChange}
+        initialData={businessPersonalFormData}
+      />
+    );
+  };
 
-        <OnboardingForm
-          onPressNext={handleNext}
-          formData={personalFormData}
-          onFormChange={handleFormChange}
-        />
-      </CustomView>
+  const renderBusinessWorkForm = () => {
+    if (!stepData) return null;
+
+    const handleBusinessWorkFormChange = (data: BusinessWorkFormData) => {
+      setBusinessWorkFormData(data);
+
+      const isFormValid =
+        data.role.trim() !== "" &&
+        data.company.trim() !== "" &&
+        data.industry.length > 0 &&
+        data.stage.trim() !== "";
+
+      if (stepData) {
+        setSelections((prev) => ({
+          ...prev,
+          [stepData.key]: isFormValid ? 1 : 0,
+        }));
+      }
+    };
+
+    return (
+      <OnboardingBusinessWorkFormSlide
+        title={stepData.title}
+        subtitle={stepData.subtitle}
+        onFormChange={handleBusinessWorkFormChange}
+        initialData={businessWorkFormData}
+      />
     );
   };
 
   const renderCardSwipe = () => {
     if (!stepData) return null;
-
-    // Show loading state while content is being fetched
-    if (isContentLoading) {
-      return (
-        <CustomView style={styles.content}>
-          <CustomView style={styles.swipeContainer}>
-            <AnimatedLoader />
-          </CustomView>
-        </CustomView>
-      );
-    }
-
-    // Show error state if content failed to load
-    if (contentError) {
-      return (
-        <CustomView style={styles.content}>
-          <CustomView style={styles.swipeContainer}>
-            <CustomText
-              style={[styles.errorText, { color: colors.gray_regular }]}
-            >
-              Failed to load content. Please try again.
-            </CustomText>
-            <CustomTouchable
-              style={styles.retryButton}
-              onPress={() => refetch()}
-              bgColor={colors.lime}
-            >
-              <CustomText style={styles.retryButtonText}>Retry</CustomText>
-            </CustomTouchable>
-          </CustomView>
-        </CustomView>
-      );
-    }
-
-    // Show empty state if no content available
-    if (!transformedCardData.length) {
-      return (
-        <CustomView style={styles.content}>
-          <CustomView style={styles.swipeContainer}>
-            <CustomText
-              style={[styles.emptyText, { color: colors.gray_regular }]}
-            >
-              No content available at the moment.
-            </CustomText>
-            <CustomTouchable
-              style={styles.retryButton}
-              onPress={() => refetch()}
-              bgColor={colors.lime}
-            >
-              <CustomText style={styles.retryButtonText}>Refresh</CustomText>
-            </CustomTouchable>
-          </CustomView>
-        </CustomView>
-      );
-    }
-
     return (
-      <CustomView style={styles.content}>
-        <CustomView style={styles.swipeContainer}>
-          <SwipeCards
-            data={transformedCardData}
-            onCardTap={handleCardTap}
-            onSwipeLeft={handleSwipeLeft}
-            onSwipeRight={handleSwipeRight}
-            onSwipeUp={handleSwipeUp}
-            onComplete={handleSwipeComplete}
-            hideBucketsButton={true}
-          />
+      <OnboardingCardSwipeSlide
+        stepData={stepData}
+        isLoading={isContentLoading}
+        error={contentError}
+        cardData={transformedCardData}
+        showTutorial={showTutorial}
+        onCardTap={handleCardTap}
+        onSwipeLeft={handleSwipeLeft}
+        onSwipeRight={handleSwipeRight}
+        onSwipeUp={handleSwipeUp}
+        onComplete={handleSwipeComplete}
+        onTutorialComplete={handleTutorialComplete}
+        onRetry={() => refetch()}
+      />
+    );
+  };
 
-          {showTutorial && !isContentLoading && (
-            <SwipeCardTooltips onComplete={handleTutorialComplete} />
-          )}
-        </CustomView>
-      </CustomView>
+  const renderTagSelection = () => {
+    if (!stepData) return null;
+    return (
+      <OnboardingTagSlide
+        stepData={stepData}
+        selectedIndices={selectedIndices}
+        onSelection={handleSelection}
+      />
+    );
+  };
+
+  const renderBusinessTagSelection = () => {
+    if (!stepData) return null;
+    return (
+      <OnboardingBusinessTagSlide
+        stepData={stepData}
+        selectedIndices={selectedIndices}
+        onSelection={handleSelection}
+      />
+    );
+  };
+
+  const renderBudgetSelection = () => {
+    if (!stepData) return null;
+    return (
+      <OnboardingBudgetSlide
+        stepData={stepData}
+        onBudgetChange={handleBudgetChange}
+        initialBudget={budgetRange}
+      />
+    );
+  };
+
+  const renderLocationSelection = () => {
+    if (!stepData) return null;
+    return (
+      <OnboardingLocationSlide
+        stepData={stepData}
+        onLocationSelect={handleLocationSelect}
+        selectedLocation={selectedLocation}
+      />
     );
   };
 
   const renderFinalSlide = () => {
     if (!stepData) return null;
+    return <OnboardingFinalSlide stepData={stepData} />;
+  };
+
+  const renderTravelEmailSlide = () => {
+    if (!stepData) return null;
+
+    // Extract first name from travelName
+    const firstName = travelName ? travelName.split(" ")[0] : undefined;
 
     return (
-      <CustomView style={styles.contentEnd}>
-        <LottieView
-          source={OnboardingAnimationEnd}
-          autoPlay
-          loop
-          style={styles.logoEnd}
-        />
-        <CustomText
-          fontFamily="Inter-SemiBold"
-          style={[styles.endTitle, { color: colors.label_dark }]}
-        >
-          {stepData.title}
-        </CustomText>
-        <CustomText
-          style={[styles.endSubtitle, { color: colors.gray_regular }]}
-        >
-          {stepData.subtitle}
-        </CustomText>
-      </CustomView>
+      <OnboardingTravelEmailSlide
+        stepData={stepData}
+        email={travelEmail}
+        onEmailChange={setTravelEmail}
+        firstName={firstName}
+      />
+    );
+  };
+
+  const renderTravelNameSlide = () => {
+    if (!stepData) return null;
+    return (
+      <OnboardingTravelNameSlide
+        stepData={stepData}
+        name={travelName}
+        onNameChange={setTravelName}
+      />
+    );
+  };
+
+  const renderCodeSlide = () => {
+    if (!stepData) return null;
+    return (
+      <OnboardingCodeSlide
+        stepData={stepData}
+        code={verificationCode}
+        onCodeChange={setVerificationCode}
+        email={travelEmail}
+        onResendCode={handleResendCode}
+      />
     );
   };
 
@@ -635,12 +1228,30 @@ const OnboardingScreen = () => {
         return renderLogoSelection();
       case "option-list":
         return renderOptionList();
+      case "budget-selection":
+        return renderBudgetSelection();
+      case "location-selection":
+        return renderLocationSelection();
       case "personal-form":
         return renderPersonalForm();
+      case "business-personal-form":
+        return renderBusinessPersonalForm();
+      case "business-work-form":
+        return renderBusinessWorkForm();
       case "card-swipe":
         return renderCardSwipe();
+      case "tag-selection":
+        return renderTagSelection();
+      case "business-tag-selection":
+        return renderBusinessTagSelection();
       case "final-slide":
         return renderFinalSlide();
+      case "travel-email":
+        return renderTravelEmailSlide();
+      case "travel-name":
+        return renderTravelNameSlide();
+      case "code-slide":
+        return renderCodeSlide();
       default:
         return null;
     }
@@ -649,6 +1260,45 @@ const OnboardingScreen = () => {
   // Updated validation logic to handle both single and multiple selections
   const isNextButtonDisabled = (): boolean => {
     if (stepData?.type === "final-slide") return false;
+
+    // For budget selection steps, always enabled (has default values)
+    if (stepData?.type === "budget-selection") return false;
+
+    // For location selection steps, require a location to be selected
+    if (stepData?.type === "location-selection") {
+      return !selectedLocation;
+    }
+
+    // For travel email step, require valid email
+    if (stepData?.type === "travel-email") {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return !travelEmail || !emailRegex.test(travelEmail);
+    }
+
+    // For travel name step, require name
+    if (stepData?.type === "travel-name") {
+      return !travelName.trim();
+    }
+
+    // For business personal form step, require full name
+    if (stepData?.type === "business-personal-form") {
+      return !businessPersonalFormData.fullName.trim();
+    }
+
+    // For business work form step, require all fields
+    if (stepData?.type === "business-work-form") {
+      return (
+        !businessWorkFormData.role.trim() ||
+        !businessWorkFormData.company.trim() ||
+        !businessWorkFormData.industry.length ||
+        !businessWorkFormData.stage.trim()
+      );
+    }
+
+    // For code verification step, require 6-digit code
+    if (stepData?.type === "code-slide") {
+      return verificationCode.length !== 6;
+    }
 
     // For steps that allow multiple selections, require at least one selection
     if (stepData?.allowMultipleSelections) {
@@ -661,185 +1311,106 @@ const OnboardingScreen = () => {
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[
+        commonOnboardingStyles.container,
+        { backgroundColor: colors.background },
+      ]}
     >
       <StatusBar style="dark" />
       {stepData?.type !== "final-slide" && (
-        <CustomTouchable style={styles.header} onPress={handleBack}>
+        <CustomTouchable
+          style={commonOnboardingStyles.header}
+          onPress={handleBack}
+        >
           <ArrowLeftSvg />
         </CustomTouchable>
       )}
 
+      {(stepData?.type === "option-list" ||
+        stepData?.type === "budget-selection" ||
+        stepData?.type === "tag-selection" ||
+        stepData?.type === "business-tag-selection" ||
+        stepData?.type === "location-selection") && (
+        <CustomView style={commonOnboardingStyles.progressContainer}>
+          <OnboardingProgressBar
+            steps={
+              currentFlow.filter(
+                (step) =>
+                  step.type === "option-list" ||
+                  step.type === "budget-selection" ||
+                  step.type === "tag-selection" ||
+                  step.type === "business-tag-selection" ||
+                  step.type === "location-selection"
+              ).length
+            }
+            currentStep={
+              currentFlow
+                .slice(0, currentStepIndex + 1)
+                .filter(
+                  (step) =>
+                    step.type === "option-list" ||
+                    step.type === "budget-selection" ||
+                    step.type === "tag-selection" ||
+                    step.type === "business-tag-selection" ||
+                    step.type === "location-selection"
+                ).length - 1
+            }
+          />
+        </CustomView>
+      )}
+
       {renderStepContent()}
 
-      <CustomView style={styles.footer}>
+      <LinearGradient
+        colors={stepData?.type === "card-swipe"
+          ? ["rgba(255, 255, 255, 0)", "rgba(255, 255, 255, 0)"]
+          : ["#FFFFFF", "rgba(255, 255, 255, 0)"]}
+        locations={[0, 1]}
+        style={[
+          commonOnboardingStyles.footer,
+          stepData?.type === "card-swipe"
+            ? { paddingBottom: verticalScale(24) }
+            : { paddingBottom: verticalScale(12) },
+        ]}
+      >
         {stepData &&
           stepData.type !== "logo-selection" &&
-          stepData.type !== "card-swipe" &&
-          stepData.type !== "personal-form" && (
+          stepData.type !== "card-swipe" && (
             <NextButton
               onPress={handleNext}
               customStyles={
-                isNextButtonDisabled() || isPending
-                  ? styles.nextButtonDisabled
+                isNextButtonDisabled() || isPending || isValidating
+                  ? commonOnboardingStyles.nextButtonDisabled
                   : {}
               }
               bgColor={colors.lime}
               title={
                 isPending
-                  ? "Finalizing..."
-                  : currentStepIndex === filteredSteps.length - 1
-                  ? "Finish"
-                  : "Next"
+                  ? stepData?.type === "travel-email"
+                    ? "Sending code..."
+                    : "Finalizing..."
+                  : isValidating
+                  ? "Verifying..."
+                  : stepData?.type === "final-slide"
+                  ? "Let's Go!"
+                  : stepData?.type === "code-slide"
+                  ? "Start exploring!"
+                  : currentStepIndex === currentFlow.length - 1
+                  ? "Create Account"
+                  : "Continue"
               }
-              disabled={isNextButtonDisabled() || isPending}
+              disabled={isNextButtonDisabled() || isPending || isValidating}
             />
           )}
-        <CustomView style={styles.progressContainer}>
-          <OnboardingProgressBar
-            steps={totalSteps}
-            currentStep={currentStepIndex}
-          />
-        </CustomView>
-      </CustomView>
+      </LinearGradient>
+
+      {/* Modal for first swipe right */}
+      <OnboardingSwipeUpModal
+        visible={showSwipeUpModal}
+        onClose={handleCloseSwipeUpModal}
+      />
     </SafeAreaView>
   );
 };
 
 export default OnboardingScreen;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: horizontalScale(16),
-    paddingVertical: verticalScale(12),
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: horizontalScale(20),
-    alignItems: "center",
-    paddingTop: verticalScale(16),
-    paddingBottom: verticalScale(20),
-  },
-  logoContent: {
-    flex: 1,
-    paddingHorizontal: horizontalScale(20),
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: verticalScale(20),
-  },
-  contentEnd: {
-    flex: 1,
-    paddingHorizontal: horizontalScale(24),
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logo: {
-    width: 273,
-    height: 273,
-  },
-  logoEnd: {
-    width: 327,
-    height: 327,
-  },
-  title: {
-    fontSize: scaleFontSize(18),
-    marginBottom: verticalScale(8),
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: scaleFontSize(14),
-    textAlign: "center",
-  },
-  optionsTitle: {
-    fontSize: scaleFontSize(15),
-    textAlign: "center",
-    marginBottom: verticalScale(8),
-  },
-  optionsSubtitle: {
-    fontSize: scaleFontSize(18),
-    minHeight: 58,
-    marginBottom: verticalScale(23),
-    textAlign: "center",
-  },
-  formTitle: {
-    fontSize: scaleFontSize(18),
-    textAlign: "center",
-    marginBottom: verticalScale(8),
-  },
-  formSubtitle: {
-    fontSize: scaleFontSize(14),
-    marginBottom: verticalScale(24),
-    textAlign: "center",
-  },
-  endTitle: {
-    fontSize: scaleFontSize(18),
-    marginBottom: verticalScale(8),
-    textAlign: "center",
-  },
-  endSubtitle: {
-    fontSize: scaleFontSize(14),
-    textAlign: "center",
-  },
-  optionsContainer: {
-    width: "100%",
-    justifyContent: "center",
-    flex: 1,
-  },
-  selectionButton: {
-    width: "100%",
-    paddingVertical: verticalScale(12),
-    paddingHorizontal: horizontalScale(20),
-    borderRadius: 31,
-    marginBottom: verticalScale(12),
-  },
-  businessButton: {
-    borderWidth: 1,
-    borderColor: "#D6D6D9",
-  },
-  selectedButton: {
-    borderColor: "#000",
-  },
-  selectionButtonText: {
-    fontSize: scaleFontSize(16),
-  },
-  footer: {
-    paddingHorizontal: horizontalScale(24),
-    paddingBottom: verticalScale(12),
-  },
-  nextButtonDisabled: {
-    opacity: 0.7,
-  },
-  progressContainer: {
-    alignItems: "center",
-  },
-  swipeContainer: {
-    flex: 1,
-    width: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingBottom: verticalScale(30),
-  },
-  errorText: {
-    fontSize: scaleFontSize(16),
-    textAlign: "center",
-    marginBottom: verticalScale(16),
-  },
-  emptyText: {
-    fontSize: scaleFontSize(16),
-    textAlign: "center",
-    marginBottom: verticalScale(16),
-  },
-  retryButton: {
-    paddingVertical: verticalScale(12),
-    paddingHorizontal: horizontalScale(24),
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    fontSize: scaleFontSize(14),
-    color: "#fff",
-    textAlign: "center",
-  },
-});

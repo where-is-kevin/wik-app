@@ -9,30 +9,37 @@ import Constants from "expo-constants";
 type Content = {
   id: string;
   category: string;
-  title: string;
+  subcategory?: string;
+  title: string | null;
   rating: number;
-  price: number | null;
+  price: number | string | null;
+  internalPrice?: string | null;
   phone: string | null;
   latitude: number;
   longitude: number;
   googleMapsUrl: string;
-  googlePlacesImageUrl: string;
-  internalImages: string[];
+  googlePlacesImageUrl?: string;
+  internalImages: string[] | null;
   bookingUrl: string | null;
   websiteUrl: string | null;
   description: string | null;
   reviews: string | null;
   tags: string;
-  createdAt: string;
-  updatedAt: string;
-  internalImageUrls: string[];
+  createdAt?: string;
+  updatedAt?: string;
+  internalImageUrls: string[] | null;
   address: string;
+  addressShort?: string | null;
+  addressLong?: string;
   userLiked?: boolean;
   userDisliked?: boolean;
   isSponsored: boolean;
   contentShareUrl: string;
-  similarity: number;
+  similarity: number | string;
   distance?: number;
+  eventDatetimeStart?: string | null;
+  eventDatetimeEnd?: string | null;
+  audienceType?: string[];
 };
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
@@ -42,6 +49,7 @@ interface BasicContentParams {
   latitude?: number;
   longitude?: number;
   category_filter?: string;
+  type?: "leisure" | "business";
 }
 
 // Fixed: Now returns Content[] instead of Content and accepts optional location params
@@ -63,7 +71,10 @@ const fetchContent = async (
   // Add query parameters if provided
   if (
     params &&
-    (params.latitude !== undefined || params.longitude !== undefined || params.category_filter !== undefined)
+    (params.latitude !== undefined ||
+      params.longitude !== undefined ||
+      params.category_filter !== undefined ||
+      params.type !== undefined)
   ) {
     const cleanParams: Record<string, string> = {};
     if (params.latitude !== undefined)
@@ -72,17 +83,20 @@ const fetchContent = async (
       cleanParams.longitude = params.longitude.toString();
     if (params.category_filter !== undefined)
       cleanParams.category_filter = params.category_filter;
+    if (params.type !== undefined) cleanParams.type = params.type;
 
     const queryString = new URLSearchParams(cleanParams).toString();
     url += `?${queryString}`;
   }
 
-  return await createTimedAjax<Content[]>({
+  const result = await createTimedAjax<Content[]>({
     url,
     method: "GET",
     headers,
     responseType: "json",
   });
+
+  return result;
 };
 
 // Fetch content by ID function - JWT optional
@@ -119,6 +133,7 @@ interface ContentParams {
   offset?: number;
   latitude?: number;
   longitude?: number;
+  type?: "leisure" | "business";
 }
 
 // Add interface for paginated response
@@ -152,13 +167,16 @@ const fetchContentWithParams = async (
 
   // Construct query string from params
   const queryString = new URLSearchParams(cleanParams).toString();
+  const url = `${API_URL}/content/selection/ask-kevin?${queryString}`;
 
-  return await createTimedAjax<PaginatedResponse>({
-    url: `${API_URL}/content/selection/ask-kevin?${queryString}`,
+  const result = await createTimedAjax<PaginatedResponse>({
+    url,
     method: "GET",
     headers,
     responseType: "json",
   });
+
+  return result;
 };
 
 // New interface for infinite content params
@@ -168,6 +186,7 @@ interface InfiniteContentParams {
   longitude?: number | undefined; // Explicitly allow undefined
   limit?: number;
   enabled?: boolean;
+  type?: "leisure" | "business";
 }
 
 // NEW: Infinite query hook for pagination
@@ -175,15 +194,25 @@ export function useInfiniteContent({
   query,
   latitude,
   longitude,
-  limit = 20,
+  limit = 12,
   enabled = true,
+  type,
 }: InfiniteContentParams) {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken || null;
 
   return useInfiniteQuery({
-    queryKey: ["content", "infinite", query, latitude, longitude, limit, !!jwt],
+    queryKey: [
+      "content",
+      "infinite",
+      query,
+      latitude,
+      longitude,
+      limit,
+      type,
+      !!jwt,
+    ],
     queryFn: async ({ pageParam = 0 }) => {
       const params: ContentParams = {
         query,
@@ -197,6 +226,11 @@ export function useInfiniteContent({
         params.longitude = longitude;
       }
 
+      // Add type if provided
+      if (type !== undefined) {
+        params.type = type;
+      }
+
       return fetchContentWithParams(params, jwt);
     },
     getNextPageParam: (lastPage) => {
@@ -204,31 +238,53 @@ export function useInfiniteContent({
       return nextOffset < lastPage.total ? nextOffset : undefined;
     },
     initialPageParam: 0,
-    enabled: !!API_URL && !!query && enabled,
+    enabled: !!API_URL && enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
   });
 }
 
 // For basic content (SwipeableCards) - JWT optional
-export function useContent(params?: BasicContentParams, locationPermissionStatus?: 'granted' | 'denied' | 'undetermined' | null) {
+export function useContent(
+  params?: BasicContentParams,
+  locationPermissionStatus?: "granted" | "denied" | "undetermined" | null
+) {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken || null;
 
+  // Helper function to check if params are meaningful
+  const hasMeaningfulParams = (params?: BasicContentParams) => {
+    if (!params) return false;
+
+    // Check if any of the parameters have meaningful values
+    return (
+      params.latitude !== undefined ||
+      params.longitude !== undefined ||
+      (params.category_filter !== undefined &&
+        params.category_filter.trim() !== "") ||
+      params.type !== undefined
+    );
+  };
+
   // Determine if we should fetch based on permission status and location data
   const shouldFetch = () => {
+    // Don't fetch if we don't have any meaningful parameters
+    if (!hasMeaningfulParams(params)) {
+      return false;
+    }
+
     // If no permission status provided, fetch immediately (old behavior)
     if (!locationPermissionStatus) return true;
-    
+
     // If permission is denied, fetch without waiting for coordinates
-    if (locationPermissionStatus === 'denied') return true;
-    
-    // If permission is granted, wait until we have coordinates
-    if (locationPermissionStatus === 'granted') {
-      return params?.latitude !== undefined && params?.longitude !== undefined;
+    if (locationPermissionStatus === "denied") return true;
+
+    // If permission is granted, always fetch (coordinates are optional based on user preference)
+    if (locationPermissionStatus === "granted") {
+      return true;
     }
-    
+
     // If undetermined, don't fetch yet
     return false;
   };
@@ -237,6 +293,11 @@ export function useContent(params?: BasicContentParams, locationPermissionStatus
     queryKey: ["content", "basic", params, !!jwt], // Include JWT status in query key
     queryFn: () => fetchContent(params, jwt),
     enabled: !!API_URL && shouldFetch(),
+    staleTime: 2 * 60 * 1000, // 2 minutes - serve cached data faster
+    gcTime: 10 * 60 * 1000, // 10 minutes cache time
+    refetchOnWindowFocus: false, // Don't refetch when app regains focus
+    refetchOnMount: false, // Don't refetch if we have cached data
+    networkMode: 'offlineFirst', // Use cache first for faster loading
   });
 }
 

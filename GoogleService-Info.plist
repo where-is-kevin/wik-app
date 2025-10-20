@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyDf4J3ZWQYTnk9ATW1abx5KgW0CgL9E6J8</string>
+	<key>GCM_SENDER_ID</key>
+	<string>415622821466</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.whereiskevin.wikapp</string>
+	<key>PROJECT_ID</key>
+	<string>whereiskevin-7f46c</string>
+	<key>STORAGE_BUCKET</key>
+	<string>whereiskevin-7f46c.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<true></true>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:415622821466:ios:a6f662b5f2b3646c0e0a63</string>
+</dict>
+</plist>

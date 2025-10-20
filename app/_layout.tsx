@@ -8,8 +8,13 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { LocationProvider } from "@/contexts/LocationContext";
+import { UserLocationProvider } from "@/contexts/UserLocationContext";
 import { UXCamProvider } from "@/contexts/UXCamContext";
-import { PortalProvider } from "@gorhom/portal";
+import { AnalyticsProvider } from "@/contexts/AnalyticsContext";
+import { PortalProvider, PortalHost } from "@gorhom/portal";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { ModeProvider } from "@/contexts/ModeContext";
+import { ToastProvider } from "@/contexts/ToastContext";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -51,50 +56,96 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <UXCamProvider>
-          <ThemeProvider>
-            <LocationProvider>
-              <PortalProvider>
-                <StatusBar style="dark" />
-                <Stack>
-                  {/* Root index handles auth routing */}
-                  <Stack.Screen name="index" options={{ headerShown: false }} />
-                  {/* Authentication screens */}
-                  <Stack.Screen
-                    name="(auth)"
-                    options={{ headerShown: false }}
-                  />
-                  {/* Onboarding screens */}
-                  <Stack.Screen
-                    name="(onboarding)"
-                    options={{ headerShown: false }}
-                  />
-                  {/* Main tab navigation */}
-                  <Stack.Screen
-                    name="(tabs)"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="(profile)"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="(settings)"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="event-details/[eventId]"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="map-screen"
-                    options={{ headerShown: false }}
-                  />
-                  {/* Fallback screen for undefined routes */}
-                  <Stack.Screen name="+not-found" />
-                </Stack>
-              </PortalProvider>
-            </LocationProvider>
-          </ThemeProvider>
+          <AnalyticsProvider>
+            <ThemeProvider>
+              <LocationProvider>
+                <UserLocationProvider>
+                  <PortalProvider>
+                    <BottomSheetModalProvider>
+                      <ModeProvider>
+                        <ToastProvider>
+                      <StatusBar style="dark" />
+                      <Stack>
+                        {/* Root index handles auth routing */}
+                        <Stack.Screen
+                          name="index"
+                          options={{ headerShown: false }}
+                        />
+                        {/* Authentication screens */}
+                        <Stack.Screen
+                          name="(auth)"
+                          options={{ headerShown: false }}
+                        />
+                        {/* Onboarding screens */}
+                        <Stack.Screen
+                          name="(onboarding)"
+                          options={{ headerShown: false }}
+                        />
+                        {/* Main tab navigation */}
+                        <Stack.Screen
+                          name="(tabs)"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="(profile)"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="(settings)"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="event-details/[eventId]"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="business-events/[businessEventId]"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="major-events-nearby"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="worldwide-major-events"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="worldwide-business-events"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="map-screen"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="location-selection"
+                          options={{ headerShown: false }}
+                        />
+                        {/* Create modal screen */}
+                        <Stack.Screen
+                          name="create"
+                          options={{
+                            presentation: "modal",
+                            headerShown: false,
+                            animation: "slide_from_bottom",
+                            contentStyle: {
+                              backgroundColor: "transparent",
+                            },
+                          }}
+                        />
+                        {/* Fallback screen for undefined routes */}
+                        <Stack.Screen name="+not-found" />
+                      </Stack>
+                        </ToastProvider>
+                      </ModeProvider>
+                    </BottomSheetModalProvider>
+                    <PortalHost name="root" />
+                  </PortalProvider>
+                </UserLocationProvider>
+              </LocationProvider>
+            </ThemeProvider>
+          </AnalyticsProvider>
         </UXCamProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>

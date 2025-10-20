@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   experienceText: {
-    fontSize: scaleFontSize(10),
+    fontSize: scaleFontSize(12),
   },
 });
 

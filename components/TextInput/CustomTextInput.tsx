@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, memo } from "react";
 import {
   TextInput,
   StyleSheet,
@@ -32,6 +32,9 @@ interface CustomTextInputProps {
   maxLength?: number;
   fixedHeight?: number;
   customTextStyles?: TextStyle | TextStyle[]; // Add custom text styles prop
+  autoFocus?: boolean;
+  blurOnSubmit?: boolean;
+  returnKeyType?: "done" | "go" | "next" | "search" | "send" | "default";
 }
 
 const CustomTextInput: React.FC<CustomTextInputProps> = ({
@@ -49,6 +52,9 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
   maxLength,
   fixedHeight,
   customTextStyles,
+  autoFocus = false,
+  blurOnSubmit = false,
+  returnKeyType = "default",
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
@@ -58,8 +64,9 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
   const getContainerStyles = (): ViewStyle[] => {
     const baseStyles: ViewStyle[] = [
       styles.inputContainer,
-      isFocused ? styles.inputContainerFocused : {},
+      isFocused && editable !== false ? styles.inputContainerFocused : {},
       multiline ? styles.multilineContainer : {},
+      editable === false ? styles.inputContainerDisabled : {},
     ];
 
     // Only add fixedHeight if it exists and is greater than 0
@@ -73,7 +80,7 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
   const getInputStyles = (): TextStyle[] => {
     const baseStyles: TextStyle[] = [
       styles.input,
-      { color: colors.label_dark },
+      { color: editable === false ? colors.gray_regular : colors.label_dark },
       multiline ? styles.multilineInput : {},
     ];
 
@@ -124,6 +131,9 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
           textAlignVertical={multiline ? "top" : "center"}
           maxLength={maxLength}
           scrollEnabled={multiline}
+          autoFocus={autoFocus}
+          blurOnSubmit={blurOnSubmit}
+          returnKeyType={returnKeyType}
         />
         {secureTextEntry && (
           <CustomTouchable
@@ -170,6 +180,10 @@ const styles = StyleSheet.create({
     borderColor: "#5953FF",
     borderWidth: 1,
   },
+  inputContainerDisabled: {
+    backgroundColor: "#F5F5F5",
+    borderColor: "#E5E5E6",
+  },
   multilineContainer: {
     alignItems: "flex-start",
     minHeight: verticalScale(60),
@@ -198,4 +212,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CustomTextInput;
+export default memo(CustomTextInput);

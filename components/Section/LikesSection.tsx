@@ -12,6 +12,10 @@ import { useTheme } from "@/contexts/ThemeContext";
 import ShareButton from "../Button/ShareButton";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
 import CategoryTag from "../Tag/CategoryTag";
+import { ImagePlaceholder } from "../OptimizedImage/ImagePlaceholder";
+
+// Local placeholder image - moved outside component to prevent re-creation
+// Using SVG placeholder via OptimizedImage error handling
 
 // TypeScript interfaces
 interface LikeItem {
@@ -38,7 +42,7 @@ interface LikesSectionProps {
   onSeeMorePress?: () => void;
 }
 
-const LikeItemComponent: React.FC<LikeItemProps> = ({
+const LikeItemComponent: React.FC<LikeItemProps> = React.memo(({
   title,
   image,
   category,
@@ -47,31 +51,27 @@ const LikeItemComponent: React.FC<LikeItemProps> = ({
 }) => {
   const { colors } = useTheme();
 
-  // Local placeholder image
-  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
-
-  // Helper function to get valid image URL
-  const getValidImageUrl = useCallback((imageUrl: string): string | null => {
-    if (typeof imageUrl === "string" && imageUrl.trim() !== "") {
-      return imageUrl;
+  // Get safe image source - memoized to prevent re-renders
+  const validImageUrl = React.useMemo(() => {
+    if (typeof image === "string" && image.trim() !== "") {
+      return image;
     }
     return null;
-  }, []);
-
-  // Get safe image source
-  const validImageUrl = getValidImageUrl(image);
+  }, [image]);
 
   return (
     <CustomView style={styles.container}>
       {/* Image container with its own touchable */}
       <CustomTouchable style={styles.imageContainer} onPress={onPress}>
         <OptimizedImage
-          source={validImageUrl ? { uri: validImageUrl } : PLACEHOLDER_IMAGE}
+          source={validImageUrl ? { uri: validImageUrl } : ""}
           style={styles.image}
-          resizeMode="cover"
+          contentFit="cover"
           priority="normal"
-          showLoader={true}
-          fallbackSource={PLACEHOLDER_IMAGE}
+          showLoadingIndicator={true}
+          overlayComponent={
+            !validImageUrl ? <ImagePlaceholder /> : undefined
+          }
         />
 
         {/* Category tag in top left */}
@@ -101,7 +101,7 @@ const LikeItemComponent: React.FC<LikeItemProps> = ({
       </CustomView>
     </CustomView>
   );
-};
+});
 
 // Likes section component with horizontal FlatList
 const LikesSection: React.FC<LikesSectionProps> = ({
@@ -162,10 +162,10 @@ const LikesSection: React.FC<LikesSectionProps> = ({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.flatListContent}
         ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
-        removeClippedSubviews={true}
-        initialNumToRender={3}
-        maxToRenderPerBatch={5}
-        windowSize={10}
+        removeClippedSubviews={false}
+        initialNumToRender={5}
+        maxToRenderPerBatch={3}
+        windowSize={5}
         getItemLayout={(data, index) => ({
           length: 177 + horizontalScale(12), // item width + separator
           offset: (177 + horizontalScale(12)) * index,

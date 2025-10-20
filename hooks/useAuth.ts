@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createTimedAjax } from "@/utilities/apiUtils";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;
@@ -20,10 +21,6 @@ interface AuthResponse {
   user: User;
 }
 
-interface LoginData {
-  username: string;
-  password: string;
-}
 
 // Secure storage keys
 const AUTH_TOKEN_KEY = "authToken";
@@ -81,34 +78,6 @@ const authStorage = {
   },
 };
 
-// Login API call
-const loginApi = async (data: LoginData): Promise<AuthResponse> => {
-  const params = new URLSearchParams();
-  params.append("grant_type", "password");
-  params.append("username", data.username);
-  params.append("password", data.password);
-  params.append("scope", "");
-  params.append("client_id", "string");
-  params.append("client_secret", "string");
-
-  try {
-    return await createTimedAjax<AuthResponse>({
-      url: `${API_URL}/oauth2/login`,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        accept: "application/json",
-      },
-      body: params.toString(),
-      responseType: "json",
-    });
-  } catch (error: any) {
-    if (error?.response) {
-      throw error.response;
-    }
-    throw error;
-  }
-};
 
 // Main auth hook
 export function useAuth() {
@@ -126,34 +95,15 @@ export function useAuth() {
     refetchOnReconnect: false,
   });
 
-  // Login mutation
-  const loginMutation = useMutation({
-    mutationFn: loginApi,
-    onSuccess: async (data: AuthResponse) => {
-      try {
-        // Store in secure storage first
-        await authStorage.setAuth(data);
-
-        // Then update query cache
-        queryClient.setQueryData(["auth"], data);
-      } catch (error) {
-        console.error("Error saving auth data:", error);
-        throw error;
-      }
-    },
-    onError: (error) => {
-      console.error("Login failed:", error);
-    },
-  });
 
   // Logout function
   const logout = async () => {
     try {
       await authStorage.clearAuth();
-      
+
       // Clear all cached data when logging out
       queryClient.clear();
-      
+
       router.replace("/(auth)");
     } catch (error) {
       console.error("Logout failed:", error);
@@ -172,10 +122,6 @@ export function useAuth() {
     isError: authQuery.isError,
     error: authQuery.error,
 
-    // Login - keeping same interface as your old useLogin hook
-    mutate: loginMutation.mutate, // This matches your current usage
-    isPending: loginMutation.isPending, // This matches your current usage
-    loginError: loginMutation.error,
 
     // Actions
     logout,

@@ -9,6 +9,7 @@ import { StyleSheet, FlatList, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BackHeader from "@/components/Header/BackHeader";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useToast } from "@/contexts/ToastContext";
 import {
   horizontalScale,
   scaleFontSize,
@@ -33,6 +34,9 @@ import EmptyData from "@/components/EmptyData";
 import { useLikes } from "@/hooks/useLikes";
 import { Ionicons } from "@expo/vector-icons";
 import FloatingMapButton from "@/components/FloatingMapButton";
+import { ErrorScreen } from "@/components/ErrorScreen";
+
+// Using SVG placeholder via BucketCard's OptimizedImage error handling
 
 interface LocalBucketItem {
   id: string;
@@ -74,6 +78,7 @@ const useDebounce = (value: string, delay: number) => {
 
 const ProfileListsScreen = () => {
   const { colors } = useTheme();
+  const { showToast } = useToast();
   const router = useRouter();
   const { type } = useLocalSearchParams();
   const listType = type === "buckets" || type === "likes" ? type : "buckets";
@@ -110,9 +115,6 @@ const ProfileListsScreen = () => {
   const addBucketMutation = useAddBucket();
   const createBucketMutation = useCreateBucket();
 
-  // Constants
-  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
-
   // Flatten paginated data
   const buckets = useMemo(() => {
     return bucketsQuery.data?.pages.flatMap((page) => page.items) || [];
@@ -125,26 +127,37 @@ const ProfileListsScreen = () => {
   // Transform data
   const transformedBucketsData = useMemo(() => {
     return buckets.map((bucket: any) => {
-      const images =
-        bucket.content
-          ?.filter(
-            (item: any) =>
-              item.internalImageUrls?.length > 0 || item.googlePlacesImageUrl
-          )
-          .slice(0, 3)
-          .map(
-            (item: any) =>
-              item.internalImageUrls?.[0] || item.googlePlacesImageUrl
-          ) || [];
+      // Filter valid items with proper null checks
+      const validItems =
+        bucket.content?.filter((item: any) => {
+          const hasInternalImage =
+            item.internalImageUrls &&
+            Array.isArray(item.internalImageUrls) &&
+            item.internalImageUrls.length > 0;
+          return hasInternalImage;
+        }) || [];
 
-      while (images.length < 3) {
-        images.push(PLACEHOLDER_IMAGE);
+      const images = validItems.slice(0, 3).map((item: any) => {
+        if (
+          item.internalImageUrls &&
+          Array.isArray(item.internalImageUrls) &&
+          item.internalImageUrls.length > 0
+        ) {
+          return item.internalImageUrls[0];
+        }
+        return ""; // Empty string for SVG placeholder
+      });
+
+      // Create stable array reference
+      const finalImages = [...images];
+      while (finalImages.length < 3) {
+        finalImages.push(""); // Empty string for SVG placeholder
       }
 
       return {
         id: bucket.bucketId,
         title: bucket.bucketName,
-        safeImages: images,
+        safeImages: finalImages,
         bucketShareUrl: bucket.bucketShareUrl,
       };
     });
@@ -152,11 +165,9 @@ const ProfileListsScreen = () => {
 
   const transformedLikesData = useMemo(() => {
     return likes.map((like: any, index: number) => {
-      let foodImage = PLACEHOLDER_IMAGE;
+      let foodImage = ""; // Empty string for SVG placeholder
       if (like.internalImageUrls?.length > 0) {
         foodImage = like.internalImageUrls[0];
-      } else if (like.googlePlacesImageUrl) {
-        foodImage = like.googlePlacesImageUrl;
       } else if (like.image) {
         foodImage = like.image;
       }
@@ -243,12 +254,14 @@ const ProfileListsScreen = () => {
           });
           setIsBucketBottomSheetVisible(false);
           setSelectedLikeItemId(null);
+          showToast("Added to bucket", "success", false);
         } catch (error) {
           console.error("Failed to add item to bucket:", error);
+          showToast("Failed to add to bucket", "error", false);
         }
       }
     },
-    [selectedLikeItemId, addBucketMutation]
+    [selectedLikeItemId, addBucketMutation, showToast]
   );
 
   const handleShowCreateBucketBottomSheet = useCallback(() => {
@@ -271,12 +284,14 @@ const ProfileListsScreen = () => {
           setIsCreateBucketBottomSheetVisible(false);
           setActiveTab("buckets");
           setSelectedLikeItemId(null);
+          showToast("Bucket created", "success", false);
         } catch (error) {
           console.error("Failed to create bucket:", error);
+          showToast("Failed to create bucket", "error", false);
         }
       }
     },
-    [selectedLikeItemId, createBucketMutation]
+    [selectedLikeItemId, createBucketMutation, showToast]
   );
 
   const handleLikeItemPress = useCallback(
@@ -316,6 +331,49 @@ const ProfileListsScreen = () => {
       bucketsQuery.isLoading &&
       !!bucketsQuery.data) ||
     (activeTab === "likes" && likesQuery.isLoading && !!likesQuery.data);
+
+  // Error states
+  const hasError =
+    (activeTab === "buckets" && bucketsQuery.isError) ||
+    (activeTab === "likes" && likesQuery.isError);
+
+  const handleRetry = () => {
+    if (activeTab === "buckets") {
+      bucketsQuery.refetch();
+    } else {
+      likesQuery.refetch();
+    }
+  };
+
+  // Show initial loading
+  if (isInitialLoading) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
+        <BackHeader transparent={true} />
+        <CustomView style={styles.loadingContainer}>
+          <AnimatedLoader />
+        </CustomView>
+      </SafeAreaView>
+    );
+  }
+
+  // Show error state
+  if (hasError) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
+        <BackHeader transparent={true} />
+        <ErrorScreen
+          title={`Failed to load ${activeTab}`}
+          message="Please check your connection and try again"
+          onRetry={handleRetry}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView
@@ -421,6 +479,7 @@ const ProfileListsScreen = () => {
                 onLoadMore={handleLoadMore}
                 hasNextPage={likesQuery.hasNextPage}
                 isFetchingNextPage={likesQuery.isFetchingNextPage}
+                contentContainerStyle={{ paddingBottom: verticalScale(80) }}
               />
             ) : (
               <EmptyData type="likes" />
@@ -467,7 +526,7 @@ const ProfileListsScreen = () => {
         onClose={handleCloseCreateBucketBottomSheet}
         onCreateBucket={handleCreateBucket}
       />
-      
+
       {/* Floating Map Button - Only show for likes tab */}
       {activeTab === "likes" && hasLikesContent && (
         <FloatingMapButton onPress={handleOpenLikesMap} hasTabBar={false} />
@@ -519,6 +578,11 @@ const styles = StyleSheet.create({
   },
   footerLoader: {
     paddingVertical: verticalScale(20),
+    alignItems: "center",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
   },
 });

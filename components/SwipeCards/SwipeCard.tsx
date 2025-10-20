@@ -6,9 +6,7 @@ import CustomText from "@/components/CustomText";
 import { scaleFontSize } from "@/utilities/scaling";
 import { OptimizedImageBackground } from "../OptimizedImage/OptimizedImage";
 import { CardContentOverlay } from "./CardContentOverlay";
-import AnimatedLoader from "../Loader/AnimatedLoader";
 import { getImageSource } from "@/utilities/imageHelpers";
-import { STATIC_IMAGES } from "@/constants/images";
 
 interface CardData {
   id: string;
@@ -21,7 +19,9 @@ interface CardData {
   isSponsored?: boolean;
   contentShareUrl: string;
   tags?: string;
-  similarity: number;
+  similarity: number | string;
+  eventDatetimeStart?: string; // For event type items
+  eventDatetimeEnd?: string;
 }
 
 interface SwipeCardProps {
@@ -31,120 +31,101 @@ interface SwipeCardProps {
   panHandlers?: any;
   animatedStyle?: any;
   colors: any;
-  onBucketPress?: (value: string) => void;
-  hideBucketsButton?: boolean;
-  onImageLoad: (itemId: string) => void;
-  onImageError: (itemId: string) => void;
-  imageLoaded: boolean;
+  onBucketPress?: (itemId: string) => void;
+  hideButtons?: boolean;
+  onImageLoad?: (itemId: string) => void;
+  onImageError?: (itemId: string) => void;
 }
 
-export const SwipeCard = React.memo<SwipeCardProps>(
-  ({
-    item,
-    isCurrentCard,
-    isNextCard,
-    panHandlers,
-    animatedStyle,
-    colors,
-    onBucketPress,
-    hideBucketsButton,
-    onImageLoad,
-    onImageError,
-    imageLoaded,
-  }) => {
-    const imageSource = useMemo(
-      () => getImageSource(item.imageUrl),
-      [item.imageUrl]
-    );
+export const SwipeCard = React.memo<SwipeCardProps>(function SwipeCard({
+  item,
+  isCurrentCard,
+  isNextCard,
+  panHandlers,
+  animatedStyle,
+  colors,
+  onBucketPress,
+  hideButtons,
+  onImageLoad,
+  onImageError,
+}) {
+  const imageSource = useMemo(
+    () => getImageSource(item.imageUrl),
+    [item.imageUrl]
+  );
 
-    const handleImageLoad = useCallback(() => {
-      onImageLoad(item.id);
-    }, [onImageLoad, item.id]);
+  const handleImageLoad = useCallback(() => {
+    onImageLoad?.(item.id);
+  }, [onImageLoad, item.id]);
 
-    const handleImageError = useCallback(() => {
-      onImageError(item.id);
-    }, [onImageError, item.id]);
+  const handleImageError = useCallback(() => {
+    onImageError?.(item.id);
+  }, [onImageError, item.id]);
 
-    // Show loader for current card while image is loading
-    if (isCurrentCard && !imageLoaded) {
+  // Removed complex loading logic - let OptimizedImage handle it
+
+  const renderCardContent = () => {
+    if (isCurrentCard) {
       return (
-        <View key={item.id} style={styles.loaderContainer}>
-          <AnimatedLoader />
-          {/* Hidden image to trigger loading */}
-          <OptimizedImageBackground
-            source={imageSource}
-            style={{ width: 0, height: 0 }}
-            onLoad={handleImageLoad}
-            onError={handleImageError}
-            showLoader={false}
-            fallbackSource={STATIC_IMAGES.PLACEHOLDER_IMAGE}
-            priority="high"
-          />
-        </View>
+        <CardContentOverlay
+          item={item}
+          colors={colors}
+          onBucketPress={onBucketPress}
+          hideButtons={hideButtons}
+        />
       );
     }
 
-    const renderCardContent = () => {
-      if (isCurrentCard) {
-        return (
-          <CardContentOverlay
-            item={item}
-            colors={colors}
-            onBucketPress={onBucketPress}
-            hideBucketsButton={hideBucketsButton}
-          />
-        );
-      }
-
-      // Simplified content for next card
-      return (
-        <LinearGradient
-          colors={["rgba(242, 242, 243, 0)", "#0B2E34"]}
-          style={styles.gradientOverlay}
-        >
-          <View style={styles.cardContent}>
-            <CustomText
-              fontFamily="Inter-SemiBold"
-              style={[styles.cardTitle, { color: colors.background }]}
-            >
-              {item.title}
-            </CustomText>
-          </View>
-        </LinearGradient>
-      );
-    };
-
+    // Simplified content for next card - no gradient
     return (
-      <Animated.View
-        key={item.id}
+      <View
         style={[
-          styles.cardStyle,
-          animatedStyle,
-          isNextCard && {
-            opacity: 0.5,
-            transform: [{ scale: 0.9 }],
-            top: 10,
-            zIndex: -1,
-          },
+          styles.gradientOverlay,
+          { backgroundColor: "rgba(11, 46, 52, 0.4)" },
         ]}
-        {...(isCurrentCard ? panHandlers : {})}
       >
-        <OptimizedImageBackground
-          source={imageSource}
-          style={styles.cardImage}
-          resizeMode="cover"
-          priority={isCurrentCard ? "high" : "normal"}
-          showLoader={false}
-          fallbackSource={STATIC_IMAGES.PLACEHOLDER_IMAGE}
-          onLoad={handleImageLoad}
-          onError={handleImageError}
-        >
-          {renderCardContent()}
-        </OptimizedImageBackground>
-      </Animated.View>
+        <View style={styles.cardContent}>
+          <CustomText
+            fontFamily="Inter-SemiBold"
+            style={[styles.cardTitle, { color: colors.background }]}
+          >
+            {item.title || item.address || item.category || "Unknown"}
+          </CustomText>
+        </View>
+      </View>
     );
-  }
-);
+  };
+
+  return (
+    <Animated.View
+      key={item.id}
+      style={[
+        styles.cardStyle,
+        animatedStyle,
+        isNextCard && {
+          opacity: 0.5,
+          transform: [{ scale: 0.9 }],
+          top: 10,
+          zIndex: -1,
+        },
+      ]}
+      {...(isCurrentCard ? panHandlers : {})}
+    >
+      <OptimizedImageBackground
+        source={imageSource}
+        style={styles.cardImage}
+        contentFit="cover"
+        priority={isCurrentCard ? "high" : "normal"}
+        showLoadingIndicator={true}
+        onLoad={handleImageLoad}
+        onError={handleImageError}
+        borderRadius={16}
+      >
+        {renderCardContent()}
+      </OptimizedImageBackground>
+    </Animated.View>
+  );
+});
 
 const styles = StyleSheet.create({
   loaderContainer: {
@@ -160,17 +141,19 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     borderRadius: 16,
-    overflow: "hidden",
-    elevation: 5,
+    elevation: 8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    backgroundColor: "transparent",
   },
   cardImage: {
     width: "100%",
     height: "100%",
     justifyContent: "space-between",
+    borderRadius: 16,
+    overflow: "hidden",
   },
   gradientOverlay: {
     position: "absolute",
@@ -179,6 +162,8 @@ const styles = StyleSheet.create({
     right: 0,
     height: "60%",
     justifyContent: "flex-end",
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   cardContent: {
     padding: 12,

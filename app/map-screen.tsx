@@ -12,15 +12,27 @@ import { BucketBottomSheet } from "@/components/BottomSheet/BucketBottomSheet";
 import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
 import { useMapData, hasLocation } from "@/hooks/useMapData";
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
+import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
+import { useToast } from "@/contexts/ToastContext";
+import { useUserLocation } from "@/contexts/UserLocationContext";
+import { useLocation } from "@/contexts/LocationContext";
 
 const MapScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { trackScreenView, trackButtonClick } = useAnalyticsContext();
+  const { showToast } = useToast();
+  const { getApiLocationParams } = useUserLocation();
+  const { location: deviceLocation } = useLocation();
 
   // Get source and query from route params, default to likes
   const source = (params.source as string) || "likes";
   const searchQuery = (params.query as string) || "";
   const bucketId = params.bucketId as string;
+  const type = params.type as "leisure" | "business" | undefined;
+
+  // Get location params - only includes lat/lng if user chose "Current Location"
+  const locationParams = getApiLocationParams(deviceLocation || undefined);
 
   // Use custom hook for data management
   const {
@@ -29,8 +41,7 @@ const MapScreen = () => {
     isError,
     locationLoading,
     locationError,
-    userLocation,
-  } = useMapData(source, searchQuery, bucketId);
+  } = useMapData(source, searchQuery, bucketId, type, locationParams);
 
   const mapRef = React.useRef<MapView>(null);
   const flatListRef = React.useRef<FlatList>(null);
@@ -61,9 +72,19 @@ const MapScreen = () => {
   const [mapKey, setMapKey] = React.useState(0);
   const [isNavigating, setIsNavigating] = React.useState(false);
 
-  const handleRegionChange = React.useCallback((newRegion: any) => {
+  const handleRegionChange = React.useCallback(() => {
     // Just a simple callback for now
   }, []);
+
+  // Track screen view when component mounts
+  React.useEffect(() => {
+    trackScreenView("map_screen", {
+      source,
+      search_query: searchQuery,
+      bucket_id: bucketId || "none",
+      items_count: data.length,
+    });
+  }, [trackScreenView, source, searchQuery, bucketId, data.length]);
 
   // Initialize region when data is loaded
   React.useEffect(() => {
@@ -139,7 +160,6 @@ const MapScreen = () => {
     }
   };
 
-
   const handleCardPress = React.useCallback(
     (item: any) => {
       setIsNavigating(true);
@@ -174,12 +194,14 @@ const MapScreen = () => {
           });
           setIsBucketBottomSheetVisible(false);
           setSelectedLikeItemId(null);
+          showToast("Added to bucket", "success", false);
         } catch (error) {
           console.error("Failed to add item to bucket:", error);
+          showToast("Failed to add to bucket", "error", false);
         }
       }
     },
-    [selectedLikeItemId, addBucketMutation]
+    [selectedLikeItemId, addBucketMutation, showToast]
   );
 
   const handleShowCreateBucketBottomSheet = React.useCallback(() => {
@@ -201,12 +223,14 @@ const MapScreen = () => {
           });
           setIsCreateBucketBottomSheetVisible(false);
           setSelectedLikeItemId(null);
+          showToast("Bucket created", "success", false);
         } catch (error) {
           console.error("Failed to create bucket:", error);
+          showToast("Failed to create bucket", "error", false);
         }
       }
     },
-    [selectedLikeItemId, createBucketMutation]
+    [selectedLikeItemId, createBucketMutation, showToast]
   );
 
   // Loading state
@@ -234,7 +258,10 @@ const MapScreen = () => {
   return (
     <View style={styles.container}>
       <MapHeader
-        onBack={() => router.back()}
+        onBack={() => {
+          trackButtonClick("map_back_button", { source, screen: "map_screen" });
+          router.back();
+        }}
       />
 
       <CustomMapView
@@ -245,7 +272,6 @@ const MapScreen = () => {
         selectedIndex={selectedIndex}
         onMarkerPress={onMarkerPress}
         hasLocation={hasLocation}
-        userLocation={userLocation}
         onRegionChange={handleRegionChange}
       />
 

@@ -40,8 +40,6 @@ const UpdateProfile = () => {
     firstName: "",
     lastName: "",
     email: "",
-    location: "",
-    home: "",
     personalSummary: "",
     createdAt: new Date().toISOString(),
   });
@@ -53,8 +51,6 @@ const UpdateProfile = () => {
         email: user.email || "",
         firstName: user.firstName || "",
         lastName: user.lastName || "",
-        location: user.location || "",
-        home: user.home || "",
         personalSummary: user.personalSummary || "",
         createdAt: user.createdAt || new Date().toISOString(),
       });
@@ -129,20 +125,14 @@ const UpdateProfile = () => {
             placeholder="Email"
             value={form.email}
             onChangeText={(text) => handleChange("email", text)}
+            editable={false}
           />
-
-          <CustomTextInput
-            label="Home"
-            placeholder="Home"
-            value={form.home}
-            onChangeText={(text) => handleChange("home", text)}
-          />
-          <CustomTextInput
+          {/* <CustomTextInput
             label="Travel destination"
             placeholder="Travel destination"
             value={form.location}
             onChangeText={(text) => handleChange("location", text)}
-          />
+          /> */}
           <CustomTextInput
             multiline
             label="Personal summary"
@@ -155,7 +145,10 @@ const UpdateProfile = () => {
           <NextButton
             onPress={handleSubmit}
             bgColor={colors.lime}
-            customStyles={{ marginTop: "auto" }}
+            customStyles={{
+              marginTop: "auto",
+              marginBottom: verticalScale(16),
+            }}
             title={isPending ? "Updating..." : "Update"}
             disabled={isPending}
           />

@@ -1,11 +1,10 @@
 // components/CardContentOverlay.tsx
 import React, { useCallback, useMemo } from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomText from "@/components/CustomText";
 import CustomView from "../CustomView";
 import CustomTouchable from "../CustomTouchableOpacity";
-import BucketSvg from "../SvgComponents/BucketSvg";
 import ShareButton from "../Button/ShareButton";
 import CategoryTag from "../Tag/CategoryTag";
 import {
@@ -14,11 +13,99 @@ import {
   verticalScale,
 } from "@/utilities/scaling";
 import { formatTags } from "@/utilities/formatTags";
-import { formatSimilarity } from "@/utilities/formatSimilarity";
 import { formatDistance } from "@/utilities/formatDistance";
+import { useUserLocation } from "@/contexts/UserLocationContext";
+import { shouldShowDistance } from "@/utilities/distanceHelpers";
 import SponsoredKevinSvg from "../SvgComponents/SponsoredKevinSvg";
 import SendSvgSmall from "../SvgComponents/SendSvgSmall";
 import RatingStarSvg from "../SvgComponents/RatingStarSvg";
+import PinBucketSvg from "../SvgComponents/PinBucketSvg";
+
+// Format event datetime to "Wed, Sept 4th • 6:00 pm - 8:00 pm" or "Wed, Sept 4th • 6:00 pm" (UTC time)
+const formatEventDateTime = (
+  startDateTimeString?: string,
+  endDateTimeString?: string
+): string => {
+  if (!startDateTimeString) return "";
+
+  try {
+    const startDate = new Date(startDateTimeString);
+
+    // Use UTC methods to avoid local timezone conversion
+    const dayName = startDate.toLocaleDateString("en-US", {
+      weekday: "short",
+      timeZone: "UTC"
+    });
+    const month = startDate.toLocaleDateString("en-US", {
+      month: "short",
+      timeZone: "UTC"
+    });
+    const day = startDate.getUTCDate();
+    const suffix =
+      day === 1 || day === 21 || day === 31
+        ? "st"
+        : day === 2 || day === 22
+        ? "nd"
+        : day === 3 || day === 23
+        ? "rd"
+        : "th";
+
+    // Format time in UTC
+    const startTime = startDate
+      .toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "UTC",
+      })
+      .toLowerCase();
+
+    let timeRange = startTime;
+
+    // If end datetime exists and is different from start, add it to the range
+    if (endDateTimeString) {
+      const endDate = new Date(endDateTimeString);
+      const endTime = endDate
+        .toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "UTC",
+        })
+        .toLowerCase();
+
+      // Only show end time if it's different from start time
+      if (endTime !== startTime) {
+        timeRange = `${startTime} - ${endTime}`;
+      }
+    }
+
+    return `${dayName}, ${month} ${day}${suffix} • ${timeRange}`;
+  } catch (error) {
+    console.log("Error formatting event datetime:", error);
+    return "";
+  }
+};
+
+// Format price display logic
+const formatPrice = (price?: string | number): string | null => {
+  if (price === null || price === undefined) return null;
+
+  // Handle string prices (new API format like "€10.00 - €25.00")
+  if (typeof price === "string") {
+    if (price === "0" || price === "0.00") return "Free";
+    if (price.includes("€") || price.includes("$")) return price; // Already formatted price range
+    if (price && price !== "0") return "Ticketed";
+  }
+
+  // Handle number prices (old format)
+  if (typeof price === "number") {
+    if (price === 0) return "Free";
+    if (price > 0) return "Ticketed";
+  }
+
+  return null;
+};
 
 interface CardData {
   id: string;
@@ -28,18 +115,22 @@ interface CardData {
   rating?: string;
   category?: string;
   address?: string;
+  addressShort?: string;
   isSponsored?: boolean;
   contentShareUrl: string;
   tags?: string;
-  similarity: number;
+  similarity: number | string;
   distance?: number;
+  eventDatetimeStart?: string; // For event type items
+  eventDatetimeEnd?: string;
 }
 
 interface CardContentOverlayProps {
   item: CardData;
   colors: any;
-  onBucketPress?: (value: string) => void;
-  hideBucketsButton?: boolean;
+  onBucketPress?: (itemId: string) => void;
+  hideButtons?: boolean;
+  onCardTap?: (item: CardData) => void;
 }
 
 export const CardContentOverlay = React.memo<CardContentOverlayProps>(
@@ -47,8 +138,10 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
     item,
     colors,
     onBucketPress,
-    hideBucketsButton,
+    hideButtons,
+    onCardTap,
   }) {
+    const { userLocation } = useUserLocation();
     const handleBucketPress = useCallback(() => {
       onBucketPress?.(item.id);
     }, [onBucketPress, item.id]);
@@ -76,15 +169,21 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
         </View>
       );
     };
+    const handleCardTap = useCallback(() => {
+      onCardTap?.(item);
+    }, [onCardTap, item]);
 
     const renderCardContent = () => (
       <View style={styles.cardContent}>
         {item.isSponsored && (
-          <CustomView bgColor={colors.background} style={styles.sponsoredCard}>
+          <CustomView
+            bgColor={colors.background}
+            style={[styles.sponsoredCard, { borderColor: colors.light_blue }]}
+          >
             <SponsoredKevinSvg />
             <CustomText
               fontFamily="Inter-SemiBold"
-              style={styles.sponsoredText}
+              style={[styles.sponsoredText, { color: colors.light_blue }]}
             >
               SPONSORED
             </CustomText>
@@ -99,7 +198,7 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
           {item.title}
         </CustomText>
 
-        <View style={styles.matchContainer}>
+        {/* <View style={styles.matchContainer}>
           <CustomText
             fontFamily="Inter-SemiBold"
             style={[styles.priceText, { color: colors.lime }]}
@@ -112,49 +211,69 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
           >
             {"match"}
           </CustomText>
-        </View>
+        </View> */}
 
-        {/* Rating, Price, and Address in same row */}
+        {/* Rating, Price, Distance OR Event DateTime */}
         <View style={styles.infoRow}>
-          {item.rating && (
-            <View style={styles.ratingContainer}>
-              <RatingStarSvg />
+          {(item.category === "event" || item.category === "events") &&
+          item.eventDatetimeStart ? (
+            // Show event datetime for events
+            <>
               <CustomText
+                fontFamily="Inter-Medium"
                 style={[styles.infoText, { color: colors.background }]}
               >
-                {item.rating}
+                {formatEventDateTime(item.eventDatetimeStart, item.eventDatetimeEnd)}
               </CustomText>
-            </View>
-          )}
+              {formatPrice(item.price) && (
+                <>
+                  <View style={styles.dotSeparator}>
+                    <View style={styles.whiteDot} />
+                  </View>
+                  <CustomText
+                    fontFamily="Inter-Medium"
+                    style={[styles.infoText, { color: colors.legal_green }]}
+                  >
+                    {formatPrice(item.price)}
+                  </CustomText>
+                </>
+              )}
+            </>
+          ) : (
+            // Show rating and distance for venues/experiences (no pricing)
+            <>
+              {item.rating && (
+                <View style={styles.ratingContainer}>
+                  <RatingStarSvg />
+                  <CustomText
+                    style={[styles.infoText, { color: colors.background }]}
+                  >
+                    {item.rating}
+                  </CustomText>
+                </View>
+              )}
 
-          {item.rating && item.price && (
-            <View style={styles.dotSeparator}>
-              <View style={styles.whiteDot} />
-            </View>
-          )}
-
-          {!!item.price && (
-            <CustomText style={[styles.infoText, { color: colors.background }]}>
-              {item.price}
-            </CustomText>
-          )}
-          {(!!item.rating || !!item.price) && !!item.distance && (
-            <View style={styles.dotSeparator}>
-              <View style={styles.whiteDot} />
-            </View>
-          )}
-          {!!item.distance && (
-            <CustomText style={[styles.infoText, { color: colors.background }]}>
-              {formatDistance(item.distance)}
-            </CustomText>
+              {!!item.rating && shouldShowDistance(item.distance, userLocation) && (
+                <View style={styles.dotSeparator}>
+                  <View style={styles.whiteDot} />
+                </View>
+              )}
+              {shouldShowDistance(item.distance, userLocation) && (
+                <CustomText
+                  style={[styles.infoText, { color: colors.background }]}
+                >
+                  {formatDistance(item.distance!)}
+                </CustomText>
+              )}
+            </>
           )}
         </View>
-        {item.address && (
+        {(item.addressShort || item.address) && (
           <CustomText
-            fontFamily="Inter-SemiBold"
+            fontFamily="Inter-Medium"
             style={[styles.addressText, { color: colors.background }]}
           >
-            {item.address}
+            {item.addressShort || item.address}
           </CustomText>
         )}
 
@@ -174,51 +293,58 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
 
         <CustomView bgColor={colors.overlay} style={styles.rightTopSection}>
           <CustomView bgColor={colors.overlay} style={styles.row}>
-            {!hideBucketsButton && (
-              <CustomTouchable
-                style={styles.bucketContainer}
-                bgColor={colors.lime}
-                onPress={handleBucketPress}
-              >
-                <BucketSvg stroke={colors.label_dark} />
-              </CustomTouchable>
-            )}
-            <CustomTouchable bgColor={colors.lime} style={styles.shareButton}>
-              <ShareButton
-                title={""}
-                message={`Check out this bucket: `}
-                url={item.contentShareUrl || ""}
-                IconComponent={() => (
-                  <SendSvgSmall
-                    width={18}
-                    height={18}
-                    stroke={colors.label_dark}
+            {!hideButtons && (
+              <>
+                <TouchableOpacity
+                  style={[
+                    styles.bucketContainer,
+                    { backgroundColor: colors.lime },
+                  ]}
+                  onPress={handleBucketPress}
+                  activeOpacity={0.7}
+                >
+                  <PinBucketSvg />
+                </TouchableOpacity>
+                <CustomTouchable
+                  bgColor={colors.lime}
+                  style={styles.shareButton}
+                >
+                  <ShareButton
+                    title={""}
+                    message={`Check out this bucket: `}
+                    url={item.contentShareUrl || ""}
+                    IconComponent={() => (
+                      <SendSvgSmall
+                        width={18}
+                        height={18}
+                        stroke={colors.label_dark}
+                      />
+                    )}
                   />
-                )}
-              />
-            </CustomTouchable>
+                </CustomTouchable>
+              </>
+            )}
           </CustomView>
         </CustomView>
       </View>
     );
 
-    if (item.isSponsored) {
-      return (
-        <>
-          {renderTopRow()}
-          <View style={styles.sponsoredOverlay}>{renderCardContent()}</View>
-        </>
-      );
-    }
-
     return (
       <>
+        {/* Render buttons outside of the gradient overlay */}
         {renderTopRow()}
+
         <LinearGradient
           colors={["rgba(242, 242, 243, 0)", "#0B2E34"]}
           style={styles.gradientOverlay}
         >
-          {renderCardContent()}
+          <TouchableOpacity
+            onPress={handleCardTap}
+            activeOpacity={0.95}
+            style={styles.cardTouchableArea}
+          >
+            {renderCardContent()}
+          </TouchableOpacity>
         </LinearGradient>
       </>
     );
@@ -232,6 +358,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: horizontalScale(20),
     paddingTop: verticalScale(20),
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    elevation: 10,
   },
   rightTopSection: {
     alignSelf: "flex-end",
@@ -244,25 +376,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   sponsoredCard: {
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 9.35,
+    paddingVertical: 9.35,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#3C62FA",
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "flex-start",
     flexDirection: "row",
-    gap: 5,
+    gap: 6,
   },
   sponsoredText: {
-    color: "#3C62FA",
-    fontSize: scaleFontSize(8),
+    fontSize: scaleFontSize(10),
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
   },
   bucketContainer: {
     width: 30,
@@ -270,6 +400,8 @@ const styles = StyleSheet.create({
     borderRadius: 1000,
     justifyContent: "center",
     alignItems: "center",
+    zIndex: 20,
+    elevation: 20,
   },
   shareButton: {
     width: 30,
@@ -277,14 +409,16 @@ const styles = StyleSheet.create({
     borderRadius: 1000,
     justifyContent: "center",
     alignItems: "center",
+    zIndex: 20,
+    elevation: 20,
   },
   cardContent: {
     paddingHorizontal: horizontalScale(20),
     paddingBottom: verticalScale(20),
   },
   cardTitle: {
-    fontSize: scaleFontSize(24),
-    marginVertical: verticalScale(8),
+    fontSize: scaleFontSize(26),
+    marginTop: verticalScale(8),
   },
   priceText: {
     fontSize: scaleFontSize(24),
@@ -298,11 +432,15 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   tagBubble: {
-    borderWidth: 1,
-    borderColor: "#FFF",
-    borderRadius: 30,
-    paddingHorizontal: horizontalScale(8),
-    paddingVertical: verticalScale(4),
+    display: "flex",
+    paddingHorizontal: horizontalScale(9.35),
+    paddingVertical: verticalScale(4.675),
+    justifyContent: "center",
+    alignItems: "center",
+    gap: horizontalScale(11.687),
+    borderRadius: 35.063,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    overflow: "hidden",
   },
   tagText: {
     fontSize: scaleFontSize(12),
@@ -312,8 +450,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: "80%",
+    height: "100%",
     justifyContent: "flex-end",
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   sponsoredOverlay: {
     position: "absolute",
@@ -322,6 +462,8 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: "#0B2E34",
     justifyContent: "flex-end",
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   matchContainer: {
     flexDirection: "row",
@@ -361,5 +503,10 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: "white",
+  },
+  cardTouchableArea: {
+    flex: 1,
+    width: "100%",
+    justifyContent: "flex-end",
   },
 });

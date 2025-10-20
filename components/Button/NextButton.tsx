@@ -65,12 +65,12 @@ const styles = StyleSheet.create({
     paddingVertical: verticalScale(12),
     borderRadius: 8,
     alignItems: "center",
-    marginVertical: verticalScale(12),
+    // marginVertical: verticalScale(4),
   },
   nextButtonDisabled: {
     opacity: 0.7,
   },
   nextButtonText: {
-    fontSize: scaleFontSize(16),
+    fontSize: scaleFontSize(18),
   },
 });

@@ -18,8 +18,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomView from "../CustomView";
-import StarSvg from "../SvgComponents/StarSvg";
+import NavStarSvg from "../SvgComponents/NavStarSvg";
 import SendSvgSmall from "../SvgComponents/SendSvgSmall";
+import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
+import CustomTouchable from "../CustomTouchableOpacity";
 
 type AskKevinSectionProps = {
   onSend?: (message: string) => void;
@@ -27,13 +29,14 @@ type AskKevinSectionProps = {
 };
 
 const AskKevinSection = ({ onSend, onInputChange }: AskKevinSectionProps) => {
-  const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { trackButtonClick, trackCustomEvent, trackSearch } =
+    useAnalyticsContext();
   const [input, setInput] = useState("");
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isInputFocused, setIsInputFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
-  const screenHeight = Dimensions.get("window").height;
+  // const screenHeight = Dimensions.get("window").height;
 
   useEffect(() => {
     const keyboardWillShowListener = Keyboard.addListener(
@@ -59,14 +62,38 @@ const AskKevinSection = ({ onSend, onInputChange }: AskKevinSectionProps) => {
   const handleSend = () => {
     if (input.trim() === "") return;
 
+    const message = input.trim();
+
+    // Track Ask Kevin interaction
+    trackButtonClick("ask_kevin_send_button", {
+      message_length: message.length,
+      keyboard_type: Platform.OS,
+      is_focused: isInputFocused,
+    });
+
+    trackSearch(message, {
+      search_type: "ask_kevin",
+      source: "ask_kevin_input",
+      query_length: message.length,
+    });
+
+    trackCustomEvent("ask_kevin_query_sent", {
+      query: message,
+      query_length: message.length,
+      timestamp: new Date().toISOString(),
+    });
+
     Keyboard.dismiss();
-    onSend?.(input.trim());
+    onSend?.(message);
     setInput("");
   };
 
   const handleInputFocus = () => {
     setIsInputFocused(true);
-    // console.log("AskKevin: Input focused");
+    trackCustomEvent("ask_kevin_input_focused", {
+      platform: Platform.OS,
+      keyboard_height: keyboardHeight,
+    });
   };
 
   const handleInputBlur = () => {
@@ -79,58 +106,42 @@ const AskKevinSection = ({ onSend, onInputChange }: AskKevinSectionProps) => {
   };
 
   // Calculate the dynamic height when input is focused
-  const getDynamicInputHeight = () => {
-    if (isInputFocused && keyboardHeight > 0) {
-      // Calculate available height: screen height - keyboard height - other UI elements
-      const headerPadding = insets.top + verticalScale(12) + verticalScale(24); // top + bottom padding
-      const inputContainerPadding = 20; // paddingVertical * 2
-      const safetyMargin = 20; // Extra margin for safety
-      const bottomTabNavigator = Platform.OS === "android" ? 80 : 0;
+  // const getDynamicInputHeight = () => {
+  //   if (isInputFocused && keyboardHeight > 0) {
+  //     // Calculate available height: screen height - keyboard height - other UI elements
+  //     const headerPadding = insets.top + verticalScale(12) + verticalScale(24); // top + bottom padding
+  //     const inputContainerPadding = 20; // paddingVertical * 2
+  //     const safetyMargin = 20; // Extra margin for safety
+  //     const bottomTabNavigator = Platform.OS === "android" ? 80 : 0;
 
-      const availableHeight =
-        screenHeight -
-        keyboardHeight -
-        headerPadding -
-        inputContainerPadding -
-        safetyMargin -
-        bottomTabNavigator;
-      return Math.max(availableHeight, verticalScale(100));
-    }
-    return verticalScale(24);
-  };
+  //     const availableHeight =
+  //       screenHeight -
+  //       keyboardHeight -
+  //       headerPadding -
+  //       inputContainerPadding -
+  //       safetyMargin -
+  //       bottomTabNavigator;
+  //     return Math.max(availableHeight, verticalScale(100));
+  //   }
+  //   return verticalScale(24);
+  // };
 
-  const inputHeight = getDynamicInputHeight();
+  // const inputHeight = getDynamicInputHeight();
 
   return (
     <CustomView
-      bgColor={colors.lime}
-      style={[
-        styles.askKevinHeader,
-        { paddingTop: insets.top + verticalScale(12) },
-      ]}
+      bgColor={colors.background}
+      style={[styles.askKevinHeader, { marginTop: verticalScale(15) }]}
     >
-      <CustomView bgColor={colors.overlay} style={styles.inputRow}>
-        {/* Input Container with StarSvg, TextInput, and SendSmallSvg */}
-        <CustomView
-          bgColor={colors.opacity_lime}
-          style={[
-            styles.inputContainer,
-            isInputFocused &&
-              keyboardHeight > 0 && {
-                alignItems: "flex-start",
-                paddingTop: 14,
-              },
-          ]}
-        >
+      <CustomView bgColor={colors.background} style={styles.inputRow}>
+        {/* Input Container with lime green border */}
+        <View style={styles.inputContainer}>
+          <NavStarSvg color={colors.light_blue} style={styles.starIcon} />
           <TextInput
             ref={inputRef}
             style={[
               styles.input,
               Platform.OS === "android" && styles.androidInput,
-              {
-                height: inputHeight,
-                textAlignVertical: isInputFocused ? "top" : "center",
-              },
             ]}
             placeholder="Ask Kevin..."
             placeholderTextColor={colors.profile_name_black}
@@ -140,25 +151,9 @@ const AskKevinSection = ({ onSend, onInputChange }: AskKevinSectionProps) => {
             onFocus={handleInputFocus}
             onBlur={handleInputBlur}
             returnKeyType="send"
-            multiline={true}
-            blurOnSubmit={true}
+            multiline={false}
           />
-        </CustomView>
-
-        {/* Send Button */}
-        <TouchableOpacity
-          style={[
-            styles.sendButton,
-            isInputFocused &&
-              keyboardHeight > 0 && {
-                alignSelf: "flex-start",
-              },
-          ]}
-          onPress={handleSend}
-          disabled={input.trim() === ""}
-        >
-          <SendSvgSmall stroke="#0B2E34" />
-        </TouchableOpacity>
+        </View>
       </CustomView>
     </CustomView>
   );
@@ -167,31 +162,37 @@ const AskKevinSection = ({ onSend, onInputChange }: AskKevinSectionProps) => {
 const styles = StyleSheet.create({
   askKevinHeader: {
     paddingHorizontal: horizontalScale(24),
-    paddingBottom: verticalScale(24),
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: verticalScale(15),
   },
   inputContainer: {
     flex: 1,
+    height: 45,
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    minHeight: verticalScale(44),
+    borderRadius: 51.805,
+    borderWidth: 2,
+    borderColor: "#CCFF3A",
+    backgroundColor: "rgba(204, 255, 58, 0.15)",
+    paddingHorizontal: 15.542,
+    gap: 7.081,
+    shadowColor: "#131314",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 0,
   },
-  starContainer: {
-    marginRight: 8,
-    justifyContent: "center",
-    alignItems: "center",
+  starIcon: {
+    marginRight: 12,
   },
   input: {
     flex: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
     color: "#0B2E34",
     fontFamily: "Inter-Regular",
-    fontSize: scaleFontSize(14),
+    fontSize: scaleFontSize(16),
     minHeight: verticalScale(24),
   },
   // Android-specific styles
@@ -203,20 +204,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     width: "100%",
-  },
-  sparkleContainer: {
-    marginRight: 10,
-  },
-  askKevinTitle: {
-    fontSize: scaleFontSize(18),
-    flex: 1,
-  },
-  sendButton: {
-    marginLeft: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    minHeight: verticalScale(44),
-    minWidth: horizontalScale(44),
   },
 });
 

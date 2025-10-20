@@ -1,18 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { StyleSheet, TouchableOpacity } from "react-native";
 import {
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
-  Dimensions,
-  Platform,
-} from "react-native";
+  BottomSheetModal,
+  BottomSheetView,
+  BottomSheetBackdrop,
+} from "@gorhom/bottom-sheet";
 import { useTheme } from "@/contexts/ThemeContext";
 import CustomText from "@/components/CustomText";
 import CustomView from "@/components/CustomView";
 import {
   horizontalScale,
   scaleFontSize,
-  verticalScale,
 } from "@/utilities/scaling";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import EventsSvg from "@/components/SvgComponents/EventsSvg";
@@ -40,6 +38,30 @@ const FilterModal: React.FC<FilterModalProps> = ({
   const insets = useSafeAreaInsets();
   const [localSelectedFilters, setLocalSelectedFilters] =
     useState<FilterType[]>(selectedFilters);
+
+  // Bottom sheet ref
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+
+  // Handle visibility changes
+  useEffect(() => {
+    if (isVisible) {
+      bottomSheetModalRef.current?.present();
+    } else {
+      bottomSheetModalRef.current?.dismiss();
+    }
+  }, [isVisible]);
+
+  // Render backdrop callback
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+      />
+    ),
+    []
+  );
 
   const filterOptions = [
     {
@@ -84,116 +106,90 @@ const FilterModal: React.FC<FilterModalProps> = ({
   };
 
   return (
-    <Modal
-      visible={isVisible}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={handleClose}
-      statusBarTranslucent={Platform.OS === "android"}
+    <BottomSheetModal
+      ref={bottomSheetModalRef}
+      index={0}
+      snapPoints={[]}
+      onDismiss={handleClose}
+      backdropComponent={renderBackdrop}
+      backgroundStyle={{
+        backgroundColor: colors.background,
+      }}
+      handleIndicatorStyle={{
+        backgroundColor: colors.indicator_gray || "#F2F2F7",
+      }}
+      enablePanDownToClose={true}
+      enableDismissOnClose={true}
+      enableDynamicSizing={true}
     >
-      {/* Overlay */}
-      <CustomView style={styles.overlay}>
-        <TouchableOpacity
-          style={styles.overlayTouchable}
-          activeOpacity={1}
-          onPress={handleClose}
-        />
-        {/* Modal Content */}
-        <CustomView style={styles.modalContainer}>
-          {/* Handle */}
-          <CustomView style={styles.handle} />
-          <CustomView style={styles.container}>
-            <CustomView style={styles.header}>
-              <CustomText
-                fontFamily="Inter-SemiBold"
-                style={[styles.title, { color: colors.label_dark }]}
-              >
-                Filters
-              </CustomText>
-              <TouchableOpacity onPress={handleClose} activeOpacity={0.7}>
-                <XButtonSvg />
-              </TouchableOpacity>
-            </CustomView>
-
-            <CustomView style={styles.filtersContainer}>
-              {filterOptions.map((filter) => {
-                const isSelected = localSelectedFilters.includes(filter.id);
-                return (
-                  <CustomView key={filter.id} style={styles.filterWrapper}>
-                    <TouchableOpacity
-                      style={[
-                        styles.filterItem,
-                        {
-                          borderColor: isSelected
-                            ? colors.light_blue || "#007AFF"
-                            : colors.input_border || "#E0E0E0",
-                          borderWidth: isSelected ? 2 : 1,
-                        },
-                      ]}
-                      onPress={() => handleFilterToggle(filter.id)}
-                      activeOpacity={0.7}
-                    >
-                      <CustomView style={styles.filterIconContainer}>
-                        <filter.icon width={40} height={40} />
-                      </CustomView>
-                    </TouchableOpacity>
-                    <CustomText
-                      style={[
-                        styles.filterTitle,
-                        { color: colors.onboarding_option_dark },
-                      ]}
-                    >
-                      {filter.title}
-                    </CustomText>
-                  </CustomView>
-                );
-              })}
-            </CustomView>
-
-            <NextButton
-              title="Apply"
-              onPress={handleApply}
-              bgColor={colors.lime}
-              customTextStyle={{ fontSize: scaleFontSize(12) }}
-              customStyles={{ marginVertical: 0 }}
-            />
-          </CustomView>
+      <BottomSheetView
+        style={[
+          styles.container,
+          { paddingBottom: insets.bottom + 20 }, // Add 20pt base + safe area
+        ]}
+      >
+        <CustomView style={styles.header}>
+          <CustomText
+            fontFamily="Inter-SemiBold"
+            style={[styles.title, { color: colors.label_dark }]}
+          >
+            Filters
+          </CustomText>
+          <TouchableOpacity onPress={handleClose} activeOpacity={0.7}>
+            <XButtonSvg />
+          </TouchableOpacity>
         </CustomView>
-      </CustomView>
-    </Modal>
+
+        <CustomView style={styles.filtersContainer}>
+          {filterOptions.map((filter) => {
+            const isSelected = localSelectedFilters.includes(filter.id);
+            return (
+              <CustomView key={filter.id} style={styles.filterWrapper}>
+                <TouchableOpacity
+                  style={[
+                    styles.filterItem,
+                    {
+                      borderColor: isSelected
+                        ? colors.light_blue || "#007AFF"
+                        : colors.input_border || "#E0E0E0",
+                      borderWidth: isSelected ? 2 : 1,
+                    },
+                  ]}
+                  onPress={() => handleFilterToggle(filter.id)}
+                  activeOpacity={0.7}
+                >
+                  <CustomView style={styles.filterIconContainer}>
+                    <filter.icon width={40} height={40} />
+                  </CustomView>
+                </TouchableOpacity>
+                <CustomText
+                  style={[
+                    styles.filterTitle,
+                    { color: colors.onboarding_option_dark },
+                  ]}
+                >
+                  {filter.title}
+                </CustomText>
+              </CustomView>
+            );
+          })}
+        </CustomView>
+
+        <NextButton
+          title="Apply"
+          onPress={handleApply}
+          bgColor={colors.lime}
+          customTextStyle={{ fontSize: scaleFontSize(14) }}
+          customStyles={{ marginVertical: 0 }}
+        />
+      </BottomSheetView>
+    </BottomSheetModal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  overlayTouchable: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  modalContainer: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    position: "absolute",
-    bottom: verticalScale(25),
-    left: horizontalScale(12),
-    right: horizontalScale(12),
-    overflow: "hidden",
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: "#D1D5DB",
-    borderRadius: 2,
-    alignSelf: "center",
-    marginTop: 10,
-  },
   container: {
+    flex: 1,
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 20,
@@ -241,7 +237,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   filterTitle: {
-    fontSize: scaleFontSize(10),
+    fontSize: scaleFontSize(12),
     textAlign: "center",
     marginTop: 10,
   },

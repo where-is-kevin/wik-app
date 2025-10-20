@@ -6,8 +6,8 @@ import {
   View,
   Linking,
   FlatList,
-  TouchableOpacity,
   Platform,
+  TouchableOpacity,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
@@ -18,6 +18,7 @@ import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import CustomText from "@/components/CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useUserLocation } from "@/contexts/UserLocationContext";
 import {
   horizontalScale,
   scaleFontSize,
@@ -26,10 +27,9 @@ import {
 import BackHeader from "@/components/Header/BackHeader";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import CustomView from "@/components/CustomView";
-import BucketSvg from "@/components/SvgComponents/BucketSvg";
-import ShareButton from "@/components/Button/ShareButton";
 import { useContentById } from "@/hooks/useContent";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
+import { ErrorScreen } from "@/components/ErrorScreen";
 import {
   BucketBottomSheet,
   BucketItem,
@@ -37,13 +37,18 @@ import {
 import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import CategoryTag from "@/components/Tag/CategoryTag";
-import { FastImageBackground } from "@/components/OptimizedImage/OptimizedImage";
+import OptimizedImage from "@/components/OptimizedImage/OptimizedImage";
 import { useAddLike } from "@/hooks/useLikes";
 import { useAddDislike } from "@/hooks/useDislikes";
 import { useQueryClient } from "@tanstack/react-query";
-import StarSvg from "@/components/SvgComponents/StarSvg";
-import LikeSvg from "@/components/SvgComponents/LikeSvg";
-import LikeFilledSvg from "@/components/SvgComponents/LikeFilledSvg";
+import RatingStarSvg from "@/components/SvgComponents/RatingStarSvg";
+import MapView, { Marker } from "react-native-maps";
+import { formatSimilarity } from "@/utilities/formatSimilarity";
+import { formatDistance } from "@/utilities/formatDistance";
+import { shouldShowValidDistance } from "@/utilities/distanceHelpers";
+import { trimString, trimOrNull } from "@/utilities/stringHelpers";
+
+// Using SVG placeholder via OptimizedImage error handling
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -52,13 +57,13 @@ interface EventDetailsScreenProps {}
 
 const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   const { colors } = useTheme();
+  const { userLocation } = useUserLocation();
   const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
 
   // Get the event ID from params
   const eventId = params.eventId as string;
-  const hideBucketsButton = params.hideBucketsButton === "true";
 
   // Fetch content data using the eventId
   const { data: contentData, isLoading, error } = useContentById(eventId);
@@ -73,25 +78,24 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   const imageCarouselRef = useRef<FlatList>(null);
 
   // Calculate dynamic heights based on your header
-  const ESTIMATED_HEADER_HEIGHT = verticalScale(10) + 12 + 24;
-  // Increased the minimum height from 0.3 to 0.45 (45% instead of 30%)
-  const PANEL_MIN_HEIGHT = SCREEN_HEIGHT * 0.45;
+  const ESTIMATED_HEADER_HEIGHT = verticalScale(10) + 12 + verticalScale(36);
+  const PANEL_MID_HEIGHT = SCREEN_HEIGHT * 0.5;
   const PANEL_MAX_HEIGHT = SCREEN_HEIGHT - insets.top - ESTIMATED_HEADER_HEIGHT;
 
   // Calculate the image container height to stop at the first snap point
   const IMAGE_CONTAINER_HEIGHT =
-    SCREEN_HEIGHT - PANEL_MIN_HEIGHT + verticalScale(16);
+    SCREEN_HEIGHT - PANEL_MID_HEIGHT + verticalScale(24);
 
   // Bottom sheet setup with dynamic snap points
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => {
-    const minHeightPercentage = (PANEL_MIN_HEIGHT / SCREEN_HEIGHT) * 100;
+    const midHeightPercentage = (PANEL_MID_HEIGHT / SCREEN_HEIGHT) * 100;
     const maxHeightPercentage = (PANEL_MAX_HEIGHT / SCREEN_HEIGHT) * 100;
     return [
-      `${minHeightPercentage.toFixed(1)}%`,
+      `${midHeightPercentage.toFixed(1)}%`,
       `${maxHeightPercentage.toFixed(1)}%`,
     ];
-  }, [PANEL_MIN_HEIGHT, PANEL_MAX_HEIGHT]);
+  }, [PANEL_MID_HEIGHT, PANEL_MAX_HEIGHT]);
 
   // Bucket functionality state
   const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] =
@@ -194,14 +198,13 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   const getImages = () => {
     if (
       contentData?.internalImageUrls &&
+      Array.isArray(contentData.internalImageUrls) &&
       contentData.internalImageUrls.length > 0
     ) {
       return contentData.internalImageUrls;
     }
-    if (contentData?.googlePlacesImageUrl) {
-      return [contentData.googlePlacesImageUrl];
-    }
-    return []; // Fallback to default image
+    // Return a broken image URL to trigger the error handler and show SVG placeholder
+    return ["https://example.com/nonexistent-image.jpg"];
   };
 
   const images = useMemo(() => getImages(), [contentData]);
@@ -214,21 +217,18 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   };
 
   // Render image item
-  const renderImageItem = ({ item }: { item: string }) => (
-    <FastImageBackground
-      source={typeof item === "string" ? { uri: item } : item}
-      style={[styles.backgroundImage, { height: IMAGE_CONTAINER_HEIGHT }]}
-      resizeMode="cover"
-      priority="high"
-      showLoader={true}
-    >
-      <SafeAreaView
-        style={[styles.headerContainer, { backgroundColor: colors.overlay }]}
-      >
-        <BackHeader transparent={true} />
-      </SafeAreaView>
-    </FastImageBackground>
-  );
+  const renderImageItem = ({ item }: { item: string }) => {
+    return (
+      <OptimizedImage
+        source={typeof item === "string" ? { uri: item } : item}
+        style={[styles.backgroundImage, { height: IMAGE_CONTAINER_HEIGHT }]}
+        contentFit="cover"
+        priority="high"
+        showLoadingIndicator={true}
+        showErrorFallback={true}
+      />
+    );
+  };
 
   // Bucket functionality handlers
   const handleShowBucketBottomSheet = () => {
@@ -288,18 +288,114 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   };
 
   // Helper function to format price
-  const formatPrice = (price: number | null) => {
-    if (price === null) return "Price on request";
-    return `${price}`;
+  const formatPrice = (price: number | string | null) => {
+    if (price === null || price === undefined) return "Price on request";
+    if (typeof price === "string") return price; // Already formatted
+    return `€${price}`;
   };
 
-  const openOnMap = () => {
-    if (contentData?.googleMapsUrl) {
-      Linking.openURL(contentData.googleMapsUrl).catch((err) => {
-        // console.error("Failed to open URL:", err);
-      });
+  // Helper function to extract coordinates from Google Maps URL
+  const extractCoordinatesFromUrl = (url: string) => {
+    const coordsMatch = url.match(/query=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (coordsMatch && coordsMatch[1] && coordsMatch[2]) {
+      return {
+        latitude: parseFloat(coordsMatch[1]),
+        longitude: parseFloat(coordsMatch[2]),
+      };
+    }
+    // Fallback - return Lisbon coordinates if extraction fails
+    return {
+      latitude: 38.7223,
+      longitude: -9.1393,
+    };
+  };
+
+  const openOnMap = async () => {
+    if (!contentData?.googleMapsUrl) {
+      console.log("No Google Maps URL available for this item");
+      return;
+    }
+
+    console.log("Original URL:", contentData.googleMapsUrl);
+
+    // Extract coordinates from the URL
+    const coordsMatch = contentData.googleMapsUrl.match(
+      /query=(-?\d+\.?\d*),(-?\d+\.?\d*)/
+    );
+
+    if (coordsMatch && coordsMatch[1] && coordsMatch[2]) {
+      const lat = coordsMatch[1];
+      const lng = coordsMatch[2];
+      console.log("Extracted coordinates:", lat, lng);
+
+      if (Platform.OS === "ios") {
+        // For iOS, try Apple Maps first with location name - prefer title (venue name)
+        const locationName =
+          trimString(contentData.title) ||
+          trimString(contentData.addressShort) ||
+          trimString(contentData.address) ||
+          "Location";
+
+        const encodedLocationName = encodeURIComponent(locationName);
+        const appleMapsUrls = [
+          `maps://?q=${encodedLocationName}&ll=${lat},${lng}`,
+          `http://maps.apple.com/?q=${encodedLocationName}&ll=${lat},${lng}`,
+        ];
+
+        for (const url of appleMapsUrls) {
+          try {
+            const canOpen = await Linking.canOpenURL(url);
+            if (canOpen) {
+              await Linking.openURL(url);
+              console.log("Successfully opened Apple Maps");
+              return;
+            }
+          } catch (error) {
+            console.log("Apple Maps failed:", error);
+          }
+        }
+
+        // Fallback to Google Maps
+        try {
+          const googleUrl = `https://maps.google.com/?q=${encodedLocationName}&ll=${lat},${lng}`;
+          await Linking.openURL(googleUrl);
+          console.log("Opened Google Maps web fallback");
+        } catch (error) {
+          console.error("All map options failed:", error);
+        }
+      } else {
+        // For Android, use geo intent with location name - prefer title (venue name)
+        const locationName =
+          trimString(contentData.title) ||
+          trimString(contentData.addressShort) ||
+          trimString(contentData.address) ||
+          "Location";
+
+        const encodedLocationName = encodeURIComponent(locationName);
+        const androidUrls = [
+          `geo:${lat},${lng}?q=${lat},${lng}(${locationName})`,
+          `https://maps.google.com/?q=${encodedLocationName}&ll=${lat},${lng}`,
+          `geo:0,0?q=${lat},${lng}(${locationName})`,
+        ];
+
+        for (const url of androidUrls) {
+          try {
+            await Linking.openURL(url);
+            console.log("Successfully opened maps on Android:", url);
+            return;
+          } catch (error) {
+            console.log("Android map URL failed:", url, error);
+          }
+        }
+      }
     } else {
-      // console.log("No Google Maps URL available for this item");
+      // If coordinate extraction fails, try the original URL
+      console.log("Could not extract coordinates, trying original URL");
+      try {
+        await Linking.openURL(contentData.googleMapsUrl);
+      } catch (error) {
+        console.error("Failed to open original URL:", error);
+      }
     }
   };
 
@@ -313,24 +409,12 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
     return (
       <CustomView style={styles.container}>
         <View style={styles.errorContainer}>
-          <CustomText
-            style={[styles.errorText, { color: colors.gray_regular }]}
-          >
-            Failed to load event details
-          </CustomText>
-          <CustomTouchable
-            style={[
-              styles.retryButton,
-              { backgroundColor: colors.gray_regular },
-            ]}
-            onPress={() => router.back()}
-          >
-            <CustomText
-              style={[styles.retryButtonText, { color: colors.gray_regular }]}
-            >
-              Go Back
-            </CustomText>
-          </CustomTouchable>
+          <ErrorScreen
+            title="Failed to load event details"
+            message="Please check your connection and try again"
+            buttonText="Go Back"
+            onRetry={() => router.back()}
+          />
         </View>
       </CustomView>
     );
@@ -341,22 +425,12 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
     return (
       <CustomView style={styles.container}>
         <View style={styles.errorContainer}>
-          <CustomText style={[styles.errorText, { color: colors.label_dark }]}>
-            Event not found
-          </CustomText>
-          <CustomTouchable
-            style={[
-              styles.retryButton,
-              { backgroundColor: colors.gray_regular },
-            ]}
-            onPress={() => router.back()}
-          >
-            <CustomText
-              style={[styles.retryButtonText, { color: colors.text_white }]}
-            >
-              Go Back
-            </CustomText>
-          </CustomTouchable>
+          <ErrorScreen
+            title="Event not found"
+            message="This event may have been removed or doesn't exist"
+            buttonText="Go Back"
+            onRetry={() => router.back()}
+          />
         </View>
       </CustomView>
     );
@@ -384,7 +458,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
             // KEY ANDROID OPTIMIZATIONS:
             initialNumToRender={Math.min(images.length, 3)} // Start with 3 images
             maxToRenderPerBatch={Math.min(images.length, 5)} // Batch render up to 5
-            windowSize={images.length <= 5 ? images.length : 5} // Dynamic window size
+            windowSize={Math.max(1, images.length <= 5 ? images.length : 5)} // Dynamic window size, minimum 1
             removeClippedSubviews={false} // Keep images rendered for smooth scrolling
             // Helps FlatList calculate positions efficiently
             getItemLayout={(data, index) => ({
@@ -393,6 +467,16 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
               index,
             })}
           />
+
+          {/* Back Header - Always visible overlay */}
+          <SafeAreaView
+            style={[
+              styles.backHeaderOverlay,
+              { backgroundColor: colors.overlay },
+            ]}
+          >
+            <BackHeader transparent={true} />
+          </SafeAreaView>
 
           {/* Image Indicators - Now positioned relative to image container */}
           {images.length > 1 && (
@@ -444,7 +528,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                 <CategoryTag category={contentData.category} colors={colors} />
 
                 {/* Action Buttons */}
-                <CustomView style={styles.row}>
+                {/* <CustomView style={styles.row}>
                   {!hideBucketsButton && (
                     <CustomTouchable
                       style={styles.bucketContainer}
@@ -466,7 +550,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                       url={contentData.contentShareUrl}
                     />
                   </CustomTouchable>
-                </CustomView>
+                </CustomView> */}
               </CustomView>
 
               {/* Title Section */}
@@ -476,39 +560,82 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                     fontFamily="Inter-SemiBold"
                     style={[styles.title, { color: colors.label_dark }]}
                   >
-                    {contentData.title}
+                    {trimString(contentData.title) || "Unknown"}
                   </CustomText>
                 </CustomTouchable>
 
-                {/* Price or Rating Display */}
-                {contentData.price ? (
-                  // Show Price with /person
-                  <CustomText
-                    fontFamily="Inter-SemiBold"
-                    style={[styles.priceText, { color: colors.event_gray }]}
-                  >
-                    {formatPrice(contentData.price)}
+                {/* Similarity Display */}
+                {/* {contentData?.similarity != null &&
+                  typeof contentData.similarity === "number" && (
+                    <View style={styles.matchContainer}>
+                      <CustomText
+                        fontFamily="Inter-SemiBold"
+                        style={[
+                          styles.similarityText,
+                          { color: colors.event_gray },
+                        ]}
+                      >
+                        {formatSimilarity(contentData.similarity)}
+                      </CustomText>
+                      <CustomText
+                        fontFamily="Inter-SemiBold"
+                        style={[styles.matchText, { color: colors.event_gray }]}
+                      >
+                        match
+                      </CustomText>
+                    </View>
+                  )} */}
+
+                {/* Rating, Price, Distance Display - Match Swipe Cards */}
+                <View style={styles.infoRow}>
+                  {contentData?.rating && (
+                    <View style={styles.ratingContainer}>
+                      <RatingStarSvg stroke="#4A4A4F" fill="#4A4A4F" />
+                      <CustomText
+                        fontFamily="Inter-Medium"
+                        style={[styles.infoText, { color: "#4A4A4F" }]}
+                      >
+                        {contentData.rating}
+                      </CustomText>
+                    </View>
+                  )}
+
+                  {contentData?.rating &&
+                    (shouldShowValidDistance(contentData?.distance, userLocation) || contentData?.price) && (
+                      <View style={styles.dotSeparator}>
+                        <View
+                          style={[styles.dot, { backgroundColor: "#4A4A4F" }]}
+                        />
+                      </View>
+                    )}
+
+                  {shouldShowValidDistance(contentData?.distance, userLocation) && (
+                      <CustomText
+                        fontFamily="Inter-Medium"
+                        style={[styles.infoText, { color: "#4A4A4F" }]}
+                      >
+                        {formatDistance(contentData.distance!)}
+                      </CustomText>
+                    )}
+
+                  {shouldShowValidDistance(contentData?.distance, userLocation) &&
+                    contentData?.price != null && (
+                      <View style={styles.dotSeparator}>
+                        <View
+                          style={[styles.dot, { backgroundColor: "#4A4A4F" }]}
+                        />
+                      </View>
+                    )}
+
+                  {contentData?.price != null && (
                     <CustomText
-                      fontFamily="Inter-SemiBold"
-                      style={[
-                        styles.perPersonText,
-                        { color: colors.event_gray },
-                      ]}
+                      fontFamily="Inter-Medium"
+                      style={[styles.infoText, { color: "#4A4A4F" }]}
                     >
-                      /person
+                      {formatPrice(contentData.price)}
                     </CustomText>
-                  </CustomText>
-                ) : contentData.rating ? (
-                  // Show Rating with Star
-                  <CustomView style={styles.ratingContainer}>
-                    <CustomText
-                      fontFamily="Inter-SemiBold"
-                      style={[styles.ratingText, { color: colors.event_gray }]}
-                    >
-                      ⭐ {contentData.rating}
-                    </CustomText>
-                  </CustomView>
-                ) : null}
+                  )}
+                </View>
               </CustomView>
 
               {/* About Section */}
@@ -522,50 +649,53 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                 <CustomText
                   style={[styles.aboutText, { color: colors.gray_regular }]}
                 >
-                  {contentData.description || "No description available."}
+                  {trimString(contentData.description) ||
+                    "No description available."}
                 </CustomText>
               </CustomView>
 
-              {/* Phone */}
-              {contentData.phone && (
-                <CustomTouchable
-                  style={styles.contactButton}
-                  onPress={() => {
-                    if (contentData.phone) {
-                      const phoneNumber = contentData.phone.replace(/\s+/g, "");
-                      const phoneUrl = `tel:${phoneNumber}`;
-
-                      Linking.openURL(phoneUrl).catch((err) => {
-                        console.error("Failed to open phone dialer:", err);
-                      });
-                    }
-                  }}
-                >
-                  <CustomText
-                    fontFamily="Inter-Medium"
-                    style={[styles.phoneText, { color: colors.gray_regular }]}
-                  >
-                    📞 {contentData.phone}
-                  </CustomText>
-                </CustomTouchable>
-              )}
-
-              {/* Location */}
+              {/* Location Section with Map */}
               {contentData?.googleMapsUrl && (
-                <CustomTouchable
-                  style={styles.locationButton}
-                  onPress={openOnMap}
-                >
+                <CustomView style={styles.locationSection}>
                   <CustomText
-                    fontFamily="Inter-Medium"
-                    style={[
-                      styles.locationText,
-                      { color: colors.gray_regular },
-                    ]}
+                    fontFamily="Inter-SemiBold"
+                    style={[styles.locationTitle, { color: colors.label_dark }]}
                   >
-                    📍 {Platform.OS === 'ios' ? 'Open in Apple Maps' : 'Open in Google Maps'}
+                    Location
                   </CustomText>
-                </CustomTouchable>
+                  <View style={styles.mapContainer}>
+                    <MapView
+                      style={styles.map}
+                      initialRegion={{
+                        ...extractCoordinatesFromUrl(contentData.googleMapsUrl),
+                        latitudeDelta: 0.01,
+                        longitudeDelta: 0.01,
+                      }}
+                      scrollEnabled={false}
+                      zoomEnabled={false}
+                      pitchEnabled={false}
+                      rotateEnabled={false}
+                      mapType="standard"
+                    >
+                      <Marker
+                        coordinate={extractCoordinatesFromUrl(
+                          contentData.googleMapsUrl
+                        )}
+                        title={
+                          trimString(contentData.title) ||
+                          trimString(contentData.address) ||
+                          trimString(contentData.category) ||
+                          "Location"
+                        }
+                      />
+                    </MapView>
+                    <TouchableOpacity
+                      style={styles.mapOverlay}
+                      onPress={openOnMap}
+                      activeOpacity={0.7}
+                    />
+                  </View>
+                </CustomView>
               )}
 
               {/* Add bottom padding to account for fixed buttons */}
@@ -575,67 +705,6 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
         </BottomSheet>
 
         {/* Fixed Bottom Action Bar - Always Visible */}
-        {jwt && (
-          <View
-            style={[
-              styles.fixedBottomBar,
-              {
-                bottom: 0,
-                backgroundColor: colors.background,
-                paddingBottom: insets.bottom + verticalScale(12), // Add safe area to padding instead
-              },
-            ]}
-          >
-            {/* Main Action Buttons Container */}
-            <View style={styles.mainActionsContainer}>
-              {/* Not for me Button */}
-              <CustomTouchable
-                style={[styles.actionButton, styles.dislikeButton]}
-                bgColor={colors.label_dark}
-                onPress={handleDislikePress}
-                disabled={
-                  addDislikeMutation.isPending || contentData?.userDisliked
-                }
-              >
-                <CustomText
-                  fontFamily="Inter-SemiBold"
-                  style={[
-                    styles.actionButtonText,
-                    { color: colors.text_white },
-                  ]}
-                >
-                  {addDislikeMutation.isPending ? "..." : "Not for me"}
-                </CustomText>
-              </CustomTouchable>
-
-              {/* Like Button */}
-              <CustomTouchable
-                style={[styles.actionButton, styles.likeButton]}
-                bgColor={colors.lime}
-                onPress={handleLikePress}
-                disabled={addLikeMutation.isPending}
-              >
-                {!addLikeMutation.isPending &&
-                  (!contentData?.userLiked ? <LikeSvg /> : <LikeFilledSvg />)}
-                <CustomText
-                  fontFamily="Inter-SemiBold"
-                  style={[
-                    styles.actionButtonText,
-                    {
-                      color: colors.label_dark,
-                    },
-                  ]}
-                >
-                  {addLikeMutation.isPending
-                    ? "..."
-                    : contentData?.userLiked
-                    ? "Liked"
-                    : "Like"}
-                </CustomText>
-              </CustomTouchable>
-            </View>
-          </View>
-        )}
       </CustomView>
 
       {/* Your existing bottom sheets */}
@@ -677,9 +746,17 @@ const styles = StyleSheet.create({
     width: "100%",
     backgroundColor: "transparent",
   },
+  backHeaderOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    backgroundColor: "transparent",
+  },
   imageIndicators: {
     position: "absolute",
-    bottom: 35, // Fixed distance from bottom of image container
+    bottom: verticalScale(35),
     left: 0,
     right: 0,
     flexDirection: "row",
@@ -706,7 +783,6 @@ const styles = StyleSheet.create({
   },
   panelContent: {
     paddingHorizontal: horizontalScale(20),
-    paddingTop: verticalScale(10),
     paddingBottom: verticalScale(20),
   },
   badgeContainer: {
@@ -732,10 +808,69 @@ const styles = StyleSheet.create({
   ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: verticalScale(4),
+    gap: horizontalScale(4),
   },
-  ratingText: {
-    fontSize: scaleFontSize(18),
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: verticalScale(4),
+  },
+  infoText: {
+    fontSize: scaleFontSize(14),
+  },
+  dotSeparator: {
+    paddingHorizontal: horizontalScale(6),
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  dot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+  },
+  matchContainer: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginTop: verticalScale(4),
+  },
+  similarityText: {
+    fontSize: scaleFontSize(24),
+  },
+  matchText: {
+    fontSize: scaleFontSize(12),
+    marginLeft: horizontalScale(4),
+  },
+  locationSection: {
+    marginBottom: verticalScale(20),
+  },
+  locationTitle: {
+    fontSize: scaleFontSize(14),
+    marginBottom: verticalScale(12),
+  },
+  mapContainer: {
+    height: verticalScale(160),
+    borderRadius: 12,
+    overflow: "hidden",
+    position: "relative",
+  },
+  map: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: verticalScale(40),
+  },
+  loadingText: {
+    fontSize: scaleFontSize(16),
+  },
+  mapOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   priceText: {
     fontSize: scaleFontSize(24),
@@ -784,19 +919,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: horizontalScale(20),
-  },
-  errorText: {
-    fontSize: scaleFontSize(16),
-    textAlign: "center",
-    marginBottom: verticalScale(16),
-  },
-  retryButton: {
-    paddingHorizontal: horizontalScale(24),
-    paddingVertical: verticalScale(12),
-    borderRadius: 12,
-  },
-  retryButtonText: {
-    fontSize: scaleFontSize(14),
   },
   // Fixed Bottom Bar Styles
   fixedBottomBar: {

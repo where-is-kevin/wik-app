@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BackHeader from "@/components/Header/BackHeader";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useToast } from "@/contexts/ToastContext";
 import SearchBar from "@/components/SearchBar/SearchBar";
 import {
   verticalScale,
@@ -27,6 +28,7 @@ import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { bucketsHaveContent } from "@/utilities/hasContent";
 import EmptyData from "@/components/EmptyData";
 import FloatingMapButton from "@/components/FloatingMapButton";
+import { ErrorScreen } from "@/components/ErrorScreen";
 
 // Enhanced custom hook for debounced search with reset capability
 const useDebounce = (value: string, delay: number) => {
@@ -65,6 +67,7 @@ const useDebounce = (value: string, delay: number) => {
 
 const BucketDetailsScreen = () => {
   const { colors } = useTheme();
+  const { showToast } = useToast();
   const router = useRouter();
   const { bucketId } = useLocalSearchParams<{ bucketId: string }>();
   const [searchQuery, setSearchQuery] = useState("");
@@ -97,12 +100,10 @@ const BucketDetailsScreen = () => {
     content: any,
     index: number
   ): LikeItem => {
-    // Use internal image first, then fallback to google places image
+    // Use internal image only
     let foodImage = "";
     if (content.internalImageUrls && content.internalImageUrls.length > 0) {
       foodImage = content.internalImageUrls[0];
-    } else if (content.googlePlacesImageUrl) {
-      foodImage = content.googlePlacesImageUrl;
     }
 
     return {
@@ -156,10 +157,9 @@ const BucketDetailsScreen = () => {
 
         setIsBucketBottomSheetVisible(false);
         setSelectedLikeItemId(null);
-
-        // console.log(`Successfully added item to bucket "${item.title}"`);
+        showToast("Added to bucket", "success", false);
       } catch (error) {
-        // console.error("Failed to add item to bucket:", error);
+        showToast("Failed to add to bucket", "error", false);
       }
     }
   };
@@ -184,8 +184,10 @@ const BucketDetailsScreen = () => {
 
         setIsCreateBucketBottomSheetVisible(false);
         setSelectedLikeItemId(null);
+        showToast("Bucket created", "success", false);
       } catch (error) {
         console.error("Error creating bucket:", error);
+        showToast("Failed to create bucket", "error", false);
       }
     }
   };
@@ -236,11 +238,16 @@ const BucketDetailsScreen = () => {
       <SafeAreaView
         style={[styles.container, { backgroundColor: colors.background }]}
       >
-        <CustomView style={styles.loadingContainer}>
-          <CustomText style={{ color: colors.label_dark }}>
-            {bucketError ? "Error loading bucket" : "Bucket not found"}
-          </CustomText>
-        </CustomView>
+        <BackHeader transparent={true} />
+        <ErrorScreen
+          title={bucketError ? "Failed to load bucket" : "Bucket not found"}
+          message={
+            bucketError
+              ? "Please check your connection and try again"
+              : "This bucket may have been deleted or doesn't exist"
+          }
+          onRetry={bucketError ? refetchBucket : undefined}
+        />
       </SafeAreaView>
     );
   }
@@ -272,6 +279,7 @@ const BucketDetailsScreen = () => {
           onItemPress={handleBucketItemPress}
           refreshing={isBucketLoading}
           onRefresh={refetchBucket}
+          contentContainerStyle={{ paddingBottom: verticalScale(80) }}
         />
       )}
 

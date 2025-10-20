@@ -25,6 +25,7 @@ const AppInfoModal: React.FC<AppInfoModalProps> = ({ visible, onClose }) => {
       transparent={true}
       animationType="fade"
       onRequestClose={onClose}
+      statusBarTranslucent={true}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
         <CustomView
@@ -53,7 +54,7 @@ const AppInfoModal: React.FC<AppInfoModalProps> = ({ visible, onClose }) => {
               <CustomText
                 style={[styles.copyright, { color: colors?.event_gray }]}
               >
-                © 2024 Where is Kevin Team
+                © Where is Kevin Team
               </CustomText>
             </CustomView>
 

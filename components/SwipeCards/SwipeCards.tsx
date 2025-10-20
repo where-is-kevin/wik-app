@@ -1,25 +1,14 @@
-// components/SwipeCards.tsx
-import React, { useRef, useState, useCallback, useMemo } from "react";
-import {
-  StyleSheet,
-  View,
-  Animated,
-  PanResponder,
-  Dimensions,
-} from "react-native";
-import { useRouter } from "expo-router";
-import { useTheme } from "@/contexts/ThemeContext";
+// components/SwipeCards.tsx - Using rn-swiper-list with card stacking fix
+import React, { useCallback, useRef, useState, useEffect } from "react";
+import { StyleSheet, View, Animated, Platform, Image } from "react-native";
 import AnimatedLoader from "../Loader/AnimatedLoader";
-import { SwipeFeedback } from "./SwipeFeedback";
-import { SwipeCard } from "./SwipeCard";
-
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const SCREEN_HEIGHT = Dimensions.get("window").height;
-const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;
-const SWIPE_UP_THRESHOLD = 0.25 * SCREEN_HEIGHT;
-const SWIPE_OUT_DURATION = 250;
-const TAP_DURATION_THRESHOLD = 200;
-const MAX_RENDERED_CARDS = 3;
+import { Swiper, type SwiperCardRefType } from "rn-swiper-list";
+import { OptimizedImageBackground } from "../OptimizedImage/OptimizedImage";
+import { CardContentOverlay } from "./CardContentOverlay";
+import { getImageSource } from "@/utilities/imageHelpers";
+import { useTheme } from "@/contexts/ThemeContext";
+import { horizontalScale, verticalScale } from "@/utilities/scaling";
+import { STATIC_IMAGES } from "@/constants/images";
 
 export interface CardData {
   id: string;
@@ -33,11 +22,11 @@ export interface CardData {
   isSponsored?: boolean;
   contentShareUrl: string;
   tags?: string;
-  similarity: number;
+  similarity: string | number;
   distance?: number;
+  eventDatetimeStart?: string;
+  eventDatetimeEnd?: string;
 }
-
-export type FilterType = "events" | "venues" | "experiences";
 
 interface SwipeCardsProps {
   data: CardData[];
@@ -45,373 +34,488 @@ interface SwipeCardsProps {
   onSwipeRight: (item: CardData) => void;
   onSwipeUp: (item: CardData) => void;
   onComplete: () => void;
+  isLoading: boolean;
   onCardTap?: (item: CardData) => void;
-  onBucketPress?: (value: string) => void;
-  hideBucketsButton?: boolean;
+  onBucketPress?: (itemId: string) => void;
+  hideButtons?: boolean;
+  showLoaderOnComplete?: boolean;
+  fullWidth?: boolean; // New prop for onboarding
 }
 
-export const SwipeCards: React.FC<SwipeCardsProps> = ({
+const SwipeCards: React.FC<SwipeCardsProps> = ({
   data,
   onSwipeLeft,
   onSwipeRight,
   onSwipeUp,
   onComplete,
+  isLoading,
   onCardTap,
   onBucketPress,
-  hideBucketsButton = false,
+  hideButtons = false,
+  showLoaderOnComplete = false,
+  fullWidth = false,
 }) => {
+  const ref = useRef<SwiperCardRefType>();
   const { colors } = useTheme();
-  const router = useRouter();
-  const [cardIndex, setCardIndex] = useState(0);
-  const [imageLoaded, setImageLoaded] = useState<{ [key: string]: boolean }>(
-    {}
-  );
 
-  // Animation values
-  const position = useRef(new Animated.ValueXY()).current;
-  const feedbackOpacity = useRef(new Animated.Value(0)).current;
-  const feedbackScale = useRef(new Animated.Value(0.8)).current;
+  const [isCompleting, setIsCompleting] = React.useState(false);
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+  const [swiperReady, setSwiperReady] = useState(false);
+  const [loadedImageCount, setLoadedImageCount] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const [currentSwipeDirection, setCurrentSwipeDirection] = useState<
-    "left" | "right" | "up" | null
-  >(null);
+  // Android-specific optimizations
+  const isAndroid = Platform.OS === "android";
+  const preloadCount = isAndroid ? 1 : 2; // Further reduced for faster Android loading
 
-  // Touch tracking
-  const touchStartTime = useRef<number>(0);
-  const touchStartPosition = useRef({ x: 0, y: 0 });
-  const currentGestureCard = useRef<CardData | null>(null);
+  // Memoize data dependencies to avoid unnecessary re-renders
+  const dataLength = data?.length || 0;
+  const firstItemId = data?.[0]?.id;
+  const hasData = dataLength > 0;
 
-  // Memoized values
-  const visibleCards = useMemo(() => {
-    if (!data || data.length === 0) return [];
-    const endIndex = Math.min(cardIndex + MAX_RENDERED_CARDS, data.length);
-    return data.slice(cardIndex, endIndex);
-  }, [data, cardIndex]);
+  // Track if we've already processed this data set
+  const lastProcessedDataRef = useRef<string>("");
+  const currentDataKey = `${dataLength}-${firstItemId}`;
 
-  const animatedValues = useMemo(
-    () => ({
-      rotate: position.x.interpolate({
-        inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
-        outputRange: ["-10deg", "0deg", "10deg"],
-        extrapolate: "clamp",
-      }),
-      scaleUp: position.y.interpolate({
-        inputRange: [-SCREEN_HEIGHT / 4, 0],
-        outputRange: [0.8, 1],
-        extrapolate: "clamp",
-      }),
-    }),
-    [position]
-  );
+  // Calculate how many images we need to wait for before showing cards (less than preloadCount for faster display)
+  const requiredImageCount = Math.min(dataLength, isAndroid ? 1 : 2); // Wait for at least 1 image to load before showing
 
-  // Callbacks
-  const handleImageLoad = useCallback((itemId: string) => {
-    setImageLoaded((prev) => ({ ...prev, [itemId]: true }));
-  }, []);
+  // Use ref-based tracking to avoid state updates causing re-renders
+  const imageCountRef = useRef(0);
+  const hasTriggeredShowRef = useRef(false);
 
-  const handleImageError = useCallback((itemId: string) => {
-    setImageLoaded((prev) => ({ ...prev, [itemId]: true }));
-  }, []);
+  // Reset image loading state when data changes
+  useEffect(() => {
+    if (currentDataKey !== lastProcessedDataRef.current) {
+      setLoadedImageCount(0);
+      imageCountRef.current = 0;
+      hasTriggeredShowRef.current = false;
+    }
+  }, [currentDataKey]);
 
-  const updateFeedbackOpacity = useCallback(
-    (gesture: { dx: number; dy: number }) => {
-      const absDx = Math.abs(gesture.dx);
-      const absDy = Math.abs(gesture.dy);
+  // Check if enough images are ready - be more lenient for faster loading
+  const areImagesReady =
+    loadedImageCount >= requiredImageCount ||
+    !hasData ||
+    (loadedImageCount > 0 && dataLength <= 2) ||
+    dataLength === 1; // For single cards, don't wait for image loading to show card
 
-      let maxOpacity = 0;
-      let direction: "left" | "right" | "up" | null = null;
+  // Track current fallback timer to clear it when images load
+  const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-      if (gesture.dx > 0 && gesture.dx > absDy) {
-        maxOpacity = Math.min(gesture.dx / 150, 1);
-        direction = "right";
-      } else if (gesture.dx < 0 && absDx > absDy) {
-        maxOpacity = Math.min(absDx / 150, 1);
-        direction = "left";
-      } else if (gesture.dy < 0 && absDy > absDx) {
-        maxOpacity = Math.min(absDy / 150, 1);
-        direction = "up";
+  // Use refs to avoid stale closures and reduce dependencies
+  const stateRef = useRef({
+    imagesLoaded: false,
+    loadedImageCount: 0,
+    requiredImageCount,
+    hasData,
+    dataLength,
+  });
+
+  // Update ref values when they change
+  stateRef.current = {
+    imagesLoaded,
+    loadedImageCount,
+    requiredImageCount,
+    hasData,
+    dataLength,
+  };
+
+  // Optimized callback to show cards immediately when images are ready
+  const checkAndShowCards = useCallback(() => {
+    const {
+      imagesLoaded: currentImagesLoaded,
+      requiredImageCount: currentRequiredImageCount,
+      hasData: currentHasData,
+      dataLength: currentDataLength,
+    } = stateRef.current;
+    const currentLoadedImageCount = imageCountRef.current;
+
+    // Check current state values directly to avoid stale closures
+    const currentAreImagesReady =
+      currentLoadedImageCount >= currentRequiredImageCount ||
+      !currentHasData ||
+      (currentLoadedImageCount > 0 && currentDataLength <= 2) ||
+      currentDataLength === 1;
+
+    if (currentAreImagesReady && !currentImagesLoaded) {
+      // Clear the fallback timer since images are ready
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
       }
 
-      if (currentSwipeDirection !== direction) {
-        setCurrentSwipeDirection(direction);
-      }
+      // Show cards immediately
+      setImagesLoaded(true);
+      setSwiperReady(true);
 
-      feedbackOpacity.setValue(maxOpacity);
-      feedbackScale.setValue(maxOpacity > 0 ? 1 : 0.8);
-    },
-    [feedbackOpacity, feedbackScale, currentSwipeDirection]
-  );
-
-  const hideAllFeedback = useCallback(() => {
-    feedbackOpacity.setValue(0);
-    feedbackScale.setValue(0.8);
-    setCurrentSwipeDirection(null);
-  }, [feedbackOpacity, feedbackScale]);
-
-  const handleCardTap = useCallback(
-    (item: CardData) => {
-      if (onCardTap) {
-        onCardTap(item);
-      } else {
-        router.push(`/event-details/${item.id}`);
-      }
-    },
-    [onCardTap, router]
-  );
-
-  const forceSwipe = useCallback(
-    (direction: "left" | "right" | "up") => {
-      const x =
-        direction === "right"
-          ? SCREEN_WIDTH
-          : direction === "left"
-          ? -SCREEN_WIDTH
-          : 0;
-      const y = direction === "up" ? -SCREEN_HEIGHT : 0;
-
-      Animated.timing(position, {
-        toValue: { x, y },
-        duration: SWIPE_OUT_DURATION,
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
         useNativeDriver: true,
-      }).start(() => onSwipeComplete(direction));
-    },
-    [position]
-  );
+      }).start();
+    }
+  }, [fadeAnim]);
 
-  const resetPosition = useCallback(() => {
-    Animated.spring(position, {
-      toValue: { x: 0, y: 0 },
-      friction: 4,
-      useNativeDriver: true,
-    }).start();
-    hideAllFeedback();
-    currentGestureCard.current = null;
-  }, [position, hideAllFeedback]);
+  // Optimized image loading callbacks that prevent excessive re-renders
+  const handleImageLoad = useCallback(() => {
+    imageCountRef.current += 1;
+    const newCount = imageCountRef.current;
 
-  const onSwipeComplete = useCallback(
-    (direction: "left" | "right" | "up") => {
-      hideAllFeedback();
+    // Only trigger checkAndShowCards once when requirements are met
+    if (
+      newCount >= requiredImageCount &&
+      !hasTriggeredShowRef.current &&
+      !imagesLoaded
+    ) {
+      hasTriggeredShowRef.current = true;
+      setTimeout(checkAndShowCards, 0);
+    }
+  }, [checkAndShowCards, requiredImageCount, imagesLoaded]);
 
-      if (!data || data.length === 0) return;
+  // Image error callback with optimized updates
+  const handleImageError = useCallback(() => {
+    imageCountRef.current += 1;
+    const newCount = imageCountRef.current;
 
-      let item: CardData | null = null;
+    // Only trigger checkAndShowCards once when requirements are met
+    if (
+      newCount >= requiredImageCount &&
+      !hasTriggeredShowRef.current &&
+      !imagesLoaded
+    ) {
+      hasTriggeredShowRef.current = true;
+      setTimeout(checkAndShowCards, 0);
+    }
+  }, [checkAndShowCards, requiredImageCount, imagesLoaded]);
 
-      if (currentGestureCard.current) {
-        item = currentGestureCard.current;
-      } else if (cardIndex < data.length) {
-        item = data[cardIndex];
-      }
+  // Optimized loading state management - no polling
+  useEffect(() => {
+    // Skip if we've already processed this exact data set
+    if (
+      currentDataKey === lastProcessedDataRef.current &&
+      hasData &&
+      imagesLoaded
+    ) {
+      return;
+    }
 
-      if (!item) return;
+    lastProcessedDataRef.current = currentDataKey;
 
-      try {
-        if (direction === "right") {
-          onSwipeRight(item);
-        } else if (direction === "left") {
-          onSwipeLeft(item);
-        } else if (direction === "up") {
-          onSwipeUp(item);
+    if (!data || data.length === 0) {
+      setImagesLoaded(true);
+      setSwiperReady(true);
+      fadeAnim.setValue(1);
+      return;
+    }
+
+    // Reset states for new data
+    fadeAnim.setValue(0);
+    setImagesLoaded(false);
+    setSwiperReady(false);
+
+    let hasShown = false;
+    const showCards = () => {
+      if (hasShown) return;
+      hasShown = true;
+
+      setImagesLoaded(true);
+      setSwiperReady(true);
+
+      // Immediate display
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    };
+
+    // Check immediately if images are already ready (cached images)
+    if (areImagesReady) {
+      showCards();
+      return;
+    }
+
+    // Single fallback timer - no polling interval needed
+    fallbackTimerRef.current = setTimeout(
+      () => {
+        if (!hasShown) {
+          showCards();
         }
-      } catch (error) {
-        console.error("Swipe callback error:", error);
+      },
+      isAndroid ? 100 : 200
+    );
+
+    return () => {
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
       }
+    };
+  }, [
+    data,
+    currentDataKey,
+    hasData,
+    imagesLoaded,
+    fadeAnim,
+    isAndroid,
+    areImagesReady,
+  ]);
 
-      currentGestureCard.current = null;
+  const handleSwipeRight = (cardIndex: number) => {
+    if (data && data[cardIndex]) {
+      onSwipeRight(data[cardIndex]);
+    }
+  };
 
-      if (direction === "up") {
-        setTimeout(() => {
-          position.setValue({ x: 0, y: 0 });
-          hideAllFeedback();
-        }, 100);
-      } else {
-        setCardIndex((prevIndex) => {
-          const nextIndex = prevIndex + 1;
+  const handleSwipeLeft = (cardIndex: number) => {
+    if (data && data[cardIndex]) {
+      onSwipeLeft(data[cardIndex]);
+    }
+  };
 
-          if (nextIndex >= data.length) {
-            setTimeout(() => {
-              position.setValue({ x: 0, y: 0 });
-              hideAllFeedback();
-              onComplete();
-            }, 300);
-          } else {
-            setTimeout(() => {
-              position.setValue({ x: 0, y: 0 });
-              hideAllFeedback();
-            }, 100);
-          }
+  const handleSwipeTop = (cardIndex: number) => {
+    if (data && data[cardIndex]) {
+      const card = data[cardIndex];
 
-          return nextIndex;
-        });
-      }
+      // Call the parent's onSwipeUp handler - let parent decide what to do
+      onSwipeUp(card);
+    }
+  };
+
+  const handleSwipedAll = useCallback(() => {
+    if (isCompleting) return; // Prevent multiple calls
+
+    setIsCompleting(true);
+    onComplete();
+
+    // Simple timeout to reset completion
+    setTimeout(() => {
+      setIsCompleting(false);
+    }, 500);
+  }, [onComplete, isCompleting]);
+
+  const renderCard = useCallback(
+    (card: CardData, index: number) => {
+      const imageSource = getImageSource(card.imageUrl);
+      // For single cards, always treat as preload card; otherwise use preload count
+      const isPreloadCard = dataLength === 1 ? true : index < preloadCount;
+
+      return (
+        <View
+          style={[
+            styles.renderCardContainer,
+            fullWidth && { paddingHorizontal: 0 },
+          ]}
+        >
+          <OptimizedImageBackground
+            source={imageSource}
+            style={styles.cardStyle}
+            contentFit="cover"
+            priority={isPreloadCard ? "high" : "normal"}
+            showLoadingIndicator={isPreloadCard}
+            borderRadius={15}
+            onLoad={() => {
+              if (isPreloadCard) {
+                handleImageLoad();
+              }
+            }}
+            onError={() => {
+              if (isPreloadCard) {
+                handleImageError();
+              }
+            }}
+            cachePolicy="memory-disk"
+          >
+            <CardContentOverlay
+              item={card}
+              colors={colors}
+              onBucketPress={onBucketPress}
+              hideButtons={hideButtons}
+              onCardTap={onCardTap}
+            />
+          </OptimizedImageBackground>
+        </View>
+      );
     },
     [
-      data,
-      cardIndex,
-      onSwipeRight,
-      onSwipeLeft,
-      onSwipeUp,
-      onComplete,
-      position,
-      hideAllFeedback,
+      colors,
+      onBucketPress,
+      hideButtons,
+      onCardTap,
+      preloadCount,
+      handleImageLoad,
+      handleImageError,
+      fullWidth,
+      dataLength,
     ]
   );
 
-  const createPanResponder = useCallback(
-    (item: CardData, isCurrentCard: boolean) => {
-      return PanResponder.create({
-        onStartShouldSetPanResponder: () => isCurrentCard && data.length > 0,
-        onPanResponderGrant: (evt) => {
-          currentGestureCard.current = item;
-          touchStartTime.current = Date.now();
-          touchStartPosition.current = {
-            x: evt.nativeEvent.locationX,
-            y: evt.nativeEvent.locationY,
-          };
-        },
-        onPanResponderMove: (event, gesture) => {
-          if (isCurrentCard) {
-            position.setValue({ x: gesture.dx, y: gesture.dy });
-            updateFeedbackOpacity(gesture);
-          }
-        },
-        onPanResponderRelease: (event, gesture) => {
-          const touchDuration = Date.now() - touchStartTime.current;
-          const distanceMoved = Math.sqrt(
-            Math.pow(gesture.dx, 2) + Math.pow(gesture.dy, 2)
-          );
-
-          if (!data || data.length === 0) {
-            resetPosition();
-            return;
-          }
-
-          const gestureCard = currentGestureCard.current;
-          if (!gestureCard) {
-            resetPosition();
-            return;
-          }
-
-          if (touchDuration < TAP_DURATION_THRESHOLD && distanceMoved < 10) {
-            handleCardTap(gestureCard);
-            resetPosition();
-            hideAllFeedback();
-            return;
-          }
-
-          if (isCurrentCard) {
-            if (gesture.dx > SWIPE_THRESHOLD) {
-              forceSwipe("right");
-            } else if (gesture.dx < -SWIPE_THRESHOLD) {
-              forceSwipe("left");
-            } else if (gesture.dy < -SWIPE_UP_THRESHOLD) {
-              forceSwipe("up");
-            } else {
-              resetPosition();
-              hideAllFeedback();
-            }
-          } else {
-            resetPosition();
-            hideAllFeedback();
-          }
-        },
-      });
-    },
-    [
-      data,
-      handleCardTap,
-      updateFeedbackOpacity,
-      hideAllFeedback,
-      resetPosition,
-      forceSwipe,
-    ]
-  );
-
-  // Early return if no data
-  if (!data || data.length === 0) {
+  const OverlayLabelRight = useCallback(() => {
     return (
-      <View style={styles.emptyCardsContainer}>
-        <AnimatedLoader />
+      <View style={styles.overlayLabelRight}>
+        <Image
+          source={STATIC_IMAGES.APPROVE_IMAGE}
+          style={styles.overlayIcon}
+          resizeMode="contain"
+        />
+      </View>
+    );
+  }, []);
+
+  const OverlayLabelLeft = useCallback(() => {
+    return (
+      <View style={styles.overlayLabelLeft}>
+        <Image
+          source={STATIC_IMAGES.CANCEL_IMAGE}
+          style={styles.overlayIcon}
+          resizeMode="contain"
+        />
+      </View>
+    );
+  }, []);
+
+  const OverlayLabelTop = useCallback(() => {
+    return (
+      <View style={styles.overlayLabelTop}>
+        <Image
+          source={STATIC_IMAGES.ARROW_UP}
+          style={styles.overlayIcon}
+          resizeMode="contain"
+        />
+      </View>
+    );
+  }, []);
+
+  // Show only loader during completion to prevent card stacking
+  if (isCompleting || (showLoaderOnComplete && isLoading)) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <AnimatedLoader />
+        </View>
       </View>
     );
   }
 
-  const renderCards = () => {
-    if (cardIndex >= data.length) {
+  // Show loader while initial data is loading OR while images are being preloaded OR while swiper is preparing
+  // For single cards, bypass complex loading logic
+  if (dataLength === 1) {
+    if (isLoading) {
       return (
-        <Animated.View
-          style={[styles.emptyCardsContainer, styles.transitionContainer]}
-        >
+        <View style={styles.container}>
           <AnimatedLoader />
-        </Animated.View>
+        </View>
       );
     }
+  } else {
+    // Multi-card loading logic
+    if (isLoading || !imagesLoaded || !swiperReady) {
+      return (
+        <View style={styles.container}>
+          <AnimatedLoader />
+        </View>
+      );
+    }
+  }
 
-    return visibleCards
-      .map((item, relativeIndex) => {
-        const absoluteIndex = cardIndex + relativeIndex;
-        const isCurrentCard = absoluteIndex === cardIndex;
-        const isNextCard = absoluteIndex === cardIndex + 1;
-        const isCurrentImageLoaded = imageLoaded[item.id];
-
-        if (isCurrentCard) {
-          const panResponder = createPanResponder(item, true);
-
-          return (
-            <SwipeCard
-              key={item.id}
-              item={item}
-              isCurrentCard={true}
-              isNextCard={false}
-              panHandlers={panResponder.panHandlers}
-              animatedStyle={{
-                transform: [
-                  { translateX: position.x },
-                  { translateY: position.y },
-                  { rotate: animatedValues.rotate },
-                  { scale: animatedValues.scaleUp },
-                ],
-                zIndex: 999,
-              }}
-              colors={colors}
-              onBucketPress={onBucketPress}
-              hideBucketsButton={hideBucketsButton}
-              onImageLoad={handleImageLoad}
-              onImageError={handleImageError}
-              imageLoaded={isCurrentImageLoaded}
-            />
-          );
-        }
-
-        if (isNextCard) {
-          return (
-            <SwipeCard
-              key={item.id}
-              item={item}
-              isCurrentCard={false}
-              isNextCard={true}
-              colors={colors}
-              onBucketPress={onBucketPress}
-              hideBucketsButton={hideBucketsButton}
-              onImageLoad={handleImageLoad}
-              onImageError={handleImageError}
-              imageLoaded={imageLoaded[item.id] || false}
-            />
-          );
-        }
-
-        return null;
-      })
-      .reverse();
-  };
+  // If no data, return null to let parent handle empty state
+  if (!data || data.length === 0) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>
-      <SwipeFeedback
-        direction={currentSwipeDirection}
-        opacity={feedbackOpacity}
-        scale={feedbackScale}
-      />
-      {renderCards()}
+      <Animated.View style={[styles.subContainer, { opacity: fadeAnim }]}>
+        {!isCompleting && swiperReady && (
+          <Swiper
+            key={`swiper-${data?.[0]?.id || "empty"}-${
+              areImagesReady ? "ready" : "loading"
+            }`}
+            ref={ref}
+            data={data}
+            cardStyle={styles.cardStyle}
+            overlayLabelContainerStyle={styles.overlayLabelContainerStyle}
+            renderCard={renderCard}
+            onSwipeRight={handleSwipeRight}
+            onSwipeLeft={handleSwipeLeft}
+            onSwipeTop={handleSwipeTop}
+            onSwipedAll={handleSwipedAll}
+            onPress={undefined}
+            onIndexChange={() => {}}
+            OverlayLabelRight={OverlayLabelRight}
+            OverlayLabelLeft={OverlayLabelLeft}
+            OverlayLabelTop={OverlayLabelTop}
+            disableBottomSwipe={true}
+            disableTopSwipe={false}
+            swipeVelocityThreshold={isAndroid ? 120 : 150} // Higher threshold for better direction detection
+            swipeTopSpringConfig={{
+              damping: isAndroid ? 20 : 25, // Reduced damping for smoother upward movement
+              stiffness: isAndroid ? 200 : 250, // Higher stiffness for faster response
+              mass: 0.3, // Reduced mass for quicker animation
+              overshootClamping: true,
+              restDisplacementThreshold: 0.1, // Higher threshold for faster completion
+              restSpeedThreshold: 0.1,
+            }}
+            prerenderItems={
+              dataLength === 1
+                ? 1
+                : Math.max(2, Math.min(data.length - 1, isAndroid ? 3 : 4))
+            }
+            keyExtractor={(item, index) =>
+              `${item.id}-${index}-${currentDataKey}`
+            }
+            // Configure overlay opacity ranges with much higher vertical threshold
+            inputOverlayLabelRightOpacityRange={[30, 120]} // Horizontal right range
+            outputOverlayLabelRightOpacityRange={[0, 1]}
+            inputOverlayLabelLeftOpacityRange={[-120, -30]} // Horizontal left range
+            outputOverlayLabelLeftOpacityRange={[1, 0]}
+            inputOverlayLabelTopOpacityRange={[-80, -200]} // Much higher vertical threshold - swipe up only appears with significant upward movement
+            outputOverlayLabelTopOpacityRange={[0, 1]}
+            // Enhanced card movement - smoother, less chaotic animations
+            rotateInputRange={[-150, 0, 150]} // Wider range for smoother rotation
+            rotateOutputRange={[-Math.PI / 12, 0, Math.PI / 12]} // Reduced rotation for less chaotic feel
+            translateYRange={isAndroid ? [-8, 0, -8] : [-12, 0, -12]} // Reduced Y translation
+            swipeRightSpringConfig={{
+              damping: isAndroid ? 35 : 40, // Reduced damping for smoother horizontal swipes
+              stiffness: isAndroid ? 180 : 200, // Higher stiffness for faster response
+              mass: isAndroid ? 0.8 : 1.0, // Reduced mass for quicker animation
+              overshootClamping: true,
+              restDisplacementThreshold: 0.1, // Higher threshold for faster completion
+              restSpeedThreshold: 0.1,
+            }}
+            swipeLeftSpringConfig={{
+              damping: isAndroid ? 35 : 40, // Reduced damping for smoother horizontal swipes
+              stiffness: isAndroid ? 180 : 200, // Higher stiffness for faster response
+              mass: isAndroid ? 0.8 : 1.0, // Reduced mass for quicker animation
+              overshootClamping: true,
+              restDisplacementThreshold: 0.1, // Higher threshold for faster completion
+              restSpeedThreshold: 0.1,
+            }}
+            swipeBackXSpringConfig={{
+              damping: isAndroid ? 30 : 35, // Smooth bounce back on X-axis
+              stiffness: isAndroid ? 220 : 250, // High stiffness for quick return
+              mass: 0.5,
+              overshootClamping: false, // Allow small overshoot for natural bounce
+              restDisplacementThreshold: 0.1,
+              restSpeedThreshold: 0.1,
+            }}
+            swipeBackYSpringConfig={{
+              damping: isAndroid ? 30 : 35, // Smooth bounce back on Y-axis
+              stiffness: isAndroid ? 220 : 250, // High stiffness for quick return
+              mass: 0.5,
+              overshootClamping: false, // Allow small overshoot for natural bounce
+              restDisplacementThreshold: 0.1,
+              restSpeedThreshold: 0.1,
+            }}
+          />
+        )}
+        {isCompleting && (
+          <View style={styles.loadingContainer}>
+            <AnimatedLoader />
+          </View>
+        )}
+      </Animated.View>
     </View>
   );
 };
@@ -419,19 +523,90 @@ export const SwipeCards: React.FC<SwipeCardsProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
     alignItems: "center",
+    justifyContent: "center",
   },
-  emptyCardsContainer: {
+  loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  transitionContainer: {
-    position: "absolute",
+  subContainer: {
+    flex: 1,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  renderCardContainer: {
+    borderRadius: 16,
+    paddingHorizontal: horizontalScale(24),
+    paddingBottom: verticalScale(10),
     width: "100%",
     height: "100%",
-    opacity: 1,
     backgroundColor: "transparent",
   },
+  cardStyle: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 16,
+    backgroundColor: "transparent",
+  },
+  overlayLabelLeft: {
+    left: "60%",
+    top: "20%",
+  },
+  overlayLabelRight: {
+    left: "15%",
+    top: "20%",
+  },
+  overlayLabelTop: {
+    top: "40%",
+    alignSelf: "center",
+  },
+  overlayIcon: {
+    width: horizontalScale(80),
+    height: verticalScale(80),
+  },
+  overlayLabelContainer: {
+    borderRadius: 16,
+    height: "100%",
+    width: "100%",
+  },
+  overlayLabelContainerStyle: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
+  },
 });
+
+// Memoize the component to prevent unnecessary re-renders from parent callback changes
+const MemoizedSwipeCards = React.memo(SwipeCards, (prevProps, nextProps) => {
+  // Only re-render if meaningful props have changed
+  const meaningfulProps = [
+    "data",
+    "isLoading",
+    "hideButtons",
+    "showLoaderOnComplete",
+    "fullWidth",
+  ] as const;
+
+  for (const prop of meaningfulProps) {
+    if (prevProps[prop] !== nextProps[prop]) {
+      return false; // Props changed, re-render
+    }
+  }
+
+  // Check if data array has same length and first item (lightweight check)
+  if (Array.isArray(prevProps.data) && Array.isArray(nextProps.data)) {
+    if (prevProps.data.length !== nextProps.data.length) {
+      return false;
+    }
+    if (prevProps.data[0]?.id !== nextProps.data[0]?.id) {
+      return false;
+    }
+  }
+
+  return true; // Props haven't meaningfully changed, skip re-render
+});
+
+export default MemoizedSwipeCards;

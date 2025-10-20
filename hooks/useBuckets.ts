@@ -11,28 +11,35 @@ import { createTimedAjax } from "@/utilities/apiUtils";
 type Content = {
   id: string;
   category: string;
-  title: string;
-  rating?: number;
-  price?: string;
-  phone?: string;
-  latitude?: number;
-  longitude?: number;
-  googleMapsUrl?: string;
-  googlePlacesImageUrl?: string;
-  internalImageUrls?: string[];
-  bookingUrl?: string;
-  websiteUrl?: string;
-  websiteScrape?: string;
-  description?: string;
-  descriptionGeminiEmbedding?: number[];
-  descriptionMinilmEmbedding?: number[];
-  reviews?: string;
-  reviewsGeminiEmbedding?: number[];
-  tags?: string;
-  createdAt: string;
-  updatedAt: string;
-  contentShareUrl?: string;
-  image?: string; // fallback image property
+  title: string | null;
+  rating: number;
+  price: number | string | null;
+  internalPrice?: string | null;
+  phone: string | null;
+  latitude: number;
+  longitude: number;
+  addressLong?: string;
+  addressShort?: string;
+  googleMapsUrl: string;
+  internalImages: string[] | null;
+  internalImageUrls: string[] | null;
+  eventDatetimeStart?: string | null;
+  eventDatetimeEnd?: string | null;
+  bookingUrl: string | null;
+  websiteUrl: string | null;
+  description: string | null;
+  tags: string;
+  isSponsored: boolean;
+  userLiked: boolean;
+  userDisliked: boolean;
+  distance: number;
+  similarity: number | string;
+  contentShareUrl: string;
+  address: string;
+  // Legacy fields for backward compatibility
+  image?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 type Bucket = {
@@ -42,7 +49,7 @@ type Bucket = {
   bucketName: string;
   contentIds: string[];
   content: Content[];
-  bucketShareUrl?: string;
+  bucketShareUrl: string;
 };
 
 // Paginated response structure

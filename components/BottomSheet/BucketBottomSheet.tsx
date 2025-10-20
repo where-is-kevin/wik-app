@@ -1,5 +1,5 @@
 // BucketBottomSheet.tsx - WITH PAGINATION SUPPORT
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback, useRef, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -7,10 +7,12 @@ import {
   Dimensions,
   StatusBar,
   Platform,
-  FlatList,
-  Modal,
-  Pressable,
 } from "react-native";
+import {
+  BottomSheetModal,
+  BottomSheetView,
+  BottomSheetBackdrop,
+} from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/ThemeContext";
 import CustomText from "@/components/CustomText";
@@ -24,8 +26,11 @@ import CustomTouchable from "../CustomTouchableOpacity";
 import CreateBucketPlus from "../SvgComponents/CreateBucketPlus";
 import { useBuckets } from "@/hooks/useBuckets";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
-import { useQueryClient } from "@tanstack/react-query";
 import OptimizedImage from "../OptimizedImage/OptimizedImage";
+import { FlatList } from "react-native-gesture-handler";
+
+// Placeholder image for buckets without images - moved outside component to prevent re-creation
+// Using SVG placeholder via OptimizedImage error handling
 
 // Define the BucketItem interface directly in this file
 export interface BucketItem {
@@ -53,7 +58,30 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
 }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const queryClient = useQueryClient();
+
+  // Bottom sheet ref
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+
+  // Handle visibility changes
+  useEffect(() => {
+    if (isVisible) {
+      bottomSheetModalRef.current?.present();
+    } else {
+      bottomSheetModalRef.current?.dismiss();
+    }
+  }, [isVisible]);
+
+  // Render backdrop callback
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+      />
+    ),
+    []
+  );
 
   // Use the existing useBuckets hook with pagination
   const {
@@ -61,23 +89,17 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
     isLoading: bucketsLoading,
     error: bucketsError,
     refetch: refetchBuckets,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
   } = useBuckets(
     undefined, // no search query
     isVisible, // only enabled when bottom sheet is visible
-    20 // standard page size
+    100 // larger page size to get all items at once
   );
-
-  // Placeholder image for buckets without images
-  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
 
   // Helper function to safely get image URL
   const getBucketImage = (bucket: any): string => {
     try {
       // Check if bucket exists
-      if (!bucket) return PLACEHOLDER_IMAGE;
+      if (!bucket) return "";
 
       // Check if content exists and is an array
       if (
@@ -85,12 +107,12 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
         !Array.isArray(bucket.content) ||
         bucket.content.length === 0
       ) {
-        return PLACEHOLDER_IMAGE;
+        return "";
       }
 
       // Get the first content item
       const firstContent = bucket.content[0];
-      if (!firstContent) return PLACEHOLDER_IMAGE;
+      if (!firstContent) return "";
 
       // Check if internalImageUrls exists and is an array
       if (
@@ -98,15 +120,8 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
         !Array.isArray(firstContent.internalImageUrls) ||
         firstContent.internalImageUrls.length === 0
       ) {
-        // Fallback to googlePlacesImageUrl if available
-        if (
-          firstContent.googlePlacesImageUrl &&
-          typeof firstContent.googlePlacesImageUrl === "string" &&
-          firstContent.googlePlacesImageUrl.trim() !== ""
-        ) {
-          return firstContent.googlePlacesImageUrl;
-        }
-        return PLACEHOLDER_IMAGE;
+        // No valid internal images available
+        return "";
       }
 
       // Get the first image URL
@@ -117,10 +132,10 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
         return imageUrl;
       }
 
-      return PLACEHOLDER_IMAGE;
+      return "";
     } catch (error) {
       console.warn("Error getting bucket image:", error);
-      return PLACEHOLDER_IMAGE;
+      return "";
     }
   };
 
@@ -131,12 +146,15 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
 
     if (buckets?.pages) {
       // InfiniteData structure: { pages: [{ items: [...] }, { items: [...] }], pageParams: [...] }
-      bucketsArray = buckets.pages.flatMap((page: any) => {
+      const allItems = buckets.pages.flatMap((page: any) => {
         if (page?.items && Array.isArray(page.items)) {
           return page.items;
         }
         return [];
       });
+
+      // No deduplication needed since each bucket should have a unique ID
+      bucketsArray = allItems;
     } else if (
       (buckets as any)?.items &&
       Array.isArray((buckets as any).items)
@@ -155,11 +173,11 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
     }
 
     try {
-      return bucketsArray
+      const transformedBuckets = bucketsArray
         .filter((bucket: any) => bucket && typeof bucket === "object") // Filter out null/undefined items
-        .map((bucket: any) => {
+        .map((bucket: any, index: number) => {
           // Ensure required properties exist with fallbacks
-          const id = bucket?.id || `bucket-${Math.random()}`;
+          const id = bucket?.id || `bucket-fallback-${index}`;
           const title =
             bucket?.bucketName || bucket?.title || "Untitled Bucket";
           const contentIds = Array.isArray(bucket?.contentIds)
@@ -176,14 +194,31 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
             contentIds,
           };
         });
+
+      // Sort buckets: those containing the selected item first
+      if (selectedLikeItemId) {
+        return transformedBuckets.sort((a, b) => {
+          const aContainsItem = a.contentIds.includes(selectedLikeItemId);
+          const bContainsItem = b.contentIds.includes(selectedLikeItemId);
+
+          // If a contains the item and b doesn't, a should come first (return -1)
+          // If b contains the item and a doesn't, b should come first (return 1)
+          // If both contain or both don't contain, maintain original order (return 0)
+          if (aContainsItem && !bContainsItem) return -1;
+          if (bContainsItem && !aContainsItem) return 1;
+          return 0;
+        });
+      }
+
+      return transformedBuckets;
     } catch (error) {
       console.error("Error transforming bucket data:", error);
       return [];
     }
-  }, [buckets]);
+  }, [buckets, selectedLikeItemId]);
 
-  // Calculate dynamic height for bottom sheet
-  const snapPointHeight = useMemo(() => {
+  // Calculate snap points for bottom sheet
+  const snapPoints = useMemo(() => {
     try {
       const screenHeight = Dimensions.get("window").height;
       const statusBarHeight =
@@ -202,23 +237,18 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
 
       const finalPercentage = `${Math.floor(percentage)}%`;
 
-      return finalPercentage;
+      // Return array with single snap point
+      return [finalPercentage];
     } catch (error) {
       console.warn("Error calculating snap point height:", error);
-      return "70%"; // Fallback height
+      return ["75%"]; // Fallback height
     }
   }, [insets?.top]);
 
-  // Handle load more buckets
-  const handleLoadMore = () => {
-    if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  };
 
   // Render bucket item for FlatList
   const renderBucketItem = ({ item }: { item: BucketItem }) => {
-    if (!item) return null;
+    if (!item || !item.id) return null;
 
     try {
       const isItemInBucket =
@@ -240,10 +270,12 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
               typeof item.image === "string" ? { uri: item.image } : item.image
             }
             style={styles.bucketItemImage}
-            resizeMode="cover"
+            contentFit="cover"
             priority="normal"
-            showLoader={true}
-            fallbackSource={PLACEHOLDER_IMAGE}
+            showLoadingIndicator={true}
+            showErrorFallback={true}
+            borderRadius={10}
+            fallbackImage={""}
           />
           <CustomView style={styles.bucketItemContent}>
             <CustomText
@@ -274,16 +306,6 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
     }
   };
 
-  // Render footer for loading more
-  const renderFooter = () => {
-    if (!isFetchingNextPage) return null;
-
-    return (
-      <CustomView style={styles.loadingFooter}>
-        <AnimatedLoader customAnimationStyle={{ width: 80, height: 80 }} />
-      </CustomView>
-    );
-  };
 
   const renderContent = () => {
     if (bucketsLoading && !bucketItems.length) {
@@ -346,13 +368,15 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
       <FlatList
         data={bucketItems}
         renderItem={renderBucketItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => {
+          // Create unique keys by combining ID and index
+          const baseKey = item?.id || `bucket-fallback-${index}`;
+          return `bucket-${baseKey}-${index}`;
+        }}
         contentContainerStyle={styles.flatListContent}
         showsVerticalScrollIndicator={false}
-        onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={renderFooter}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
+        style={styles.flatList}
       />
     );
   };
@@ -364,109 +388,74 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
   }
 
   return (
-    <Modal
-      visible={isVisible}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={onClose}
-      statusBarTranslucent={true}
+    <BottomSheetModal
+      ref={bottomSheetModalRef}
+      index={0}
+      snapPoints={snapPoints}
+      onDismiss={onClose}
+      backdropComponent={renderBackdrop}
+      backgroundStyle={{
+        backgroundColor: colors.background,
+      }}
+      handleIndicatorStyle={{
+        backgroundColor: colors.indicator_gray || "#F2F2F7",
+      }}
+      enablePanDownToClose={true}
+      enableDismissOnClose={true}
+      enableDynamicSizing={false}
     >
-      <View style={styles.modalContainer}>
-        {/* Overlay */}
-        <Pressable style={styles.overlay} onPress={onClose} />
+      <BottomSheetView style={styles.container}>
+        <CustomView style={styles.header}>
+          <CustomText
+            fontFamily="Inter-SemiBold"
+            style={[styles.title, { color: colors.label_dark || "#000" }]}
+          >
+            Add to bucket
+          </CustomText>
+        </CustomView>
 
-        {/* Bottom Sheet Content */}
+        {renderContent()}
+
+        {/* Fixed bottom section for Create New Button */}
         <CustomView
           style={[
-            styles.bottomSheetContainer,
+            styles.bottomSection,
             {
-              backgroundColor: colors.background,
-              height:
-                (parseFloat(snapPointHeight.replace("%", "")) *
-                  Dimensions.get("window").height) /
-                100,
+              borderTopColor: colors.onboarding_gray || "#E0E0E0",
+              paddingBottom: insets.bottom + 10, // Add 10pt base + safe area
             },
           ]}
         >
-          {/* Handle Indicator */}
-          <View
-            style={[
-              styles.handleIndicator,
-              { backgroundColor: colors.indicator_gray || "#F2F2F7" },
-            ]}
-          />
-
-          <CustomView style={styles.container}>
-            <CustomView style={styles.header}>
-              <CustomText
-                fontFamily="Inter-SemiBold"
-                style={[styles.title, { color: colors.label_dark || "#000" }]}
-              >
-                Add to bucket
-              </CustomText>
-            </CustomView>
-
-            {renderContent()}
-
-            {/* Fixed bottom section for Create New Button */}
+          <TouchableOpacity
+            style={styles.createNewButton}
+            onPress={() => {
+              onCreateNew();
+            }}
+            activeOpacity={0.7}
+          >
             <CustomView
+              bgColor={colors.light_blue || "#E3F2FD"}
+              style={styles.createNewIconContainer}
+            >
+              <CreateBucketPlus />
+            </CustomView>
+            <CustomText
+              fontFamily="Inter-SemiBold"
               style={[
-                styles.bottomSection,
-                { borderTopColor: colors.onboarding_gray || "#E0E0E0" },
+                styles.createNewText,
+                { color: colors.label_dark || "#000" },
               ]}
             >
-              <TouchableOpacity
-                style={styles.createNewButton}
-                onPress={() => {
-                  onCreateNew();
-                }}
-                activeOpacity={0.7}
-              >
-                <CustomView
-                  bgColor={colors.light_blue || "#E3F2FD"}
-                  style={styles.createNewIconContainer}
-                >
-                  <CreateBucketPlus />
-                </CustomView>
-                <CustomText
-                  fontFamily="Inter-SemiBold"
-                  style={[
-                    styles.createNewText,
-                    { color: colors.label_dark || "#000" },
-                  ]}
-                >
-                  Create new bucket
-                </CustomText>
-              </TouchableOpacity>
-            </CustomView>
-          </CustomView>
+              Create new bucket
+            </CustomText>
+          </TouchableOpacity>
         </CustomView>
-      </View>
-    </Modal>
+      </BottomSheetView>
+    </BottomSheetModal>
   );
 };
 
 const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  bottomSheetContainer: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 8,
-  },
-  handleIndicator: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginBottom: 8,
-  },
   container: {
     flex: 1,
     paddingBottom: 8,
@@ -478,6 +467,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: scaleFontSize(15),
+  },
+  flatList: {
+    flex: 1,
   },
   flatListContent: {
     paddingHorizontal: 24,
@@ -537,16 +529,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: scaleFontSize(14),
-  },
-  loadingFooter: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: verticalScale(20),
-  },
-  loadingFooterText: {
-    marginLeft: 8,
-    fontSize: scaleFontSize(12),
   },
   emptyContainer: {
     flex: 1,

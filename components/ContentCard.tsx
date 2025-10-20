@@ -4,8 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 import CustomText from "@/components/CustomText";
 import CustomTouchable from "./CustomTouchableOpacity";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useUserLocation } from "@/contexts/UserLocationContext";
 import CategoryTag from "./Tag/CategoryTag";
-import BucketSvg from "./SvgComponents/BucketSvg";
 import OptimizedImage from "./OptimizedImage/OptimizedImage";
 import {
   scaleFontSize,
@@ -13,6 +13,9 @@ import {
   verticalScale,
 } from "@/utilities/scaling";
 import { formatDistance } from "@/utilities/formatDistance";
+import { shouldShowDistance } from "@/utilities/distanceHelpers";
+import PinBucketSvg from "./SvgComponents/PinBucketSvg";
+import { ImagePlaceholder } from "./OptimizedImage/ImagePlaceholder";
 
 interface ContentCardProps {
   item: any;
@@ -30,9 +33,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
   onBucketPress,
 }) => {
   const { colors } = useTheme();
-
-  // Local placeholder image
-  const PLACEHOLDER_IMAGE = require("@/assets/images/placeholder-bucket.png");
+  const { userLocation } = useUserLocation();
 
   const handleBucketPress = () => {
     if (onBucketPress && item.id) {
@@ -58,11 +59,12 @@ const ContentCard: React.FC<ContentCardProps> = ({
     >
       <View style={styles.imageContainer}>
         <OptimizedImage
-          source={validImageUrl ? { uri: validImageUrl } : PLACEHOLDER_IMAGE}
+          source={validImageUrl ? { uri: validImageUrl } : ""}
           style={styles.cardImage}
           priority="normal"
-          showLoader={true}
-          fallbackSource={PLACEHOLDER_IMAGE}
+          showLoadingIndicator={true}
+          borderRadius={10}
+          overlayComponent={!validImageUrl ? <ImagePlaceholder /> : undefined}
         />
 
         {/* Top Row with Category Tag and Bucket Button */}
@@ -81,7 +83,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
             style={[styles.actionButton, { backgroundColor: colors.lime }]}
             onPress={handleBucketPress}
           >
-            <BucketSvg stroke={colors.label_dark} />
+            <PinBucketSvg />
           </TouchableOpacity>
         </View>
       </View>
@@ -95,14 +97,14 @@ const ContentCard: React.FC<ContentCardProps> = ({
           >
             {item.title || item.name || "Event"}
           </CustomText>
-          <CustomText
+          {/* <CustomText
             fontFamily="Inter-SemiBold"
             style={[styles.matchText, { color: colors.light_blue }]}
           >
             {item.similarity
               ? `${Math.round(item.similarity * 100)}% match`
               : "0% match"}
-          </CustomText>
+          </CustomText> */}
         </View>
 
         {/* Subtitle */}
@@ -121,24 +123,24 @@ const ContentCard: React.FC<ContentCardProps> = ({
                 <Ionicons name="star" size={11} color="#666" />
                 <CustomText style={styles.distance}>{item.rating}</CustomText>
               </View>
-              {(!!item.price || !!item.distance) && (
+              {(!!item.price || shouldShowDistance(item.distance, userLocation)) && (
                 <CustomText style={styles.separator}>•</CustomText>
               )}
             </>
           )}
-          
+
           {!!item.price && (
             <>
               <CustomText style={styles.distance}>{item.price}</CustomText>
-              {!!item.distance && (
+              {shouldShowDistance(item.distance, userLocation) && (
                 <CustomText style={styles.separator}>•</CustomText>
               )}
             </>
           )}
-          
-          {!!item.distance && (
+
+          {shouldShowDistance(item.distance, userLocation) && (
             <CustomText style={styles.distance}>
-              {formatDistance(item.distance)}
+              {formatDistance(item.distance!)}
             </CustomText>
           )}
         </View>

@@ -2,7 +2,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import React from "react";
 import { StyleSheet } from "react-native";
 import CustomView from "../CustomView";
-import { verticalScale } from "@/utilities/scaling";
+import { verticalScale, horizontalScale } from "@/utilities/scaling";
 
 interface ProgressBarProps {
   steps: number;
@@ -14,17 +14,22 @@ export const OnboardingProgressBar: React.FC<ProgressBarProps> = ({
   currentStep,
 }) => {
   const { colors } = useTheme();
-  const fillPercentage = ((currentStep + 1) / steps) * 100;
 
   return (
     <CustomView style={styles.container}>
-      <CustomView bgColor={colors.onboarding_gray} style={styles.backgroundBar}>
-        <CustomView
-          style={[
-            styles.fillBar,
-            { width: `${fillPercentage}%`, backgroundColor: colors.link_blue },
-          ]}
-        />
+      <CustomView style={styles.progressContainer}>
+        {Array.from({ length: steps }, (_, index) => (
+          <CustomView
+            key={index}
+            style={[
+              styles.progressLine,
+              {
+                backgroundColor:
+                  index <= currentStep ? colors.lime : colors.border_gray,
+              },
+            ]}
+          />
+        ))}
       </CustomView>
     </CustomView>
   );
@@ -33,16 +38,21 @@ export const OnboardingProgressBar: React.FC<ProgressBarProps> = ({
 const styles = StyleSheet.create({
   container: {
     width: "100%",
-    paddingVertical: verticalScale(24),
+    paddingBottom: verticalScale(16),
+    paddingTop: verticalScale(4),
+    flex: 1,
   },
-  backgroundBar: {
+  progressContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "flex-start",
     width: "100%",
-    height: 8,
-    borderRadius: 4,
-    overflow: "hidden",
+    gap: horizontalScale(6),
   },
-  fillBar: {
-    height: "100%",
-    borderRadius: 4,
+  progressLine: {
+    width: horizontalScale(30),
+    height: verticalScale(5),
+    borderRadius: 9.476,
+    flexShrink: 0,
   },
 });
