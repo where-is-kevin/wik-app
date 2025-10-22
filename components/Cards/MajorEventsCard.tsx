@@ -1,10 +1,5 @@
 import React from "react";
-import {
-  StyleSheet,
-  TouchableOpacity,
-  ImageBackground,
-  View,
-} from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomText from "../CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -14,6 +9,7 @@ import {
   scaleFontSize,
 } from "@/utilities/scaling";
 import { HeartButton } from "../HeartButton/HeartButton";
+import { OptimizedImageBackground } from "../OptimizedImage/OptimizedImage";
 
 export interface MajorEventData {
   id: string;
@@ -54,10 +50,13 @@ export const MajorEventsCard: React.FC<MajorEventsCardProps> = ({
       onPress={() => onPress(event)}
       activeOpacity={0.8}
     >
-      <ImageBackground
-        source={{ uri: event.imageUrl }}
+      <OptimizedImageBackground
+        source={event.imageUrl ? { uri: event.imageUrl } : ""}
         style={styles.backgroundImage}
-        imageStyle={styles.imageStyle}
+        contentFit="cover"
+        borderRadius={8}
+        showLoadingIndicator={true}
+        showErrorFallback={true}
       >
         {/* Heart icon */}
         {onLikePress && (
@@ -92,19 +91,25 @@ export const MajorEventsCard: React.FC<MajorEventsCardProps> = ({
             <CustomText
               fontFamily="Inter-Bold"
               style={[styles.titleText, { color: colors.text_white }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
-              {event.title || event.location || 'Event'}
+              {event.title || event.location || "Event"}
             </CustomText>
 
             {/* Location and count */}
             <CustomText
               style={[styles.locationText, { color: colors.text_white }]}
             >
-              {event.location} {event.eventCount && `• ${event.eventCount}`}
+              {event.location && event.location.trim() !== ""
+                ? `${event.location} ${
+                    event.eventCount ? `• ${event.eventCount}` : ""
+                  }`
+                : event.eventCount || ""}
             </CustomText>
           </View>
         </LinearGradient>
-      </ImageBackground>
+      </OptimizedImageBackground>
     </TouchableOpacity>
   );
 };

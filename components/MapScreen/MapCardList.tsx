@@ -26,19 +26,22 @@ const MapCardList: React.FC<MapCardListProps> = ({
   const CARD_SPACING = 12;
   const SNAP_INTERVAL = CARD_WIDTH + CARD_SPACING;
 
-  const renderEventCard = React.useCallback(({ item, index }: { item: any; index: number }) => {
-    const isSelected = index === selectedIndex;
+  const renderEventCard = React.useCallback(
+    ({ item, index }: { item: any; index: number }) => {
+      const isSelected = index === selectedIndex;
 
-    return (
-      <ContentCard
-        item={item}
-        width={CARD_WIDTH}
-        isSelected={isSelected}
-        onPress={onCardPress}
-        onBucketPress={onBucketPress}
-      />
-    );
-  }, [selectedIndex, onCardPress, onBucketPress, CARD_WIDTH]);
+      return (
+        <ContentCard
+          item={item}
+          width={CARD_WIDTH}
+          isSelected={isSelected}
+          onPress={onCardPress}
+          onBucketPress={onBucketPress}
+        />
+      );
+    },
+    [selectedIndex, onCardPress, onBucketPress, CARD_WIDTH]
+  );
 
   const getItemLayout = React.useCallback(
     (data: any, index: number) => ({
@@ -66,7 +69,7 @@ const MapCardList: React.FC<MapCardListProps> = ({
         snapToAlignment="start"
         decelerationRate="fast"
         onMomentumScrollEnd={onScrollEnd}
-        removeClippedSubviews={true}
+        removeClippedSubviews={false}
         maxToRenderPerBatch={3}
         initialNumToRender={3}
         windowSize={5}
@@ -74,9 +77,7 @@ const MapCardList: React.FC<MapCardListProps> = ({
           paddingLeft: (Dimensions.get("window").width - CARD_WIDTH) / 2,
           paddingRight: (Dimensions.get("window").width - CARD_WIDTH) / 2,
         }}
-        ItemSeparatorComponent={() => (
-          <View style={styles.separator} />
-        )}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
     </View>
   );

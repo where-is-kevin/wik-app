@@ -35,19 +35,12 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
       <View style={[styles.headerRow, style]}>
         <CustomText
           fontFamily="Inter-Bold"
-          style={[
-            styles.title,
-            { color: colors.label_dark },
-            titleStyle,
-          ]}
+          style={[styles.title, { color: colors.label_dark }, titleStyle]}
         >
           {title}
         </CustomText>
         {showViewAll && onViewAllPress && (
-          <ViewAllButton
-            onPress={onViewAllPress}
-            text={viewAllText}
-          />
+          <ViewAllButton onPress={onViewAllPress} text={viewAllText} />
         )}
       </View>
     </View>

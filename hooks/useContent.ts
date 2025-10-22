@@ -31,6 +31,8 @@ type Content = {
   address: string;
   addressShort?: string | null;
   addressLong?: string;
+  addressCity?: string;
+  addressCountry?: string;
   userLiked?: boolean;
   userDisliked?: boolean;
   isSponsored: boolean;
@@ -40,6 +42,10 @@ type Content = {
   eventDatetimeStart?: string | null;
   eventDatetimeEnd?: string | null;
   audienceType?: string[];
+  host?: {
+    name: string;
+    image: string;
+  };
 };
 
 const API_URL = Constants.expoConfig?.extra?.apiUrl as string;

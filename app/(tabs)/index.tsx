@@ -126,7 +126,7 @@ const SwipeableCards = () => {
   };
 
   const handleQuestionMarkPress = () => {
-    setShowQuestionMarkTooltips(true);
+    setShowQuestionMarkTooltips(prev => !prev);
   };
 
   const handleQuestionMarkTooltipsComplete = () => {

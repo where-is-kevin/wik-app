@@ -34,11 +34,11 @@ const formatEventDateTime = (
     // Use UTC methods to avoid local timezone conversion
     const dayName = startDate.toLocaleDateString("en-US", {
       weekday: "short",
-      timeZone: "UTC"
+      timeZone: "UTC",
     });
     const month = startDate.toLocaleDateString("en-US", {
       month: "short",
-      timeZone: "UTC"
+      timeZone: "UTC",
     });
     const day = startDate.getUTCDate();
     const suffix =
@@ -223,7 +223,10 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
                 fontFamily="Inter-Medium"
                 style={[styles.infoText, { color: colors.background }]}
               >
-                {formatEventDateTime(item.eventDatetimeStart, item.eventDatetimeEnd)}
+                {formatEventDateTime(
+                  item.eventDatetimeStart,
+                  item.eventDatetimeEnd
+                )}
               </CustomText>
               {formatPrice(item.price) && (
                 <>
@@ -253,11 +256,12 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
                 </View>
               )}
 
-              {!!item.rating && shouldShowDistance(item.distance, userLocation) && (
-                <View style={styles.dotSeparator}>
-                  <View style={styles.whiteDot} />
-                </View>
-              )}
+              {!!item.rating &&
+                shouldShowDistance(item.distance, userLocation) && (
+                  <View style={styles.dotSeparator}>
+                    <View style={styles.whiteDot} />
+                  </View>
+                )}
               {shouldShowDistance(item.distance, userLocation) && (
                 <CustomText
                   style={[styles.infoText, { color: colors.background }]}
@@ -335,7 +339,13 @@ export const CardContentOverlay = React.memo<CardContentOverlayProps>(
         {renderTopRow()}
 
         <LinearGradient
-          colors={["rgba(242, 242, 243, 0)", "#0B2E34"]}
+          colors={[
+            "rgba(242, 242, 243, 0)",
+            "rgba(130, 130, 131, 0.3)",
+            "rgba(19, 19, 20, 0.72)",
+            "#131314"
+          ]}
+          locations={[0, 0.3, 0.72, 1]}
           style={styles.gradientOverlay}
         >
           <TouchableOpacity
@@ -460,7 +470,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#0B2E34",
+    backgroundColor: "#131314",
     justifyContent: "flex-end",
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,

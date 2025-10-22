@@ -81,7 +81,7 @@ export const SwipeCard = React.memo<SwipeCardProps>(function SwipeCard({
       <View
         style={[
           styles.gradientOverlay,
-          { backgroundColor: "rgba(11, 46, 52, 0.4)" },
+          { backgroundColor: "rgba(19, 19, 20, 0.4)" },
         ]}
       >
         <View style={styles.cardContent}>

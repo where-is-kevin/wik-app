@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import {
   StyleSheet,
   View,
@@ -31,6 +31,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import BackSvg from "@/components/SvgComponents/BackSvg";
 import { SectionHeader } from "@/components/Section/SectionHeader";
 import FloatingMapButton from "@/components/FloatingMapButton";
+import { useNearbyBusinessEvents } from "@/hooks/useBusinessEvents";
+import AnimatedLoader from "@/components/Loader/AnimatedLoader";
+import {
+  groupEventsByDate,
+  GroupedEvent,
+  formatBusinessEventDateRange,
+} from "@/utilities/eventHelpers";
+import { useUserLocation } from "@/contexts/UserLocationContext";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 interface EventsScreenProps {
@@ -41,6 +49,7 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
   const { colors } = useTheme();
   const router = useRouter();
   const scrollY = useRef(new Animated.Value(0)).current;
+  const { userLocation } = useUserLocation();
 
   // Dynamic height measurements for precise animations
   const [majorEventsSectionHeight, setMajorEventsSectionHeight] = useState(0);
@@ -52,8 +61,27 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
     categoryName?: string;
     type?: "city" | "category";
   }>();
-  const [displayName, setDisplayName] = useState("Lisbon");
+  const getLocationDisplayName = (location: any) => {
+    if (!location?.displayName) return "My Location";
+
+    // Replace "Current Location" with "My Location"
+    if (location.displayName === "Current Location") return "My Location";
+
+    // Extract city name (first part before comma) for other locations
+    return location.displayName.split(",")[0] || location.displayName;
+  };
+
+  const [displayName, setDisplayName] = useState(
+    getLocationDisplayName(userLocation)
+  );
   const [headerSubtitle, setHeaderSubtitle] = useState("Events happening in");
+
+  // Fetch nearby business events from API - MUST be called before any conditional returns
+  const { data: businessEventsData, isLoading: isBusinessEventsLoading } =
+    useNearbyBusinessEvents(50, 20);
+
+  // Transform API data to MajorEventData format and manage state
+  const [majorEvents, setMajorEvents] = useState<MajorEventData[]>([]);
 
   useEffect(() => {
     console.log("Route params:", {
@@ -73,81 +101,69 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
       console.log("Setting city name to:", decodedName);
       setDisplayName(decodedName);
       setHeaderSubtitle("Events happening in");
+    } else {
+      // No specific route params, use user location
+      const locationDisplayName = getLocationDisplayName(userLocation);
+      setDisplayName(locationDisplayName);
+      setHeaderSubtitle("Events happening in");
     }
-  }, [id, cityName, categoryName, type]);
+  }, [id, cityName, categoryName, type, userLocation]);
 
-  // Mock data - replace with actual data from your API
-  const [majorEvents, setMajorEvents] = React.useState<MajorEventData[]>([
-    {
-      id: "1",
-      title: "WebSummit",
-      location: "Lisbon",
-      dateRange: "November 11 - 14, 2025",
-      eventCount: "100+ Events",
-      imageUrl: "https://images.unsplash.com/photo-1540575467063-178a50c2df87",
-      isLiked: false,
-    },
-    {
-      id: "2",
-      title: "WebSummit",
-      location: "Lisbon",
-      dateRange: "November 11 - 14, 2025",
-      eventCount: "100+ Events",
-      imageUrl: "https://images.unsplash.com/photo-1540575467063-178a50c2df87",
-      isLiked: true,
-    },
-  ]);
+  // Update major events and local events when API data loads
+  useEffect(() => {
+    if (businessEventsData?.events) {
+      const transformedEvents: MajorEventData[] = businessEventsData.events.map(
+        (event) => ({
+          id: event.contentId,
+          title: event.name,
+          location: event.addressShort || "Location",
+          dateRange: formatBusinessEventDateRange(event),
+          eventCount: `${event.sideEventCount}+ Events`,
+          imageUrl: event.internalImageUrls?.[0] || undefined,
+          isLiked: false,
+        })
+      );
+      setMajorEvents(transformedEvents);
 
-  const [localEvents, setLocalEvents] = React.useState<LocalEventData[]>([
-    {
-      id: "3",
-      title: "WebSummit - Day 1",
-      time: "10:00 AM - 3:30 PM",
-      venue: "MEO Arena",
-      imageUrl: "https://images.unsplash.com/photo-1540575467063-178a50c2df87",
-      isLiked: false,
-    },
-    {
-      id: "4",
-      title: "Startup Pitch Competition",
-      time: "2:00 PM - 5:00 PM",
-      venue: "FIL Convention Center",
-      imageUrl: "https://images.unsplash.com/photo-1475721027785-f74eccf877e2",
-      isLiked: true,
-    },
-    {
-      id: "5",
-      title: "Tech Networking Mixer",
-      time: "6:30 PM - 9:00 PM",
-      venue: "Rooftop Bar Silk Club",
-      imageUrl: "https://images.unsplash.com/photo-1511578314322-379afb476865",
-      isLiked: false,
-    },
-    {
-      id: "6",
-      title: "AI & Machine Learning Workshop",
-      time: "9:00 AM - 12:00 PM",
-      venue: "Lisbon Tech Hub",
-      imageUrl: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e",
-      isLiked: false,
-    },
-    {
-      id: "7",
-      title: "Digital Marketing Summit",
-      time: "1:00 PM - 6:00 PM",
-      venue: "Centro Cultural de Belém",
-      imageUrl: "https://images.unsplash.com/photo-1559223607-a43c990c692c",
-      isLiked: true,
-    },
-    {
-      id: "8",
-      title: "Blockchain & Crypto Meetup",
-      time: "7:00 PM - 10:00 PM",
-      venue: "Impact Hub Lisbon",
-      imageUrl: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0",
-      isLiked: false,
-    },
-  ]);
+      // Extract side events from all business events to create local events
+      const allSideEvents: LocalEventData[] = [];
+      businessEventsData.events.forEach((event) => {
+        if (event.sideEvents && Array.isArray(event.sideEvents)) {
+          event.sideEvents.forEach((sideEvent: any, index: number) => {
+            allSideEvents.push({
+              id: `${event.contentId}-side-${index}`,
+              title: sideEvent.title || sideEvent.name || "Local Event",
+              time: sideEvent.time || sideEvent.date || "Time TBD",
+              venue:
+                sideEvent.venue ||
+                sideEvent.location ||
+                event.addressShort ||
+                "Venue TBD",
+              imageUrl:
+                sideEvent.imageUrl ||
+                sideEvent.image ||
+                event.internalImageUrls?.[0],
+              isLiked: false,
+            });
+          });
+        }
+      });
+      // Group local events by date
+      const grouped = groupEventsByDate(allSideEvents);
+      setGroupedLocalEvents(grouped);
+    }
+  }, [businessEventsData]);
+
+  // Cleanup scroll listeners on unmount
+  useEffect(() => {
+    return () => {
+      scrollY.removeAllListeners();
+    };
+  }, [scrollY]);
+
+  const [groupedLocalEvents, setGroupedLocalEvents] = useState<
+    GroupedEvent<LocalEventData>[]
+  >([]);
 
   const handleBackPress = () => {
     router.back();
@@ -159,10 +175,13 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
   };
 
   const handleLocalEventLike = (event: LocalEventData) => {
-    setLocalEvents((prevEvents) =>
-      prevEvents.map((e) =>
-        e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
-      )
+    setGroupedLocalEvents((prevGrouped) =>
+      prevGrouped.map((group) => ({
+        ...group,
+        events: group.events.map((e) =>
+          e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
+        ),
+      }))
     );
   };
 
@@ -184,49 +203,74 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
     console.log("Map button pressed");
   };
 
+  // Scroll handlers for snap-to behavior
+  const handleScrollBeginDrag = useCallback(() => {
+    // Can be used for future scroll state tracking if needed
+  }, []);
+
+  const handleScrollEndDrag = useCallback(() => {
+    // Add listener to get current scroll value and handle snap
+    const listener = scrollY.addListener(({ value }) => {
+      // Define snap threshold for header hiding - much more responsive
+      const snapThreshold = 30; // Matches our new headerContainerOpacity range
+
+      if (value > 0 && value < snapThreshold) {
+        // Snap to hidden or visible based on scroll position
+        const targetValue = value > 15 ? snapThreshold : 0; // Snap at 15px midpoint
+        Animated.spring(scrollY, {
+          toValue: targetValue,
+          useNativeDriver: false,
+          tension: 200, // More responsive
+          friction: 12,
+        }).start();
+      }
+      // Remove listener after handling
+      scrollY.removeListener(listener);
+    });
+  }, [scrollY]);
+
   const HEADER_HEIGHT = verticalScale(200);
   const NAVBAR_HEIGHT = verticalScale(40);
-  const HEADER_SCROLL_DISTANCE = HEADER_HEIGHT - NAVBAR_HEIGHT;
   const NAVBAR_BACKGROUND_HEIGHT = insets.top + NAVBAR_HEIGHT;
 
-  // Header parallax effect - moves slower than scroll
+  // Header parallax effect - moves slower than scroll (rounded to avoid subpixel blurriness)
   const headerTranslateY = scrollY.interpolate({
     inputRange: [0, HEADER_HEIGHT],
-    outputRange: [0, -HEADER_HEIGHT / 3],
+    outputRange: [0, Math.round(-HEADER_HEIGHT / 3)],
     extrapolate: "clamp",
   });
 
-  // Background image opacity - fades more aggressively to prevent dark line
+  // Background image opacity - immediate fade for snap-to behavior
   const headerImageOpacity = scrollY.interpolate({
-    inputRange: [-50, 0, HEADER_HEIGHT * 0.2, HEADER_HEIGHT * 0.5],
-    outputRange: [0, 1, 0.3, 0],
+    inputRange: [-50, 0, 15, 30],
+    outputRange: [0, 1, 0.2, 0],
     extrapolate: "clamp",
   });
 
-  // Header container opacity - disappears completely when scrolled
+  // Header container opacity - immediate fade for snap-to behavior
   const headerContainerOpacity = scrollY.interpolate({
-    inputRange: [0, 50, 100],
-    outputRange: [1, 1, 0],
-    extrapolate: "clamp",
-  });
-
-  // Text slides up and fades
-  const headerTextTranslateY = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE],
-    outputRange: [0, -HEADER_SCROLL_DISTANCE],
-    extrapolate: "clamp",
-  });
-
-  const headerTextOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE * 0.7, HEADER_SCROLL_DISTANCE],
+    inputRange: [0, 15, 30],
     outputRange: [1, 0.3, 0],
     extrapolate: "clamp",
   });
 
-  // Scale effect for header image
+  // Text slides up and fades - more responsive (rounded to avoid subpixel blurriness)
+  const headerTextTranslateY = scrollY.interpolate({
+    inputRange: [0, 30],
+    outputRange: [0, -30],
+    extrapolate: "clamp",
+  });
+
+  const headerTextOpacity = scrollY.interpolate({
+    inputRange: [0, 15, 30],
+    outputRange: [1, 0.2, 0],
+    extrapolate: "clamp",
+  });
+
+  // Scale effect for header image (minimal to reduce blurriness)
   const headerImageScale = scrollY.interpolate({
     inputRange: [-100, 0, HEADER_HEIGHT],
-    outputRange: [1.3, 1, 1.1],
+    outputRange: [1.05, 1, 1.02],
     extrapolate: "clamp",
   });
 
@@ -239,26 +283,21 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
   const titleTransitionPoint =
     LOCAL_EVENTS_HEADER_POSITION - NAVBAR_HEIGHT - verticalScale(50);
 
-  // Sticky header opacity for Major events - smooth like business events
+  // Sticky header opacity for Major events - appear immediately when scrolling
   const majorEventsStickyOpacity =
     majorEvents.length > 0
       ? scrollY.interpolate({
-          inputRange: [
-            50,
-            100,
-            titleTransitionPoint - 50,
-            titleTransitionPoint,
-          ],
+          inputRange: [0, 10, titleTransitionPoint - 50, titleTransitionPoint],
           outputRange: [0, 1, 1, 0],
           extrapolate: "clamp",
         })
       : new Animated.Value(0);
 
-  // Sticky header opacity for Local events - smooth transition
+  // Sticky header opacity for Local events - appear immediately in its section
   const localEventsStickyOpacity = scrollY.interpolate({
     inputRange: [
       titleTransitionPoint,
-      titleTransitionPoint + 50,
+      titleTransitionPoint + 10,
       titleTransitionPoint + 1000, // Keep showing for a long scroll
     ],
     outputRange: [0, 1, 1],
@@ -277,14 +316,14 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
 
   // Icon opacity for white icons - sync with navbar background
   const whiteIconOpacity = scrollY.interpolate({
-    inputRange: [0, 40],
+    inputRange: [0, 25],
     outputRange: [1, 0],
     extrapolate: "clamp",
   });
 
   // Icon opacity for black icons - sync with navbar background
   const blackIconOpacity = scrollY.interpolate({
-    inputRange: [0, 40],
+    inputRange: [0, 25],
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
@@ -298,6 +337,30 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
     outputRange: [verticalScale(10), verticalScale(2)],
     extrapolate: "clamp",
   });
+
+  // Show full-screen loader while major events are loading
+  if (isBusinessEventsLoading && majorEvents.length === 0) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <StatusBar
+          translucent
+          backgroundColor="transparent"
+          barStyle="light-content"
+        />
+        <SafeAreaView style={styles.loadingContent}>
+          <TouchableOpacity
+            onPress={handleBackPress}
+            style={styles.loadingBackButton}
+          >
+            <BackSvg stroke={colors.label_dark} />
+          </TouchableOpacity>
+          <View style={styles.loadingCenter}>
+            <AnimatedLoader />
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -328,6 +391,7 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
               transform: [{ scale: headerImageScale }],
             },
           ]}
+          resizeMode="cover"
         />
 
         {/* Gradient Overlay */}
@@ -337,7 +401,7 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
             "rgba(236, 236, 236, 0.50)",
             "#FFF",
           ]}
-          locations={[0.1, 0.5089, 0.9089]}
+          locations={[0, 0.3089, 0.8089]}
           style={styles.headerGradient}
         />
 
@@ -361,7 +425,7 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
           </CustomText>
           <CustomText
             fontFamily="Inter-Bold"
-            style={[styles.headerTitle, { color: colors.light_blue }]}
+            style={[styles.headerTitle, { color: colors.label_dark }]}
           >
             {displayName}
           </CustomText>
@@ -376,8 +440,8 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
             styles.navBarBackground,
             {
               opacity: scrollY.interpolate({
-                inputRange: [0, 15, 40],
-                outputRange: [0, 0.7, 0.95],
+                inputRange: [0, 10, 25],
+                outputRange: [0, 0.8, 0.98],
                 extrapolate: "clamp",
               }),
               backgroundColor: "#fff",
@@ -450,16 +514,9 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
               </Animated.View>
             </View>
 
-            <View style={styles.navIcons}>
+            {/* <View style={styles.navIcons}>
               <TouchableOpacity style={styles.iconButton}>
                 <View style={{ position: "relative" }}>
-                  {/* White icon */}
-                  <Animated.View
-                    style={{ opacity: whiteIconOpacity, position: "absolute" }}
-                  >
-                    <Ionicons name="search" size={26} color="white" />
-                  </Animated.View>
-                  {/* Black icon */}
                   <Animated.View style={{ opacity: blackIconOpacity }}>
                     <Ionicons
                       name="search"
@@ -469,7 +526,7 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
                   </Animated.View>
                 </View>
               </TouchableOpacity>
-            </View>
+            </View> */}
           </Animated.View>
         </SafeAreaView>
       </View>
@@ -482,11 +539,15 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false }
         )}
+        onScrollBeginDrag={handleScrollBeginDrag}
+        onScrollEndDrag={handleScrollEndDrag}
         scrollEventThrottle={16}
         contentContainerStyle={styles.scrollContentContainer}
         bounces={false}
         overScrollMode="never"
         scrollEnabled={true}
+        removeClippedSubviews={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Header Spacer */}
         <View
@@ -495,8 +556,8 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
 
         {/* White background content area */}
         <View style={[styles.contentArea, { backgroundColor: "#ffffff" }]}>
-          {/* Major Events Section - Only render if there are events */}
-          {majorEvents.length > 0 && (
+          {/* Major Events Section - Show loading, events, or don't render if no data */}
+          {(isBusinessEventsLoading || majorEvents.length > 0) && (
             <View
               style={styles.section}
               onLayout={(event) => {
@@ -512,88 +573,119 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
               >
                 <SectionHeader
                   title="Major events"
-                  showViewAll={majorEvents.length >= 2}
-                  onViewAllPress={() => router.push("/worldwide-major-events")}
+                  showViewAll={false}
                   containerStyle={{ marginBottom: 0 }}
                 />
               </Animated.View>
 
-              <View style={styles.eventsGrid}>
-                {majorEvents.map((event) => (
-                  <MajorEventsCard
-                    key={event.id}
-                    event={event}
-                    onPress={handleEventPress}
-                    onLikePress={handleLikePress}
-                    style={styles.fullWidthCard}
-                    hasTabBar={false}
+              {/* Loading state or events grid */}
+              {isBusinessEventsLoading ? (
+                <View style={styles.loadingSection}>
+                  <AnimatedLoader
+                    customAnimationStyle={{ width: 80, height: 80 }}
                   />
-                ))}
-              </View>
+                </View>
+              ) : majorEvents.length > 0 ? (
+                <View style={styles.eventsGrid}>
+                  {majorEvents.map((event) => (
+                    <MajorEventsCard
+                      key={event.id}
+                      event={event}
+                      onPress={handleEventPress}
+                      onLikePress={handleLikePress}
+                      style={styles.fullWidthCard}
+                      hasTabBar={false}
+                    />
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptySection}>
+                  <CustomText
+                    style={[styles.emptyText, { color: colors.event_gray }]}
+                  >
+                    No major events found in this area
+                  </CustomText>
+                </View>
+              )}
             </View>
           )}
 
-          {/* Local Events Section */}
-          <View
-            style={[
-              styles.section,
-              {
-                marginTop:
-                  majorEvents.length > 0
-                    ? verticalScale(28)
-                    : verticalScale(10),
-                paddingTop: majorEvents.length > 0 ? 0 : verticalScale(15),
-              },
-            ]}
-            onLayout={(event) => {
-              const { height } = event.nativeEvent.layout;
-              setLocalEventsSectionHeight(height);
-            }}
-          >
-            <CustomText
-              fontFamily="Inter-Bold"
+          {/* Local Events Section - Only render if there are local events */}
+          {groupedLocalEvents.length > 0 && (
+            <View
               style={[
-                { fontSize: scaleFontSize(20) },
-                { color: colors.label_dark },
+                styles.section,
+                {
+                  marginTop:
+                    majorEvents.length > 0
+                      ? verticalScale(28)
+                      : verticalScale(10),
+                  paddingTop: majorEvents.length > 0 ? 0 : verticalScale(15),
+                },
               ]}
+              onLayout={(event) => {
+                const { height } = event.nativeEvent.layout;
+                setLocalEventsSectionHeight(height);
+              }}
             >
-              Local events
-            </CustomText>
-
-            <View style={styles.dateHeader}>
               <CustomText
-                fontFamily="Inter-SemiBold"
+                fontFamily="Inter-Bold"
                 style={[
-                  styles.dateText,
-                  { color: colors.onboarding_option_dark },
+                  { fontSize: scaleFontSize(20) },
+                  { color: colors.label_dark },
                 ]}
               >
-                September 2
+                Local events
               </CustomText>
-              <CustomText
-                style={[styles.dateSubtext, { color: colors.event_gray }]}
-              >
-                | Tomorrow
-              </CustomText>
-            </View>
 
-            <View style={styles.localEventsGrid}>
-              {localEvents.map((event) => (
-                <LocalEventCard
-                  key={event.id}
-                  event={event}
-                  onPress={handleLocalEventPress}
-                  onLikePress={handleLocalEventLike}
-                  hasTabBar={false}
-                />
+              {/* Render events grouped by date */}
+              {groupedLocalEvents.map((dateGroup, groupIndex) => (
+                <View
+                  key={dateGroup.date}
+                  style={{
+                    marginBottom:
+                      groupIndex < groupedLocalEvents.length - 1
+                        ? verticalScale(20)
+                        : 0,
+                  }}
+                >
+                  <View style={styles.dateHeader}>
+                    <CustomText
+                      fontFamily="Inter-SemiBold"
+                      style={[
+                        styles.dateText,
+                        { color: colors.onboarding_option_dark },
+                      ]}
+                    >
+                      {dateGroup.dateLabel}
+                    </CustomText>
+                    <CustomText
+                      style={[styles.dateSubtext, { color: colors.event_gray }]}
+                    >
+                      | {dateGroup.relativeLabel}
+                    </CustomText>
+                  </View>
+
+                  <View style={styles.localEventsGrid}>
+                    {dateGroup.events.map((event) => (
+                      <LocalEventCard
+                        key={event.id}
+                        event={event}
+                        onPress={handleLocalEventPress}
+                        onLikePress={handleLocalEventLike}
+                        hasTabBar={false}
+                      />
+                    ))}
+                  </View>
+                </View>
               ))}
             </View>
-          </View>
+          )}
         </View>
       </Animated.ScrollView>
 
       {/* Floating Map Button - Only show if there are events available */}
-      {(majorEvents.length > 0 || localEvents.length > 0) && (
+      {(majorEvents.length > 0 || groupedLocalEvents.length > 0) && (
         <FloatingMapButton onPress={handleMapPress} hasTabBar={false} />
       )}
     </View>
@@ -694,7 +786,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: verticalScale(25),
-    paddingBottom: verticalScale(110),
+    paddingBottom: verticalScale(80),
     minHeight: "100%",
   },
   headerSubtitle: {
@@ -719,8 +811,8 @@ const styles = StyleSheet.create({
   },
   fullWidthCard: {
     width: "100%",
-    height: verticalScale(100),
     marginRight: 0,
+    height: verticalScale(100),
   },
   localEventsGrid: {
     gap: verticalScale(10),
@@ -737,6 +829,36 @@ const styles = StyleSheet.create({
   },
   dateSubtext: {
     fontSize: scaleFontSize(14),
+  },
+  loadingSection: {
+    alignItems: "center",
+    paddingVertical: verticalScale(40),
+  },
+  emptySection: {
+    alignItems: "center",
+    paddingVertical: verticalScale(30),
+  },
+  emptyText: {
+    fontSize: scaleFontSize(14),
+    textAlign: "center",
+  },
+  loadingContainer: {
+    backgroundColor: "#fff",
+  },
+  loadingContent: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  loadingBackButton: {
+    position: "absolute",
+    top: verticalScale(10),
+    left: horizontalScale(24),
+    zIndex: 10,
+  },
+  loadingCenter: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 

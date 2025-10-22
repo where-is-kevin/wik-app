@@ -4,6 +4,8 @@ import LikeCard from "@/components/LikeComponent/LikeCard";
 import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { horizontalScale, verticalScale } from "@/utilities/scaling";
 
+// This will be defined after MasonryContainer interface
+
 export interface LikeItem {
   id: string;
   title: string | null;
@@ -31,6 +33,10 @@ interface MasonryGridProps {
   contentContainerStyle?: object;
   // Scroll direction tracking
   onScroll?: (event: any) => void;
+  onScrollBeginDrag?: () => void;
+  onScrollEndDrag?: () => void;
+  onMomentumScrollEnd?: () => void;
+  scrollEventThrottle?: number;
 }
 
 // Masonry container for true column layout
@@ -40,6 +46,8 @@ interface MasonryContainer {
   rightColumn: LikeItem[];
   showLoader: boolean;
 }
+
+// Use regular FlatList for simple scroll handling
 
 // Memoized card component to prevent unnecessary re-renders
 const MemoizedLikeCard = React.memo<{
@@ -64,6 +72,10 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
   showVerticalScrollIndicator = false,
   contentContainerStyle,
   onScroll,
+  onScrollBeginDrag,
+  onScrollEndDrag,
+  onMomentumScrollEnd,
+  scrollEventThrottle = 16,
 }) => {
   const flatListRef = useRef<FlatList>(null);
   const loadingRef = useRef(false);
@@ -168,8 +180,12 @@ const MasonryGrid: React.FC<MasonryGridProps> = ({
         showsVerticalScrollIndicator={showVerticalScrollIndicator}
         contentContainerStyle={[styles.contentContainer, contentContainerStyle]}
         onScroll={onScroll}
+        onScrollBeginDrag={onScrollBeginDrag}
+        onScrollEndDrag={onScrollEndDrag}
+        onMomentumScrollEnd={onMomentumScrollEnd}
+        scrollEventThrottle={scrollEventThrottle}
         // Performance optimizations
-        removeClippedSubviews={true}
+        removeClippedSubviews={false}
         maxToRenderPerBatch={1} // Only 1 container
         windowSize={5} // Keep small window since we have 1 large item
         initialNumToRender={1} // Start with 1 container

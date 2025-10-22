@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useCallback, useState } from "react";
+import React, { useRef, useCallback, useState, useMemo } from "react";
 import {
   StyleSheet,
   Dimensions,
@@ -6,8 +6,6 @@ import {
   View,
   Linking,
   FlatList,
-  Platform,
-  TouchableOpacity,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
@@ -38,24 +36,32 @@ import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBo
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import CategoryTag from "@/components/Tag/CategoryTag";
 import OptimizedImage from "@/components/OptimizedImage/OptimizedImage";
+import PinBucketSvg from "@/components/SvgComponents/PinBucketSvg";
+import ShareButton from "@/components/Button/ShareButton";
+import SendSvgSmall from "@/components/SvgComponents/SendSvgSmall";
 import { useAddLike } from "@/hooks/useLikes";
-import { useAddDislike } from "@/hooks/useDislikes";
 import { useQueryClient } from "@tanstack/react-query";
+import { FloatingHeartButton } from "@/components/FloatingHeartButton";
 import RatingStarSvg from "@/components/SvgComponents/RatingStarSvg";
-import MapView, { Marker } from "react-native-maps";
-import { formatSimilarity } from "@/utilities/formatSimilarity";
 import { formatDistance } from "@/utilities/formatDistance";
 import { shouldShowValidDistance } from "@/utilities/distanceHelpers";
-import { trimString, trimOrNull } from "@/utilities/stringHelpers";
-
-// Using SVG placeholder via OptimizedImage error handling
+import { trimString } from "@/utilities/stringHelpers";
+import {
+  formatEventDateRange,
+  formatEventTimeRange,
+  formatEventDateTime,
+  formatPrice,
+} from "@/utilities/eventHelpers";
+import { LocationSection } from "@/components/EventDetails/LocationSection";
+import { BookingSection } from "@/components/EventDetails/BookingSection";
+import { HostSection } from "@/components/EventDetails/HostSection";
+import { TagsSection } from "@/components/EventDetails/TagsSection";
+import { openOnMap } from "@/utilities/mapHelpers";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
-interface EventDetailsScreenProps {}
-
-const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
+const EventDetailsScreen: React.FC = () => {
   const { colors } = useTheme();
   const { userLocation } = useUserLocation();
   const router = useRouter();
@@ -68,10 +74,7 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   // Fetch content data using the eventId
   const { data: contentData, isLoading, error } = useContentById(eventId);
   const addLikeMutation = useAddLike();
-  const addDislikeMutation = useAddDislike();
   const queryClient = useQueryClient();
-  const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
-  const jwt = authData?.accessToken || null;
 
   // Image carousel state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -111,13 +114,13 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
   const createBucketMutation = useCreateBucket();
 
   // Handle sheet changes
-  const handleSheetChanges = useCallback((index: number) => {
+  const handleSheetChanges = useCallback((_index: number) => {
     // Optional: Add any logic when sheet changes
   }, []);
 
   // Fixed handleLikePress function with correct query key
   const handleLikePress = useCallback(() => {
-    if (!contentData || contentData.userDisliked) return;
+    if (!contentData) return;
 
     const likeData = {
       contentIds: [eventId],
@@ -148,41 +151,6 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
     });
   }, [contentData, eventId, addLikeMutation, queryClient]);
 
-  // Fixed handleDislikePress function with correct query key
-  const handleDislikePress = useCallback(() => {
-    if (!contentData || contentData.userDisliked) return;
-
-    const dislikeData = {
-      contentIds: [eventId],
-    };
-
-    addDislikeMutation.mutate(dislikeData, {
-      onSuccess: () => {
-        // Update the correct query key that matches useContentById
-        queryClient.setQueryData(
-          ["content", "byId", eventId], // ✅ This matches your hook's query key
-          (oldData: any) => {
-            if (oldData) {
-              return {
-                ...oldData,
-                userDisliked: true,
-                userLiked: false, // Remove like when disliking
-              };
-            }
-            return oldData;
-          }
-        );
-
-        // Invalidate the list queries to force fresh data
-        queryClient
-          .invalidateQueries({ queryKey: ["content", "basic"] })
-          .then(() => router.back());
-      },
-      onError: (error) => {
-        console.error("Failed to add dislike:", error);
-      },
-    });
-  }, [contentData, eventId, addDislikeMutation, queryClient, router]);
   // Handle three dots button press
   const handleMoreOptionsPress = () => {
     if (contentData?.websiteUrl) {
@@ -207,13 +175,13 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
     return ["https://example.com/nonexistent-image.jpg"];
   };
 
-  const images = useMemo(() => getImages(), [contentData]);
+  const images = getImages();
 
   // Handle image scroll
   const onImageScroll = (event: any) => {
     const slideSize = event.nativeEvent.layoutMeasurement.width;
-    const index = Math.floor(event.nativeEvent.contentOffset.x / slideSize);
-    setCurrentImageIndex(index);
+    const _index = Math.floor(event.nativeEvent.contentOffset.x / slideSize);
+    setCurrentImageIndex(_index);
   };
 
   // Render image item
@@ -255,8 +223,8 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
         setSelectedItemId(null);
 
         // console.log(`Successfully added item to bucket "${item.title}"`);
-      } catch (error) {
-        // console.error("Failed to add item to bucket:", error);
+      } catch {
+        // Handle error silently
       }
     }
   };
@@ -281,121 +249,20 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
         setIsCreateBucketBottomSheetVisible(false);
         setSelectedItemId(null);
         // console.log(`Successfully created bucket "${bucketName}"`);
-      } catch (error) {
-        // console.error("Failed to create bucket:", error);
+      } catch {
+        // Handle error silently
       }
     }
   };
 
-  // Helper function to format price
-  const formatPrice = (price: number | string | null) => {
-    if (price === null || price === undefined) return "Price on request";
-    if (typeof price === "string") return price; // Already formatted
-    return `€${price}`;
-  };
-
-  // Helper function to extract coordinates from Google Maps URL
-  const extractCoordinatesFromUrl = (url: string) => {
-    const coordsMatch = url.match(/query=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
-    if (coordsMatch && coordsMatch[1] && coordsMatch[2]) {
-      return {
-        latitude: parseFloat(coordsMatch[1]),
-        longitude: parseFloat(coordsMatch[2]),
-      };
-    }
-    // Fallback - return Lisbon coordinates if extraction fails
-    return {
-      latitude: 38.7223,
-      longitude: -9.1393,
-    };
-  };
-
-  const openOnMap = async () => {
-    if (!contentData?.googleMapsUrl) {
-      console.log("No Google Maps URL available for this item");
-      return;
-    }
-
-    console.log("Original URL:", contentData.googleMapsUrl);
-
-    // Extract coordinates from the URL
-    const coordsMatch = contentData.googleMapsUrl.match(
-      /query=(-?\d+\.?\d*),(-?\d+\.?\d*)/
-    );
-
-    if (coordsMatch && coordsMatch[1] && coordsMatch[2]) {
-      const lat = coordsMatch[1];
-      const lng = coordsMatch[2];
-      console.log("Extracted coordinates:", lat, lng);
-
-      if (Platform.OS === "ios") {
-        // For iOS, try Apple Maps first with location name - prefer title (venue name)
-        const locationName =
-          trimString(contentData.title) ||
-          trimString(contentData.addressShort) ||
-          trimString(contentData.address) ||
-          "Location";
-
-        const encodedLocationName = encodeURIComponent(locationName);
-        const appleMapsUrls = [
-          `maps://?q=${encodedLocationName}&ll=${lat},${lng}`,
-          `http://maps.apple.com/?q=${encodedLocationName}&ll=${lat},${lng}`,
-        ];
-
-        for (const url of appleMapsUrls) {
-          try {
-            const canOpen = await Linking.canOpenURL(url);
-            if (canOpen) {
-              await Linking.openURL(url);
-              console.log("Successfully opened Apple Maps");
-              return;
-            }
-          } catch (error) {
-            console.log("Apple Maps failed:", error);
-          }
-        }
-
-        // Fallback to Google Maps
-        try {
-          const googleUrl = `https://maps.google.com/?q=${encodedLocationName}&ll=${lat},${lng}`;
-          await Linking.openURL(googleUrl);
-          console.log("Opened Google Maps web fallback");
-        } catch (error) {
-          console.error("All map options failed:", error);
-        }
-      } else {
-        // For Android, use geo intent with location name - prefer title (venue name)
-        const locationName =
-          trimString(contentData.title) ||
-          trimString(contentData.addressShort) ||
-          trimString(contentData.address) ||
-          "Location";
-
-        const encodedLocationName = encodeURIComponent(locationName);
-        const androidUrls = [
-          `geo:${lat},${lng}?q=${lat},${lng}(${locationName})`,
-          `https://maps.google.com/?q=${encodedLocationName}&ll=${lat},${lng}`,
-          `geo:0,0?q=${lat},${lng}(${locationName})`,
-        ];
-
-        for (const url of androidUrls) {
-          try {
-            await Linking.openURL(url);
-            console.log("Successfully opened maps on Android:", url);
-            return;
-          } catch (error) {
-            console.log("Android map URL failed:", url, error);
-          }
-        }
-      }
-    } else {
-      // If coordinate extraction fails, try the original URL
-      console.log("Could not extract coordinates, trying original URL");
-      try {
-        await Linking.openURL(contentData.googleMapsUrl);
-      } catch (error) {
-        console.error("Failed to open original URL:", error);
-      }
+  const handleOpenOnMap = () => {
+    if (contentData?.googleMapsUrl) {
+      openOnMap(
+        contentData.googleMapsUrl,
+        contentData.title,
+        contentData.addressShort,
+        contentData.address
+      );
     }
   };
 
@@ -475,7 +342,38 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
               { backgroundColor: colors.overlay },
             ]}
           >
-            <BackHeader transparent={true} />
+            <View style={styles.headerWithButtons}>
+              <View style={styles.backButtonWrapper}>
+                <BackHeader transparent={true} />
+              </View>
+
+              {/* Pin and Share buttons */}
+              <View style={styles.headerRightButtons}>
+                <CustomTouchable
+                  style={styles.headerButton}
+                  bgColor={colors.lime}
+                  onPress={handleShowBucketBottomSheet}
+                >
+                  <PinBucketSvg />
+                </CustomTouchable>
+
+                <CustomTouchable
+                  bgColor={colors.lime}
+                  style={styles.headerButton}
+                >
+                  <ShareButton
+                    title={contentData?.title || "Event"}
+                    message={`Check out this event: ${
+                      contentData?.title || "Event"
+                    }`}
+                    url={contentData?.contentShareUrl || ""}
+                    IconComponent={() => (
+                      <SendSvgSmall width={18} height={18} stroke="#000" />
+                    )}
+                  />
+                </CustomTouchable>
+              </View>
+            </View>
           </SafeAreaView>
 
           {/* Image Indicators - Now positioned relative to image container */}
@@ -553,18 +451,16 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                 </CustomView> */}
               </CustomView>
 
-              {/* Title Section */}
-              <CustomView style={styles.titleSection}>
-                <CustomTouchable onPress={handleMoreOptionsPress}>
-                  <CustomText
-                    fontFamily="Inter-SemiBold"
-                    style={[styles.title, { color: colors.label_dark }]}
-                  >
-                    {trimString(contentData.title) || "Unknown"}
-                  </CustomText>
-                </CustomTouchable>
+              {/* Main Info Section */}
+              <CustomView style={styles.section}>
+                <CustomText
+                  fontFamily="Inter-SemiBold"
+                  style={[styles.title, { color: colors.label_dark }]}
+                >
+                  {trimString(contentData.title) || "Unknown"}
+                </CustomText>
 
-                {/* Similarity Display */}
+                {/* Match percentage */}
                 {/* {contentData?.similarity != null &&
                   typeof contentData.similarity === "number" && (
                     <View style={styles.matchContainer}>
@@ -572,137 +468,243 @@ const EventDetailsScreen: React.FC<EventDetailsScreenProps> = () => {
                         fontFamily="Inter-SemiBold"
                         style={[
                           styles.similarityText,
-                          { color: colors.event_gray },
+                          { color: colors.gray_regular },
                         ]}
                       >
                         {formatSimilarity(contentData.similarity)}
                       </CustomText>
                       <CustomText
                         fontFamily="Inter-SemiBold"
-                        style={[styles.matchText, { color: colors.event_gray }]}
+                        style={[
+                          styles.matchText,
+                          { color: colors.gray_regular },
+                        ]}
                       >
-                        match
+                        {" match"}
                       </CustomText>
                     </View>
                   )} */}
 
-                {/* Rating, Price, Distance Display - Match Swipe Cards */}
-                <View style={styles.infoRow}>
-                  {contentData?.rating && (
-                    <View style={styles.ratingContainer}>
-                      <RatingStarSvg stroke="#4A4A4F" fill="#4A4A4F" />
+                {/* City and Country OR Event Dates */}
+                {contentData?.category === "event" ||
+                contentData?.category === "events"
+                  ? // For events: Show event date range and times
+                    (contentData?.eventDatetimeStart ||
+                      contentData?.eventDatetimeEnd) && (
+                      <View style={styles.locationContainer}>
+                        {/* Event Date Range */}
+                        <CustomText
+                          fontFamily="Inter-Medium"
+                          style={[
+                            styles.locationText,
+                            { color: colors.label_dark },
+                          ]}
+                        >
+                          {formatEventDateRange(
+                            contentData.eventDatetimeStart || undefined,
+                            contentData.eventDatetimeEnd || undefined
+                          )}
+                        </CustomText>
+                        {/* Event Time Range */}
+                        <CustomText
+                          fontFamily="Inter-Regular"
+                          style={[styles.eventTimeText, { color: "#6F6F76" }]}
+                        >
+                          {formatEventTimeRange(
+                            contentData.eventDatetimeStart || undefined,
+                            contentData.eventDatetimeEnd || undefined
+                          )}
+                        </CustomText>
+                      </View>
+                    )
+                  : // For venues/experiences: Show city and country
+                    (contentData?.addressCity ||
+                      contentData?.addressCountry) && (
+                      <View style={styles.locationContainer}>
+                        <CustomText
+                          fontFamily="Inter-Medium"
+                          style={[
+                            styles.locationText,
+                            { color: colors.label_dark },
+                          ]}
+                        >
+                          {[contentData.addressCity, contentData.addressCountry]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </CustomText>
+                      </View>
+                    )}
+
+                {/* Event date and time - Only show for non-events */}
+                {!(
+                  contentData?.category === "event" ||
+                  contentData?.category === "events"
+                ) &&
+                  (contentData?.eventDatetimeStart ||
+                    contentData?.eventDatetimeEnd) && (
+                    <View style={styles.dateTimeContainer}>
                       <CustomText
                         fontFamily="Inter-Medium"
-                        style={[styles.infoText, { color: "#4A4A4F" }]}
+                        style={[
+                          styles.dateTimeText,
+                          { color: colors.gray_regular },
+                        ]}
                       >
-                        {contentData.rating}
+                        {formatEventDateTime(
+                          contentData.eventDatetimeStart || undefined,
+                          contentData.eventDatetimeEnd || undefined
+                        )}
                       </CustomText>
                     </View>
                   )}
 
-                  {contentData?.rating &&
-                    (shouldShowValidDistance(contentData?.distance, userLocation) || contentData?.price) && (
-                      <View style={styles.dotSeparator}>
-                        <View
-                          style={[styles.dot, { backgroundColor: "#4A4A4F" }]}
+                {/* Rating, Price, Distance - Only show for non-events */}
+                {!(
+                  contentData?.category === "event" ||
+                  contentData?.category === "events"
+                ) && (
+                  <View style={styles.infoRow}>
+                    {contentData?.rating && (
+                      <View style={styles.ratingContainer}>
+                        <RatingStarSvg
+                          stroke={colors.gray_regular}
+                          fill={colors.gray_regular}
                         />
+                        <CustomText
+                          fontFamily="Inter-Medium"
+                          style={[
+                            styles.infoText,
+                            { color: colors.gray_regular },
+                          ]}
+                        >
+                          {contentData.rating}
+                        </CustomText>
                       </View>
                     )}
 
-                  {shouldShowValidDistance(contentData?.distance, userLocation) && (
+                    {contentData?.rating &&
+                      (shouldShowValidDistance(
+                        contentData?.distance,
+                        userLocation
+                      ) ||
+                        contentData?.price) && (
+                        <View style={styles.dotSeparator}>
+                          <View
+                            style={[
+                              styles.dot,
+                              { backgroundColor: colors.gray_regular },
+                            ]}
+                          />
+                        </View>
+                      )}
+
+                    {shouldShowValidDistance(
+                      contentData?.distance,
+                      userLocation
+                    ) && (
                       <CustomText
                         fontFamily="Inter-Medium"
-                        style={[styles.infoText, { color: "#4A4A4F" }]}
+                        style={[
+                          styles.infoText,
+                          { color: colors.gray_regular },
+                        ]}
                       >
                         {formatDistance(contentData.distance!)}
                       </CustomText>
                     )}
 
-                  {shouldShowValidDistance(contentData?.distance, userLocation) &&
-                    contentData?.price != null && (
-                      <View style={styles.dotSeparator}>
-                        <View
-                          style={[styles.dot, { backgroundColor: "#4A4A4F" }]}
-                        />
-                      </View>
-                    )}
+                    {shouldShowValidDistance(
+                      contentData?.distance,
+                      userLocation
+                    ) &&
+                      contentData?.price != null && (
+                        <View style={styles.dotSeparator}>
+                          <View
+                            style={[
+                              styles.dot,
+                              { backgroundColor: colors.gray_regular },
+                            ]}
+                          />
+                        </View>
+                      )}
 
-                  {contentData?.price != null && (
-                    <CustomText
-                      fontFamily="Inter-Medium"
-                      style={[styles.infoText, { color: "#4A4A4F" }]}
-                    >
-                      {formatPrice(contentData.price)}
-                    </CustomText>
-                  )}
-                </View>
+                    {contentData?.price != null && (
+                      <CustomText
+                        fontFamily="Inter-Medium"
+                        style={[
+                          styles.infoText,
+                          { color: colors.gray_regular },
+                        ]}
+                      >
+                        {formatPrice(contentData.price)}
+                      </CustomText>
+                    )}
+                  </View>
+                )}
               </CustomView>
 
               {/* About Section */}
-              <CustomView style={styles.aboutSection}>
-                <CustomText
-                  fontFamily="Inter-SemiBold"
-                  style={[styles.aboutTitle, { color: colors.label_dark }]}
-                >
-                  About
-                </CustomText>
-                <CustomText
-                  style={[styles.aboutText, { color: colors.gray_regular }]}
-                >
-                  {trimString(contentData.description) ||
-                    "No description available."}
-                </CustomText>
-              </CustomView>
-
-              {/* Location Section with Map */}
-              {contentData?.googleMapsUrl && (
-                <CustomView style={styles.locationSection}>
-                  <CustomText
-                    fontFamily="Inter-SemiBold"
-                    style={[styles.locationTitle, { color: colors.label_dark }]}
-                  >
-                    Location
-                  </CustomText>
-                  <View style={styles.mapContainer}>
-                    <MapView
-                      style={styles.map}
-                      initialRegion={{
-                        ...extractCoordinatesFromUrl(contentData.googleMapsUrl),
-                        latitudeDelta: 0.01,
-                        longitudeDelta: 0.01,
-                      }}
-                      scrollEnabled={false}
-                      zoomEnabled={false}
-                      pitchEnabled={false}
-                      rotateEnabled={false}
-                      mapType="standard"
+              {contentData?.description &&
+                trimString(contentData.description) && (
+                  <CustomView style={styles.section}>
+                    <CustomText
+                      fontFamily="Inter-SemiBold"
+                      style={[
+                        styles.sectionTitle,
+                        { color: colors.label_dark },
+                      ]}
                     >
-                      <Marker
-                        coordinate={extractCoordinatesFromUrl(
-                          contentData.googleMapsUrl
-                        )}
-                        title={
-                          trimString(contentData.title) ||
-                          trimString(contentData.address) ||
-                          trimString(contentData.category) ||
-                          "Location"
-                        }
-                      />
-                    </MapView>
-                    <TouchableOpacity
-                      style={styles.mapOverlay}
-                      onPress={openOnMap}
-                      activeOpacity={0.7}
-                    />
-                  </View>
-                </CustomView>
+                      About
+                    </CustomText>
+                    <View style={styles.sectionDivider} />
+                    <CustomText
+                      style={[
+                        styles.sectionText,
+                        { color: colors.onboarding_option_dark },
+                      ]}
+                    >
+                      {trimString(contentData.description)}
+                    </CustomText>
+                  </CustomView>
+                )}
+
+              {/* Location Section */}
+              {contentData?.googleMapsUrl && (
+                <LocationSection
+                  googleMapsUrl={contentData.googleMapsUrl}
+                  address={contentData.address}
+                  addressShort={contentData.addressShort}
+                  addressCity={contentData.addressCity}
+                  addressCountry={contentData.addressCountry}
+                  title={contentData.title}
+                  category={contentData.category}
+                  onMapPress={handleOpenOnMap}
+                />
               )}
+
+              {/* Booking Section */}
+              <BookingSection
+                websiteUrl={contentData?.websiteUrl}
+                phone={contentData?.phone}
+              />
+
+              {/* Hosts Section */}
+              <HostSection host={contentData?.host} />
+
+              {/* Tags Section */}
+              <TagsSection tags={contentData?.tags} />
 
               {/* Add bottom padding to account for fixed buttons */}
               <View style={{ height: verticalScale(80) }} />
             </CustomView>
           </BottomSheetScrollView>
         </BottomSheet>
+
+        {/* Floating Heart Button */}
+        <FloatingHeartButton
+          isLiked={contentData?.userLiked || false}
+          onPress={handleLikePress}
+        />
 
         {/* Fixed Bottom Action Bar - Always Visible */}
       </CustomView>
@@ -753,6 +755,7 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
     backgroundColor: "transparent",
+    justifyContent: "center", // Center the content vertically
   },
   imageIndicators: {
     position: "absolute",
@@ -828,33 +831,12 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
   },
-  matchContainer: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    marginTop: verticalScale(4),
-  },
-  similarityText: {
-    fontSize: scaleFontSize(24),
-  },
-  matchText: {
-    fontSize: scaleFontSize(12),
-    marginLeft: horizontalScale(4),
-  },
   locationSection: {
     marginBottom: verticalScale(20),
   },
   locationTitle: {
     fontSize: scaleFontSize(14),
     marginBottom: verticalScale(12),
-  },
-  mapContainer: {
-    height: verticalScale(160),
-    borderRadius: 12,
-    overflow: "hidden",
-    position: "relative",
-  },
-  map: {
-    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -864,13 +846,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: scaleFontSize(16),
-  },
-  mapOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
   },
   priceText: {
     fontSize: scaleFontSize(24),
@@ -884,6 +859,7 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: scaleFontSize(14),
+    lineHeight: 17.453,
   },
   contactButton: {
     marginBottom: verticalScale(4),
@@ -956,8 +932,74 @@ const styles = StyleSheet.create({
     fontSize: scaleFontSize(15),
   },
   moreIcon: {
-    fontSize: 18,
+    fontSize: scaleFontSize(18),
     fontWeight: "bold",
+  },
+  headerWithButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: verticalScale(10),
+    paddingRight: horizontalScale(24),
+  },
+  headerRightButtons: {
+    flexDirection: "row",
+    gap: horizontalScale(8),
+    alignItems: "center", // Ensure buttons are centered vertically
+  },
+  headerButton: {
+    width: 35,
+    height: 35,
+    borderRadius: 23.375,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  backButtonWrapper: {
+    marginTop: -verticalScale(10), // Counteract BackHeader's built-in marginTop
+  },
+  // New section styles
+  section: {
+    paddingVertical: verticalScale(16),
+  },
+  sectionDivider: {
+    height: 0.5,
+    backgroundColor: "#D6D6D9",
+    marginTop: verticalScale(10),
+    marginBottom: verticalScale(14),
+  },
+  sectionTitle: {
+    fontSize: scaleFontSize(14),
+  },
+  sectionText: {
+    fontSize: scaleFontSize(14),
+    lineHeight: 24,
+  },
+  matchContainer: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginTop: verticalScale(4),
+  },
+  similarityText: {
+    fontSize: scaleFontSize(24),
+  },
+  matchText: {
+    fontSize: scaleFontSize(12),
+    marginLeft: horizontalScale(4),
+  },
+  dateTimeContainer: {
+    marginTop: verticalScale(8),
+  },
+  dateTimeText: {
+    fontSize: scaleFontSize(14),
+  },
+  locationContainer: {
+    marginTop: verticalScale(4),
+  },
+  eventTimeText: {
+    fontSize: scaleFontSize(14),
+    lineHeight: 17.453,
+    letterSpacing: 0.14,
+    marginTop: verticalScale(4),
   },
 });
 

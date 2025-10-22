@@ -62,7 +62,11 @@ export const HeartButton: React.FC<HeartButtonProps> = ({
     // Flying heart animation only when liking (not unliking)
     if (!isLiked && showFlyingAnimation) {
       // Show toast message when liking
-      showToast("Interested! Finding you recommendations nearby.", "success", hasTabBar);
+      showToast(
+        "Liked! Finding you similar suggestions nearby.",
+        "success",
+        hasTabBar
+      );
 
       // Reset flying heart position
       flyingHeartY.setValue(0);

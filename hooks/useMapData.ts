@@ -58,7 +58,7 @@ export const hasLocation = (
   );
 };
 
-export const useMapData = (source: string, searchQuery: string, bucketId?: string, type?: "leisure" | "business", locationParams?: { latitude?: number; longitude?: number }) => {
+export const useMapData = (source: string, searchQuery: string, bucketId?: string, type?: "leisure" | "business", locationParams?: { latitude?: number; longitude?: number }, customData?: string) => {
   const { location } = useLocation();
 
   // Use appropriate data hook based on source
@@ -117,6 +117,25 @@ export const useMapData = (source: string, searchQuery: string, bucketId?: strin
             } as SearchContent)
         );
       }
+      case "custom": {
+        // Handle custom data passed from navigation (e.g., side events)
+        if (!customData) return [];
+        try {
+          const parsedData = JSON.parse(customData);
+          return parsedData.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            address: item.address,
+            imageUrl: item.imageUrl,
+            latitude: item.latitude,
+            longitude: item.longitude,
+            ...item.originalData,
+          } as ContentItem));
+        } catch (error) {
+          console.error("Failed to parse custom data:", error);
+          return [];
+        }
+      }
       case "likes":
       default: {
         const likesItems =
@@ -135,6 +154,7 @@ export const useMapData = (source: string, searchQuery: string, bucketId?: strin
     bucketsQuery.data,
     singleBucketQuery.data,
     contentQuery.data,
+    customData,
   ]);
 
   const isLoading = React.useMemo(() => {
@@ -145,6 +165,8 @@ export const useMapData = (source: string, searchQuery: string, bucketId?: strin
         return bucketsQuery.isLoading;
       case "content":
         return contentQuery.isLoading;
+      case "custom":
+        return false; // Custom data is synchronous
       case "likes":
       default:
         return likesQuery.isLoading;
@@ -165,6 +187,8 @@ export const useMapData = (source: string, searchQuery: string, bucketId?: strin
         return bucketsQuery.isError;
       case "content":
         return contentQuery.isError;
+      case "custom":
+        return false; // Custom data doesn't have error states
       case "likes":
       default:
         return likesQuery.isError;

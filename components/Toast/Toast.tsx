@@ -2,9 +2,15 @@ import React, { useEffect, useRef } from "react";
 import { Animated, StyleSheet, Platform, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { scaleFontSize, verticalScale } from "@/utilities/scaling";
+import {
+  horizontalScale,
+  scaleFontSize,
+  verticalScale,
+} from "@/utilities/scaling";
 import CustomText from "../CustomText";
 import SuccessToastSvg from "../SvgComponents/SuccessToastSvg";
+import { useTheme } from "@/contexts/ThemeContext";
+import HeartFullSvg from "../SvgComponents/HeartFullSvg";
 
 interface ToastProps {
   visible: boolean;
@@ -26,6 +32,7 @@ const Toast: React.FC<ToastProps> = ({
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(50)).current;
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
 
   // Calculate bottom position like FloatingMapButton
   const getBottomPosition = () => {
@@ -99,7 +106,7 @@ const Toast: React.FC<ToastProps> = ({
   const getIcon = () => {
     switch (type) {
       case "success":
-        return <SuccessToastSvg />;
+        return <HeartFullSvg />;
       case "error":
         return <Ionicons name="close-circle" size={24} color="#000" />;
       case "info":
@@ -126,7 +133,9 @@ const Toast: React.FC<ToastProps> = ({
         activeOpacity={0.9}
       >
         {getIcon()}
-        <CustomText style={styles.message}>{message}</CustomText>
+        <CustomText style={[styles.message, { color: colors.label_dark }]}>
+          {message}
+        </CustomText>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -141,9 +150,9 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
   toast: {
-    backgroundColor: "#CCFF3A",
-    paddingVertical: 10,
-    paddingHorizontal: 8,
+    backgroundColor: "#FFF",
+    paddingVertical: verticalScale(10),
+    paddingHorizontal: 10,
     borderRadius: 8,
     flexDirection: "row",
     alignItems: "center",
@@ -157,7 +166,7 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
       },
       android: {
-        elevation: 8,
+        elevation: 4,
       },
     }),
   },

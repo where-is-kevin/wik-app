@@ -60,7 +60,9 @@ export const LocalEventCard: React.FC<LocalEventCardProps> = ({
         end={{ x: 1, y: 1 }}
         style={styles.borderGradient}
       >
-        <View style={[styles.backgroundGradient, { backgroundColor: "#0B2E34" }]}>
+        <View
+          style={[styles.backgroundGradient, { backgroundColor: "#0B2E34" }]}
+        >
           {/* Heart button */}
           {onLikePress && (
             <View style={styles.heartContainer}>
@@ -117,6 +119,8 @@ export const LocalEventCard: React.FC<LocalEventCardProps> = ({
                   />
                   <CustomText
                     style={[styles.detailText, { color: colors.text_white }]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
                   >
                     {event.venue}
                   </CustomText>
@@ -184,5 +188,6 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: scaleFontSize(14),
+    flex: 1,
   },
 });
