@@ -229,6 +229,9 @@ const SwipeableCards = () => {
       };
 
       addLikeMutation.mutate(likeData, {
+        onSuccess: () => {
+          // Cache invalidation handled automatically by useAddLike hook
+        },
         onError: () => {
           showToast("Failed to save your interest", "error");
         },
@@ -323,6 +326,14 @@ const SwipeableCards = () => {
 
         addLikeMutation.mutate(likeData, {
           onSuccess: () => {
+            // Invalidate all queries to ensure fresh data across all screens
+            queryClient.invalidateQueries({
+              queryKey: ["businessEvents"],
+              exact: false,
+            });
+            queryClient.invalidateQueries({
+              queryKey: ["content", "basic"]
+            });
             showToast("Saved to your likes", "success");
           },
           onError: () => {

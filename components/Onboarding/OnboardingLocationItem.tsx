@@ -19,12 +19,14 @@ interface OnboardingLocationItemProps {
   location: LocationData;
   onPress: (location: LocationData) => void;
   searchTerm?: string;
+  isCurrentlySelected?: boolean;
 }
 
 export const OnboardingLocationItem: React.FC<OnboardingLocationItemProps> = ({
   location,
   onPress,
   searchTerm,
+  isCurrentlySelected = false,
 }) => {
   const { colors } = useTheme();
 
@@ -34,7 +36,7 @@ export const OnboardingLocationItem: React.FC<OnboardingLocationItemProps> = ({
       <CustomView style={styles.headerContainer}>
         <CustomText
           fontFamily="Inter-SemiBold"
-          style={[styles.headerText, { color: colors.event_gray }]}
+          style={[styles.headerText, { color: colors.gray_regular }]}
         >
           {location.name}
         </CustomText>
@@ -58,7 +60,10 @@ export const OnboardingLocationItem: React.FC<OnboardingLocationItemProps> = ({
         >
           <LocationPinSvg />
         </CustomView>
-        <CustomText style={[styles.locationText, { color: colors.label_dark }]}>
+        <CustomText
+          fontFamily={isCurrentlySelected ? "Inter-SemiBold" : "Inter-Regular"}
+          style={[styles.locationText, { color: colors.label_dark }]}
+        >
           Current Location
         </CustomText>
       </TouchableOpacity>
@@ -71,6 +76,7 @@ export const OnboardingLocationItem: React.FC<OnboardingLocationItemProps> = ({
     if (!searchTerm || searchTerm.length === 0) {
       return (
         <CustomText
+          fontFamily={isCurrentlySelected ? "Inter-SemiBold" : "Inter-Regular"}
           style={[styles.locationText, { color: colors.label_dark }]}
           numberOfLines={1}
           ellipsizeMode="tail"
@@ -94,11 +100,12 @@ export const OnboardingLocationItem: React.FC<OnboardingLocationItemProps> = ({
       >
         {parts.map((part, index) => {
           const isHighlight = regex.test(part);
+          const baseFontFamily = isCurrentlySelected
+            ? "Inter-SemiBold"
+            : "Inter-Regular";
+          const fontFamily = isHighlight ? "Inter-Bold" : baseFontFamily;
           return (
-            <CustomText
-              fontFamily={isHighlight ? "Inter-Bold" : "Inter-Regular"}
-              key={index}
-            >
+            <CustomText fontFamily={fontFamily} key={index}>
               {part}
             </CustomText>
           );
@@ -141,7 +148,7 @@ const styles = StyleSheet.create({
     // paddingBottom: verticalScale(8),
   },
   headerText: {
-    fontSize: scaleFontSize(15),
+    fontSize: scaleFontSize(14),
   },
   iconContainer: {
     paddingHorizontal: 10,

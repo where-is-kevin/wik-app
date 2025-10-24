@@ -163,6 +163,7 @@ const AskKevinSection = ({
               styles.input,
               Platform.OS === "android" && styles.androidInput,
             ]}
+            autoCorrect={false}
             placeholder="Ask Kevin..."
             placeholderTextColor={colors.profile_name_black}
             value={input}

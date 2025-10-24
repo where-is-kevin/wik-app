@@ -74,11 +74,12 @@ export const MajorEventsCard: React.FC<MajorEventsCardProps> = ({
         {/* Linear gradient overlay */}
         <LinearGradient
           colors={[
-            "rgba(217, 217, 217, 0)",
-            "rgba(11, 46, 52, 0.6)",
-            "#0B2E34",
+            "rgba(242, 242, 243, 0)",
+            "rgba(130, 130, 131, 0.5)",
+            "rgba(75, 75, 76, 0.7)",
+            "#131314",
           ]}
-          locations={[0, 0.5, 1]}
+          locations={[0, 0.25, 0.5, 0.9]}
           style={styles.gradientOverlay}
         >
           <View style={styles.contentContainer}>
@@ -100,6 +101,8 @@ export const MajorEventsCard: React.FC<MajorEventsCardProps> = ({
             {/* Location and count */}
             <CustomText
               style={[styles.locationText, { color: colors.text_white }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {event.location && event.location.trim() !== ""
                 ? `${event.location} ${

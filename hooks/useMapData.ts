@@ -3,6 +3,7 @@ import { useLikes } from "@/hooks/useLikes";
 import { useBuckets, useBucketById } from "@/hooks/useBuckets";
 import { useInfiniteContent } from "@/hooks/useContent";
 import { useLocation } from "@/contexts/LocationContext";
+import { useNearbyBusinessEvents, useWorldwideBusinessEvents, useBusinessEventById } from "@/hooks/useBusinessEvents";
 
 // Type definitions for different data sources
 export type LikesContent = {
@@ -58,7 +59,7 @@ export const hasLocation = (
   );
 };
 
-export const useMapData = (source: string, searchQuery: string, bucketId?: string, type?: "leisure" | "business", locationParams?: { latitude?: number; longitude?: number }, customData?: string) => {
+export const useMapData = (source: string, searchQuery: string, bucketId?: string, type?: "leisure" | "business" | "nearby" | "worldwide" | "details", locationParams?: { latitude?: number; longitude?: number }, customData?: string, eventId?: string) => {
   const { location } = useLocation();
 
   // Use appropriate data hook based on source
@@ -73,8 +74,28 @@ export const useMapData = (source: string, searchQuery: string, bucketId?: strin
     query: searchQuery,
     enabled: source === "content",
     ...locationParams, // Use the location params from UserLocationContext
-    type: type,
+    type: type === "leisure" || type === "business" ? type : undefined,
   });
+
+  // Business events queries - use conditional params to avoid calling both
+  const shouldFetchNearby = source === "business" && type === "nearby";
+  const shouldFetchWorldwide = source === "business" && type === "worldwide";
+  const shouldFetchDetails = source === "business" && type === "details" && !!eventId;
+
+  const nearbyBusinessEventsQuery = useNearbyBusinessEvents(
+    100, // radius_km
+    20,  // limit
+    shouldFetchNearby
+  );
+  const worldwideBusinessEventsQuery = useWorldwideBusinessEvents(
+    20, // limit
+    shouldFetchWorldwide
+  );
+  const businessEventByIdQuery = useBusinessEventById(
+    eventId || "",
+    shouldFetchDetails
+  );
+
 
   const data = React.useMemo(() => {
     switch (source) {
@@ -117,6 +138,104 @@ export const useMapData = (source: string, searchQuery: string, bucketId?: strin
             } as SearchContent)
         );
       }
+      case "business": {
+        // Handle business events data based on type
+        if (type === "nearby" && nearbyBusinessEventsQuery.data) {
+          // Combine both events and localEvents from the API response and deduplicate
+          const events = nearbyBusinessEventsQuery.data.events || [];
+          const localEvents = nearbyBusinessEventsQuery.data.localEvents || [];
+
+          // Create a Map to deduplicate by ID
+          const eventMap = new Map();
+
+          // Add events first
+          events.forEach((event: any) => {
+            const id = event.id || event.contentId;
+            if (id) eventMap.set(id, event);
+          });
+
+          // Add localEvents, but don't overwrite existing events
+          localEvents.forEach((event: any) => {
+            const id = event.id || event.contentId;
+            if (id && !eventMap.has(id)) eventMap.set(id, event);
+          });
+
+          const allEvents = Array.from(eventMap.values());
+          return allEvents.map((event: any) => ({
+            id: event.id || event.contentId || "",
+            title: event.title || event.name || "",
+            address: event.addressShort || event.addressLong || "",
+            internalImageUrls: event.internalImageUrls || (event.imageUrl ? [event.imageUrl] : []),
+            latitude: event.latitude,
+            longitude: event.longitude,
+            // Include additional business event fields
+            description: event.description,
+            eventDatetimeStart: event.eventDatetimeStart,
+            eventDatetimeEnd: event.eventDatetimeEnd,
+            isLiked: event.userLiked || false,
+            category: event.category,
+            rating: event.rating,
+            price: event.price,
+          } as ContentItem));
+        } else if (type === "worldwide" && worldwideBusinessEventsQuery.data) {
+          // Combine both events and localEvents from the API response and deduplicate
+          const events = worldwideBusinessEventsQuery.data.events || [];
+          const localEvents = worldwideBusinessEventsQuery.data.localEvents || [];
+
+          // Create a Map to deduplicate by ID
+          const eventMap = new Map();
+
+          // Add events first
+          events.forEach((event: any) => {
+            const id = event.id || event.contentId;
+            if (id) eventMap.set(id, event);
+          });
+
+          // Add localEvents, but don't overwrite existing events
+          localEvents.forEach((event: any) => {
+            const id = event.id || event.contentId;
+            if (id && !eventMap.has(id)) eventMap.set(id, event);
+          });
+
+          const allEvents = Array.from(eventMap.values());
+          return allEvents.map((event: any) => ({
+            id: event.id || event.contentId || "",
+            title: event.title || event.name || "",
+            address: event.addressShort || event.addressLong || "",
+            internalImageUrls: event.internalImageUrls || (event.imageUrl ? [event.imageUrl] : []),
+            latitude: event.latitude,
+            longitude: event.longitude,
+            // Include additional business event fields
+            description: event.description,
+            eventDatetimeStart: event.eventDatetimeStart,
+            eventDatetimeEnd: event.eventDatetimeEnd,
+            isLiked: event.userLiked || false,
+            category: event.category,
+            rating: event.rating,
+            price: event.price,
+          } as ContentItem));
+        } else if (type === "details" && businessEventByIdQuery.data) {
+          // For business event details, show the side events
+          const sideEvents = businessEventByIdQuery.data.sideEvents || [];
+          return sideEvents.map((event: any) => ({
+            id: event.id || event.contentId || "",
+            title: event.title || event.name || "",
+            address: event.addressShort || event.addressLong || "",
+            internalImageUrls: event.internalImageUrls || (event.imageUrl ? [event.imageUrl] : []),
+            latitude: event.latitude,
+            longitude: event.longitude,
+            // Include additional business event fields
+            description: event.description,
+            eventDatetimeStart: event.eventDatetimeStart,
+            eventDatetimeEnd: event.eventDatetimeEnd,
+            isLiked: event.userLiked || false,
+            category: event.category,
+            rating: event.rating,
+            price: event.price,
+          } as ContentItem));
+        }
+        return [];
+      }
       case "custom": {
         // Handle custom data passed from navigation (e.g., side events)
         if (!customData) return [];
@@ -150,10 +269,14 @@ export const useMapData = (source: string, searchQuery: string, bucketId?: strin
     }
   }, [
     source,
+    type,
     likesQuery.data,
     bucketsQuery.data,
     singleBucketQuery.data,
     contentQuery.data,
+    nearbyBusinessEventsQuery.data,
+    worldwideBusinessEventsQuery.data,
+    businessEventByIdQuery.data,
     customData,
   ]);
 
@@ -165,6 +288,11 @@ export const useMapData = (source: string, searchQuery: string, bucketId?: strin
         return bucketsQuery.isLoading;
       case "content":
         return contentQuery.isLoading;
+      case "business":
+        if (type === "nearby") return nearbyBusinessEventsQuery.isLoading;
+        if (type === "worldwide") return worldwideBusinessEventsQuery.isLoading;
+        if (type === "details") return businessEventByIdQuery.isLoading;
+        return false;
       case "custom":
         return false; // Custom data is synchronous
       case "likes":
@@ -173,10 +301,14 @@ export const useMapData = (source: string, searchQuery: string, bucketId?: strin
     }
   }, [
     source,
+    type,
     likesQuery.isLoading,
     bucketsQuery.isLoading,
     singleBucketQuery.isLoading,
     contentQuery.isLoading,
+    nearbyBusinessEventsQuery.isLoading,
+    worldwideBusinessEventsQuery.isLoading,
+    businessEventByIdQuery.isLoading,
   ]);
 
   const isError = React.useMemo(() => {
@@ -187,6 +319,11 @@ export const useMapData = (source: string, searchQuery: string, bucketId?: strin
         return bucketsQuery.isError;
       case "content":
         return contentQuery.isError;
+      case "business":
+        if (type === "nearby") return nearbyBusinessEventsQuery.isError;
+        if (type === "worldwide") return worldwideBusinessEventsQuery.isError;
+        if (type === "details") return businessEventByIdQuery.isError;
+        return false;
       case "custom":
         return false; // Custom data doesn't have error states
       case "likes":
@@ -195,10 +332,14 @@ export const useMapData = (source: string, searchQuery: string, bucketId?: strin
     }
   }, [
     source,
+    type,
     likesQuery.isError,
     bucketsQuery.isError,
     singleBucketQuery.isError,
     contentQuery.isError,
+    nearbyBusinessEventsQuery.isError,
+    worldwideBusinessEventsQuery.isError,
+    businessEventByIdQuery.isError,
   ]);
 
   const userLocation = React.useMemo(() => {

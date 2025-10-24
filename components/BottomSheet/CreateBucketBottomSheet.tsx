@@ -2,6 +2,7 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { StyleSheet } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useToast } from "@/contexts/ToastContext";
 import CustomText from "@/components/CustomText";
 import CustomView from "@/components/CustomView";
 import { scaleFontSize, verticalScale } from "@/utilities/scaling";
@@ -27,6 +28,7 @@ const CreateBucketBottomSheetComponent: React.FC<
 > = ({ isVisible, onClose, onCreateBucket, isLoading = false }) => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { showToast } = useToast();
   const [bucketName, setBucketName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
@@ -60,17 +62,24 @@ const CreateBucketBottomSheetComponent: React.FC<
       try {
         await onCreateBucket(bucketName.trim());
         setBucketName(""); // Clear input after successful creation
+        showToast("Bucket created successfully", "success", false);
         // Small delay to ensure state updates complete before parent closes modal
         setTimeout(() => {
           setIsCreating(false);
         }, 100);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error creating bucket:", error);
         setIsCreating(false);
-        // You might want to show an error message to the user here
+        // Extract specific error message from API response
+        const errorMessage = error?.detail ||
+                            error?.message ||
+                            error?.response?.detail ||
+                            error?.response?.message ||
+                            "Failed to create bucket";
+        showToast(errorMessage, "error", false);
       }
     }
-  }, [bucketName, onCreateBucket]);
+  }, [bucketName, onCreateBucket, showToast]);
 
   const handleClose = useCallback(() => {
     if (!isCreating) {

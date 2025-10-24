@@ -74,7 +74,7 @@ export const MajorEventsSection: React.FC<MajorEventsSectionProps> = ({
               fontFamily="Inter-SemiBold"
               style={[styles.viewAllText, { color: colors.light_blue }]}
             >
-              View all events
+              View all
             </CustomText>
           </TouchableOpacity>
         )}
@@ -82,7 +82,11 @@ export const MajorEventsSection: React.FC<MajorEventsSectionProps> = ({
 
       {/* Horizontal scrolling events, loading state, or no data message */}
       <View style={styles.contentContainer}>
-        {events.length > 0 ? (
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <AnimatedLoader customAnimationStyle={{ width: 80, height: 80 }} />
+          </View>
+        ) : events.length > 0 ? (
           <FlatList
             data={events}
             renderItem={renderEventCard}
@@ -92,11 +96,7 @@ export const MajorEventsSection: React.FC<MajorEventsSectionProps> = ({
             contentContainerStyle={styles.listContainer}
             style={styles.flatList}
           />
-        ) : !isSuccess ? (
-          <View style={styles.loadingContainer}>
-            <AnimatedLoader customAnimationStyle={{ width: 80, height: 80 }} />
-          </View>
-        ) : (
+        ) : isSuccess ? (
           <View style={styles.noDataContainer}>
             <CustomText
               fontFamily="Inter-SemiBold"
@@ -112,6 +112,10 @@ export const MajorEventsSection: React.FC<MajorEventsSectionProps> = ({
             >
               Change filter to see events
             </CustomText>
+          </View>
+        ) : (
+          <View style={styles.loadingContainer}>
+            <AnimatedLoader customAnimationStyle={{ width: 80, height: 80 }} />
           </View>
         )}
       </View>

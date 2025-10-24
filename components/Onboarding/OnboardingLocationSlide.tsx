@@ -119,7 +119,7 @@ export const OnboardingLocationSlide: React.FC<
         />
 
         {/* Selected Location Display */}
-        {selectedLocation && (
+        {/* {selectedLocation && (
           <CustomView style={styles.selectedLocationContainer}>
             <CustomText
               style={[styles.selectedLabel, { color: colors.gray_regular }]}
@@ -131,10 +131,9 @@ export const OnboardingLocationSlide: React.FC<
               onPress={handleLocationPress}
             />
           </CustomView>
-        )}
+        )} */}
 
-        {/* Location Results - Only show if no location is selected */}
-        {!selectedLocation && (
+        {/* Location Results */}
           <ScrollView
             style={styles.resultsContainer}
             showsVerticalScrollIndicator={false}
@@ -221,7 +220,6 @@ export const OnboardingLocationSlide: React.FC<
               </CustomView>
             )}
           </ScrollView>
-        )}
       </CustomView>
     </TouchableWithoutFeedback>
   );

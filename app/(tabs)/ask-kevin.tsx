@@ -9,7 +9,13 @@ import { useToast } from "@/contexts/ToastContext";
 import ModeHeader from "@/components/Header/ModeHeader";
 import FloatingMapButton from "@/components/FloatingMapButton";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import { StyleSheet } from "react-native";
 import Animated, {
   useSharedValue,
@@ -232,36 +238,41 @@ const PaginatedContentList = () => {
   });
 
   // Get all items - memoized for performance
-  const allItems = useMemo(() =>
-    data?.pages.flatMap((page) => page.items) ?? [], [data?.pages]);
+  const allItems = useMemo(
+    () => data?.pages.flatMap((page) => page.items) ?? [],
+    [data?.pages]
+  );
 
   // Transform data for MasonryGrid - memoized for performance
-  const transformedData: LikeItem[] = useMemo(() =>
-    allItems.map((item, index) => ({
-      id: item.id,
-      title: item.title,
-      category: item.category,
-      foodImage: item.internalImageUrls?.[0] || "", // Empty string will show SVG placeholder
-      landscapeImage: "",
-      hasIcon: true,
-      contentShareUrl: item.contentShareUrl,
-      height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall",
-    })), [allItems]);
+  const transformedData: LikeItem[] = useMemo(
+    () =>
+      allItems.map((item, index) => ({
+        id: item.id,
+        title: item.title,
+        category: item.category,
+        foodImage: item.internalImageUrls?.[0] || "", // Empty string will show SVG placeholder
+        landscapeImage: "",
+        hasIcon: true,
+        contentShareUrl: item.contentShareUrl,
+        height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall",
+      })),
+    [allItems]
+  );
 
   // State for event type selection (nearby vs worldwide)
   const [selectedEventType, setSelectedEventType] = useState<
     "nearby" | "worldwide"
-  >("worldwide");
+  >("nearby");
 
   // Use configurable hook that responds to selectedEventType changes
   const {
     data: businessEventsData,
     isLoading: isBusinessEventsLoading,
-    isSuccess: isBusinessEventsSuccess
+    isSuccess: isBusinessEventsSuccess,
   } = useConfigurableBusinessEvents(selectedEventType, {
-      limit: 5,
-      radiusKm: 50,
-    });
+    limit: 5,
+    radiusKm: 100,
+  });
 
   // Transform API data to MajorEventData format and manage state
   const [majorEvents, setMajorEvents] = useState<MajorEventData[]>([]);
@@ -273,13 +284,13 @@ const PaginatedContentList = () => {
     return businessEventsData.events
       .slice(0, 5) // Limit to maximum 5 events
       .map((event: BusinessEvent) => ({
-        id: event.contentId,
-        title: event.name,
-        location: event.addressShort || "",
+        id: event.id || event.contentId || "",
+        title: event.title || event.name || "",
+        location: event.addressShort || event.addressLong || "",
         dateRange: formatBusinessEventDateRange(event),
         eventCount: `${event.sideEventCount}+ Events`,
-        imageUrl: event.internalImageUrls?.[0] || undefined,
-        isLiked: false,
+        imageUrl: event.imageUrl || event.internalImageUrls?.[0] || undefined,
+        isLiked: event.userLiked || false,
       }));
   }, [businessEventsData?.events]);
 
@@ -447,7 +458,6 @@ const PaginatedContentList = () => {
     [addLikeMutation, showToast]
   );
 
-
   // === CLEANUP ===
   useEffect(() => {
     return () => {
@@ -461,7 +471,10 @@ const PaginatedContentList = () => {
   // Loading state - show full screen loader for initial load of content and major events
   const isInitialLoading =
     (isLoading && allItems.length === 0) ||
-    (shouldShowMajorEvents && isBusinessEventsLoading && majorEvents.length === 0 && allItems.length === 0);
+    (shouldShowMajorEvents &&
+      isBusinessEventsLoading &&
+      majorEvents.length === 0 &&
+      allItems.length === 0);
 
   if (isInitialLoading) {
     return (
@@ -492,24 +505,41 @@ const PaginatedContentList = () => {
   // Error state
   if (isError) {
     return (
-      <CustomView bgColor={colors.background} style={styles.container}>
-        <AskKevinSection
-          onSend={handleSend}
-          onInputChange={handleInputChange}
-          onClear={handleClear}
-          value={searchQuery}
-        />
-        <ErrorScreen
-          title="Failed to load content"
-          message={error?.message || "Please try again"}
-          onRetry={() => refetch()}
-        />
+      <>
+        <StatusBar style="dark" />
+        <CustomView bgColor={colors.background} style={styles.container}>
+          {/* Fixed header for both modes */}
+          <CustomView
+            style={[
+              styles.headerContainer,
+              { backgroundColor: colors.background },
+            ]}
+          >
+            <ModeHeader />
+            <AskKevinSection
+              onSend={handleSend}
+              onInputChange={handleInputChange}
+              onClear={handleClear}
+              value={searchQuery}
+            />
+          </CustomView>
 
-        {/* Floating Map Button - Only show if there's data available */}
-        {transformedData.length > 0 && (
-          <FloatingMapButton onPress={handleOpenMap} hasTabBar={true} />
-        )}
-      </CustomView>
+          {/* Error content */}
+          <CustomView style={styles.contentContainer}>
+            <ErrorScreen
+              title="Failed to load content"
+              message="Please check your connection and try again"
+              buttonText="Try Again"
+              onRetry={() => refetch()}
+            />
+          </CustomView>
+
+          {/* Floating Map Button - Only show if there's data available */}
+          {transformedData.length > 0 && (
+            <FloatingMapButton onPress={handleOpenMap} hasTabBar={true} />
+          )}
+        </CustomView>
+      </>
     );
   }
 

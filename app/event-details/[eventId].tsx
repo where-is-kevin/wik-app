@@ -142,8 +142,7 @@ const EventDetailsScreen: React.FC = () => {
           }
         );
 
-        // Invalidate the list queries to force fresh data
-        queryClient.invalidateQueries({ queryKey: ["content", "basic"] });
+        // Cache invalidation handled automatically by useAddLike hook
       },
       onError: (error) => {
         console.error("Failed to add like:", error);

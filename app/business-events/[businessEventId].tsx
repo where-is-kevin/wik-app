@@ -30,7 +30,9 @@ import BackSvg from "@/components/SvgComponents/BackSvg";
 import PinBucketSvg from "@/components/SvgComponents/PinBucketSvg";
 import ShareButton from "@/components/Button/ShareButton";
 import SendSvgSmall from "@/components/SvgComponents/SendSvgSmall";
-import { OptimizedImageBackground } from "@/components/OptimizedImage/OptimizedImage";
+import OptimizedImage, {
+  OptimizedImageBackground,
+} from "@/components/OptimizedImage/OptimizedImage";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import {
   BucketBottomSheet,
@@ -44,8 +46,10 @@ import * as Haptics from "expo-haptics";
 import { useBusinessEventById } from "@/hooks/useBusinessEvents";
 import { formatBusinessEventDateRange } from "@/utilities/eventHelpers";
 import { useAddLike } from "@/hooks/useLikes";
+import { useQueryClient } from "@tanstack/react-query";
 import LocationPinSvg from "@/components/SvgComponents/LocationPinSvg";
 import CalendarSvg from "@/components/SvgComponents/CalendarSvg";
+import { ErrorScreen } from "@/components/ErrorScreen/ErrorScreen";
 
 // Helper function to format event time
 const formatEventTime = (startDate?: string, endDate?: string) => {
@@ -129,34 +133,34 @@ const BusinessEventDetailsScreen = () => {
   const router = useRouter();
   const scrollY = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const { businessEventId } = useLocalSearchParams<{
     businessEventId: string;
   }>();
 
   // Fetch real business event data (businessEventId is actually the contentId)
-  const { data: eventData, isLoading } = useBusinessEventById(
-    businessEventId || ""
-  );
-
-  // Track liked state for side events
-  const [likedEvents, setLikedEvents] = React.useState<Set<string>>(new Set());
+  const {
+    data: eventData,
+    isLoading,
+    error,
+  } = useBusinessEventById(businessEventId || "");
 
   // Transform side events from API to LocalEventData format
   const sideEvents = React.useMemo(() => {
     if (!eventData?.sideEvents) return [];
 
     return eventData.sideEvents.map((sideEvent) => ({
-      id: sideEvent.contentId,
-      title: sideEvent.name,
+      id: sideEvent.id || sideEvent.contentId || '',
+      title: sideEvent.title || sideEvent.name || '',
       time: formatEventTime(
-        sideEvent.eventDatetimeStart,
-        sideEvent.eventDatetimeEnd
+        sideEvent.eventDatetimeStart || undefined,
+        sideEvent.eventDatetimeEnd || undefined
       ),
       venue: sideEvent.addressShort || sideEvent.addressLong || "",
       imageUrl: sideEvent.internalImageUrls?.[0] || "",
-      isLiked: likedEvents.has(sideEvent.contentId),
+      isLiked: sideEvent.userLiked || false,
     }));
-  }, [eventData?.sideEvents, likedEvents]);
+  }, [eventData?.sideEvents]);
 
   // Group side events by date
   const groupedSideEvents = React.useMemo(() => {
@@ -171,7 +175,7 @@ const BusinessEventDetailsScreen = () => {
     sideEvents.forEach((event) => {
       // Find the original side event to get the start date
       const originalEvent = eventData?.sideEvents?.find(
-        (e) => e.contentId === event.id
+        (e) => (e.id || e.contentId) === event.id
       );
       if (!originalEvent?.eventDatetimeStart) return;
 
@@ -210,8 +214,15 @@ const BusinessEventDetailsScreen = () => {
   // Mutation hook for likes
   const addLikeMutation = useAddLike();
 
-  // State for interested button
+  // Initialize interested state from API userLiked
   const [isInterested, setIsInterested] = useState(false);
+
+  // Sync isInterested with API userLiked when eventData changes
+  useEffect(() => {
+    if (eventData?.userLiked !== undefined) {
+      setIsInterested(eventData.userLiked);
+    }
+  }, [eventData?.userLiked]);
 
   const handleBackPress = () => {
     router.back();
@@ -292,6 +303,8 @@ const BusinessEventDetailsScreen = () => {
 
     addLikeMutation.mutate(likeData, {
       onSuccess: () => {
+        // Cache invalidation handled automatically by useAddLike hook
+
         if (!isInterested) {
           showToast(
             "Interested! Finding you recommendations nearby.",
@@ -310,44 +323,8 @@ const BusinessEventDetailsScreen = () => {
   };
 
   const handleMapPress = () => {
-    // Navigate to map screen with side events data
-    const sideEventsWithLocation = eventData?.sideEvents?.filter(event =>
-      event.addressLong || event.addressShort
-    ) || [];
-
-    if (sideEventsWithLocation.length > 0) {
-      // Transform side events to map data format and pass through navigation state
-      const sideEventsData = sideEventsWithLocation.map(event => ({
-        id: event.contentId,
-        title: event.name,
-        // For now, we'll use the address as a fallback since we don't have lat/lng
-        address: event.addressLong || event.addressShort,
-        imageUrl: event.internalImageUrls?.[0] || "",
-        // We'll need to geocode these addresses on the map screen
-        latitude: undefined,
-        longitude: undefined,
-        originalData: event,
-      }));
-
-      router.push({
-        pathname: "/map-screen",
-        params: {
-          source: "custom",
-          type: "business",
-          customData: JSON.stringify(sideEventsData),
-          title: `${eventData?.eventTitle || eventData?.name} - Side Events`,
-        }
-      });
-    } else {
-      // Fallback to general map view
-      router.push({
-        pathname: "/map-screen",
-        params: {
-          source: "content",
-          type: "business",
-        }
-      });
-    }
+    // Navigate to map screen with business events for this specific event
+    router.push(`/map-screen?source=business&type=details&eventId=${businessEventId}`);
   };
 
   const handleLocalEventPress = (event: LocalEventData) => {
@@ -356,15 +333,19 @@ const BusinessEventDetailsScreen = () => {
   };
 
   const handleLocalEventLike = (event: LocalEventData) => {
-    // Toggle liked status for the event
-    setLikedEvents((prevLiked) => {
-      const newLiked = new Set(prevLiked);
-      if (newLiked.has(event.id)) {
-        newLiked.delete(event.id);
-      } else {
-        newLiked.add(event.id);
-      }
-      return newLiked;
+    const likeData = {
+      contentIds: [event.id],
+    };
+
+    // Make API call to like/unlike the side event
+    addLikeMutation.mutate(likeData, {
+      onSuccess: () => {
+        // Cache invalidation handled automatically by useAddLike hook
+      },
+      onError: (error) => {
+        console.error("Failed to like side event:", error);
+        showToast("Failed to save your interest", "error");
+      },
     });
   };
 
@@ -415,15 +396,85 @@ const BusinessEventDetailsScreen = () => {
     );
   }
 
+  // Show error state for API failures
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <StatusBar
+          translucent
+          backgroundColor="transparent"
+          barStyle="light-content"
+        />
+
+        {/* Fixed Navigation Bar for Error State */}
+        <View style={styles.fixedNavBar}>
+          <View
+            style={[
+              styles.navBarBackground,
+              { backgroundColor: "#fff", opacity: 1 },
+            ]}
+          />
+          <SafeAreaView style={styles.navContainer}>
+            <View style={[styles.navBar, { paddingTop: verticalScale(6) }]}>
+              <TouchableOpacity
+                onPress={handleBackPress}
+                style={styles.backButton}
+              >
+                <BackSvg stroke="#000" width={17} height={27} />
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </View>
+
+        <View style={styles.errorContentContainer}>
+          <ErrorScreen
+            title="Failed to load business event"
+            message="Please check your connection and try again"
+            buttonText="Go Back"
+            onRetry={handleBackPress}
+          />
+        </View>
+      </View>
+    );
+  }
+
   if (!eventData) {
     return (
-      <View
-        style={[
-          styles.container,
-          { justifyContent: "center", alignItems: "center" },
-        ]}
-      >
-        <CustomText>Event not found</CustomText>
+      <View style={styles.container}>
+        <StatusBar
+          translucent
+          backgroundColor="transparent"
+          barStyle="light-content"
+        />
+
+        {/* Fixed Navigation Bar for Error State */}
+        <View style={styles.fixedNavBar}>
+          <View
+            style={[
+              styles.navBarBackground,
+              { backgroundColor: "#fff", opacity: 1 },
+            ]}
+          />
+          <SafeAreaView style={styles.navContainer}>
+            <View style={[styles.navBar, { paddingTop: verticalScale(6) }]}>
+              <TouchableOpacity
+                onPress={handleBackPress}
+                style={styles.backButton}
+              >
+                <BackSvg stroke="#000" width={17} height={27} />
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </View>
+
+        <View style={styles.errorContentContainer}>
+          <ErrorScreen
+            title="Business event not found"
+            message="This event may have been removed or doesn't exist"
+            buttonText="Go Back"
+            onRetry={handleBackPress}
+          />
+        </View>
       </View>
     );
   }
@@ -512,6 +563,7 @@ const BusinessEventDetailsScreen = () => {
           {
             transform: [{ translateY: headerTranslateY }],
             opacity: headerContainerOpacity,
+            height: verticalScale(264) + +insets.top,
           },
         ]}
         pointerEvents="none"
@@ -523,6 +575,7 @@ const BusinessEventDetailsScreen = () => {
             {
               opacity: headerImageOpacity,
               transform: [{ scale: headerImageScale }],
+              height: verticalScale(250) + +insets.top,
             },
           ]}
         >
@@ -536,7 +589,7 @@ const BusinessEventDetailsScreen = () => {
                   }
                 : ""
             }
-            style={{ width: "100%", height: "100%" }}
+            style={{ height: verticalScale(250) + insets.top }}
             contentFit="cover"
             showLoadingIndicator={true}
             showErrorFallback={true}
@@ -564,23 +617,16 @@ const BusinessEventDetailsScreen = () => {
             },
           ]}
         >
-          {(eventData.logoImage || eventData.coverImage) && (
+          {eventData.logoImage && (
             <View style={styles.logoContainer}>
-              <OptimizedImageBackground
-                source={
-                  eventData.logoImage || eventData.coverImage
-                    ? {
-                        uri: (eventData.logoImage ||
-                          eventData.coverImage)!.startsWith("http")
-                          ? (eventData.logoImage || eventData.coverImage)!
-                          : `https://wik-general-api-beta-408585232460.europe-west4.run.app/uploads/${
-                              eventData.logoImage || eventData.coverImage
-                            }`,
-                      }
-                    : ""
-                }
+              <OptimizedImage
+                source={{
+                  uri: eventData.logoImage.startsWith("http")
+                    ? eventData.logoImage
+                    : `https://wik-general-api-beta-408585232460.europe-west4.run.app/uploads/${eventData.logoImage}`,
+                }}
                 style={styles.logoImage}
-                contentFit="contain"
+                contentFit="cover"
                 showLoadingIndicator={true}
                 showErrorFallback={true}
               />
@@ -763,7 +809,12 @@ const BusinessEventDetailsScreen = () => {
         scrollEnabled={true}
       >
         {/* Header Spacer */}
-        <View style={styles.headerSpacer} />
+        <View
+          style={[
+            styles.headerSpacer,
+            { height: verticalScale(220) + insets.top },
+          ]}
+        />
 
         {/* Content Area */}
         <View style={styles.contentArea}>
@@ -903,12 +954,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: horizontalScale(24),
+  },
+  errorContentContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: horizontalScale(24),
+    marginTop: verticalScale(60), // Account for the fixed nav bar
+  },
   animatedHeader: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: verticalScale(240),
+    height: verticalScale(264), // Container height as specified
     zIndex: 1,
   },
   fixedNavBar: {
@@ -930,8 +994,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    width: "100%",
-    height: 250,
+    height: verticalScale(250), // Fixed height as specified
     resizeMode: "cover",
   },
   headerGradient: {
@@ -958,10 +1021,14 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     marginBottom: verticalScale(15),
+    width: 70,
+    height: 70,
   },
   logoImage: {
     width: 70,
     height: 70,
+    borderRadius: 12,
+    overflow: "hidden", // Ensure border radius is visible
   },
   eventSubtitle: {
     fontSize: scaleFontSize(16),

@@ -22,31 +22,46 @@ export const formatBusinessEventDateRange = (
 
   if (!startDate) return fallback;
 
-  const start = new Date(startDate);
-  const formatOptions: Intl.DateTimeFormatOptions = {
-    month: "short",
-    day: "numeric",
-  };
+  try {
+    const start = new Date(startDate);
 
-  if (includeWeekday) formatOptions.weekday = "short";
-  if (includeYear) formatOptions.year = "numeric";
-
-  const startFormatted = start.toLocaleDateString("en-US", formatOptions);
-
-  if (endDate) {
-    const end = new Date(endDate);
-
-    // If same day, show just one date
-    if (start.toDateString() === end.toDateString()) {
-      return startFormatted;
+    // Check if the date is valid
+    if (isNaN(start.getTime())) {
+      return fallback;
     }
 
-    // If different days, show range
-    const endFormatted = end.toLocaleDateString("en-US", formatOptions);
-    return `${startFormatted} - ${endFormatted}`;
-  }
+    const formatOptions: Intl.DateTimeFormatOptions = {
+      month: "short",
+      day: "numeric",
+    };
 
-  return startFormatted;
+    if (includeWeekday) formatOptions.weekday = "short";
+    if (includeYear) formatOptions.year = "numeric";
+
+    const startFormatted = start.toLocaleDateString("en-US", formatOptions);
+
+    if (endDate) {
+      const end = new Date(endDate);
+
+      // Check if end date is valid
+      if (isNaN(end.getTime())) {
+        return startFormatted; // Return just start date if end date is invalid
+      }
+
+      // If same day, show just one date
+      if (start.toDateString() === end.toDateString()) {
+        return startFormatted;
+      }
+
+      // If different days, show range
+      const endFormatted = end.toLocaleDateString("en-US", formatOptions);
+      return `${startFormatted} - ${endFormatted}`;
+    }
+
+    return startFormatted;
+  } catch (error) {
+    return fallback;
+  }
 };
 
 // Format event date range to "Sep 15, 2025 - Sep 19, 2025"
@@ -272,15 +287,20 @@ export const groupEventsByDate = <T extends { time?: string; date?: string }>(
 
   // Group events by date
   const groupedMap = events.reduce((acc, event) => {
-    // Try to extract date from time field first, then date field
-    const dateString = event.time || event.date;
+    // Try to extract date from date field first (raw ISO), then time field (formatted)
+    const dateString = event.date || event.time;
     if (!dateString) return acc;
 
     let dateKey: string;
     try {
       const eventDate = new Date(dateString);
-      // Use ISO date string as key (YYYY-MM-DD)
-      dateKey = eventDate.toISOString().split('T')[0];
+      // Check if the date is valid
+      if (isNaN(eventDate.getTime())) {
+        dateKey = "invalid-date";
+      } else {
+        // Use ISO date string as key (YYYY-MM-DD)
+        dateKey = eventDate.toISOString().split('T')[0];
+      }
     } catch (error) {
       // If parsing fails, use the original string as key
       dateKey = dateString.split(' ')[0] || dateString;
@@ -296,22 +316,29 @@ export const groupEventsByDate = <T extends { time?: string; date?: string }>(
   // Convert to array and sort by date
   const grouped = Object.entries(groupedMap).map(([dateKey, events]) => {
     const firstEvent = events[0];
-    const dateString = firstEvent.time || firstEvent.date || '';
+    const dateString = firstEvent.date || firstEvent.time || '';
 
     let date: Date;
     try {
       date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        date = new Date(); // fallback to today
+      }
     } catch (error) {
       date = new Date(); // fallback to today
     }
 
+    const dateLabel = date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    });
+
+    const relativeLabel = getRelativeDateLabel(dateString);
+
     return {
       date: dateKey,
-      dateLabel: date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric'
-      }),
-      relativeLabel: getRelativeDateLabel(dateString),
+      dateLabel,
+      relativeLabel,
       events: events,
     };
   });
