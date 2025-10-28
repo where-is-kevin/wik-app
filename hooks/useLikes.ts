@@ -149,7 +149,17 @@ export function useAddLike() {
       return addLike(input, jwt);
     },
     onSuccess: () => {
+      // Invalidate likes queries
       queryClient.invalidateQueries({ queryKey: ["likes"] });
+
+      // Force refetch ALL business events queries to ensure cross-section sync
+      queryClient.refetchQueries({
+        predicate: (query) => {
+          const key = query.queryKey[0] as string;
+          return key === "businessEvents" || key === "businessEvent";
+        },
+        // No type restriction - refetch ALL business events queries
+      });
     },
   });
 }

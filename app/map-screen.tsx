@@ -29,7 +29,10 @@ const MapScreen = () => {
   const source = (params.source as string) || "likes";
   const searchQuery = (params.query as string) || "";
   const bucketId = params.bucketId as string;
-  const type = params.type as "leisure" | "business" | undefined;
+  const type = params.type as "leisure" | "business" | "nearby" | "worldwide" | "details" | undefined;
+  const customData = params.customData as string;
+  const eventId = params.eventId as string;
+
 
   // Get location params - only includes lat/lng if user chose "Current Location"
   const locationParams = getApiLocationParams(deviceLocation || undefined);
@@ -41,7 +44,7 @@ const MapScreen = () => {
     isError,
     locationLoading,
     locationError,
-  } = useMapData(source, searchQuery, bucketId, type, locationParams);
+  } = useMapData(source, searchQuery, bucketId, type, locationParams, customData, eventId);
 
   const mapRef = React.useRef<MapView>(null);
   const flatListRef = React.useRef<FlatList>(null);

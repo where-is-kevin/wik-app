@@ -6,10 +6,11 @@ import {
   StyleSheet,
   ViewStyle,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/contexts/ToastContext";
+import HeartOutlineEmptySvg from "@/components/SvgComponents/HeartOutlineEmptySvg";
+import HeartEmptySvg from "@/components/SvgComponents/HeartEmptySvg";
 
 interface HeartButtonProps {
   isLiked: boolean;
@@ -19,6 +20,7 @@ interface HeartButtonProps {
   style?: ViewStyle;
   showFlyingAnimation?: boolean;
   hasTabBar?: boolean;
+  useCustomSvg?: boolean; // New prop to use custom SVG
 }
 
 export const HeartButton: React.FC<HeartButtonProps> = ({
@@ -29,6 +31,7 @@ export const HeartButton: React.FC<HeartButtonProps> = ({
   style,
   showFlyingAnimation = true,
   hasTabBar = true,
+  useCustomSvg = false,
 }) => {
   const { colors } = useTheme();
   const { showToast } = useToast();
@@ -62,7 +65,11 @@ export const HeartButton: React.FC<HeartButtonProps> = ({
     // Flying heart animation only when liking (not unliking)
     if (!isLiked && showFlyingAnimation) {
       // Show toast message when liking
-      showToast("Interested! Finding you recommendations nearby.", "success", hasTabBar);
+      showToast(
+        "Liked! Finding you similar suggestions nearby.",
+        "success",
+        hasTabBar
+      );
 
       // Reset flying heart position
       flyingHeartY.setValue(0);
@@ -106,11 +113,20 @@ export const HeartButton: React.FC<HeartButtonProps> = ({
         activeOpacity={0.8}
       >
         <Animated.View style={{ transform: [{ scale: likeAnimation }] }}>
-          <Ionicons
-            name={isLiked ? "heart" : "heart-outline"}
-            size={size}
-            color={heartColor}
-          />
+          {useCustomSvg ? (
+            <HeartOutlineEmptySvg
+              width={size}
+              height={size}
+              fill={isLiked ? colors.lime : colors.background}
+              // stroke={isLiked ? colors.lime : "#CCCCCC"}
+            />
+          ) : (
+            <HeartEmptySvg
+              width={size}
+              height={size}
+              fill={isLiked ? colors.lime : colors.overlay}
+            />
+          )}
         </Animated.View>
       </TouchableOpacity>
 
@@ -130,7 +146,11 @@ export const HeartButton: React.FC<HeartButtonProps> = ({
           ]}
           pointerEvents="none"
         >
-          <Ionicons name="heart" size={size + 4} color={heartColor} />
+          <HeartEmptySvg
+            width={size + 4}
+            height={size + 4}
+            fill={colors.lime}
+          />
         </Animated.View>
       )}
     </>

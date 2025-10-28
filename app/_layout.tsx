@@ -19,18 +19,21 @@ import { ToastProvider } from "@/contexts/ToastContext";
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: 1,
-        staleTime: 5 * 60 * 1000, // 5 minutes
-      },
-      mutations: {
-        retry: 1,
-      },
+// Create QueryClient outside component to prevent recreation on re-renders
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes cache time
     },
-  });
+    mutations: {
+      retry: 1,
+    },
+  },
+});
+
+export default function RootLayout() {
 
   // Load custom fonts
   const [loaded] = useFonts({

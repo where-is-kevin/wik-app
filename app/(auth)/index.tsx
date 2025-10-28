@@ -10,8 +10,14 @@ import {
   verticalScale,
 } from "@/utilities/scaling";
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Platform, StyleSheet, Image } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withDelay,
+} from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
@@ -30,6 +36,33 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
   const { mutate: requestOTP, isPending } = useOTPRequest();
   const { logEvent } = useUXCam();
   const isFormValid = email.trim() !== "";
+
+  // Animation values for logo falling effect
+  const logoY = useSharedValue(-100);
+  const logoOpacity = useSharedValue(0);
+
+  // Start logo animation when component mounts
+  useEffect(() => {
+    // Bouncy spring configuration - same as ProfileSection
+    const bouncySpringConfig = {
+      damping: 12,
+      stiffness: 120,
+      mass: 0.9,
+      overshootClamping: false,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.1,
+    };
+
+    // Start the falling animation with a small delay
+    logoY.value = withDelay(200, withSpring(0, bouncySpringConfig));
+    logoOpacity.value = withDelay(200, withSpring(1, bouncySpringConfig));
+  }, [logoY, logoOpacity]);
+
+  // Animated style for the logo
+  const logoAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: logoY.value }],
+    opacity: logoOpacity.value,
+  }));
 
   const handleSignIn = (): void => {
     if (!isFormValid) return;
@@ -100,9 +133,9 @@ const SignInScreen: React.FC<SignInScreenProps> = () => {
       >
         <CustomView style={styles.content}>
           <CustomView style={styles.logoContainer}>
-            <Image
+            <Animated.Image
               source={require("@/assets/images/login-logo.png")}
-              style={styles.logo}
+              style={[styles.logo, logoAnimatedStyle]}
               resizeMode="contain"
             />
           </CustomView>

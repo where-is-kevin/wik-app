@@ -9,8 +9,20 @@ import { useToast } from "@/contexts/ToastContext";
 import ModeHeader from "@/components/Header/ModeHeader";
 import FloatingMapButton from "@/components/FloatingMapButton";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { StyleSheet, Animated } from "react-native";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
+import { StyleSheet } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
 import MasonryGrid, { LikeItem } from "@/components/MansoryGrid";
 import {
   horizontalScale,
@@ -27,6 +39,12 @@ import {
 import { CreateBucketBottomSheet } from "@/components/BottomSheet/CreateBucketBottomSheet";
 import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import { useInfiniteContent } from "@/hooks/useContent";
+import { formatBusinessEventDateRange } from "@/utilities/eventHelpers";
+import {
+  useConfigurableBusinessEvents,
+  BusinessEvent,
+} from "@/hooks/useBusinessEvents";
+import { useAddLike } from "@/hooks/useLikes";
 import { StatusBar } from "expo-status-bar";
 import { ErrorScreen } from "@/components/ErrorScreen";
 
@@ -36,7 +54,7 @@ const PaginatedContentList = () => {
   const { mode } = useMode();
   const { showToast } = useToast();
   const router = useRouter();
-  const { getApiLocationParams } = useUserLocation();
+  const { getApiLocationParams, userLocation } = useUserLocation();
   const { location: deviceLocation } = useLocation();
 
   // Handle string | string[] type from useLocalSearchParams
@@ -52,34 +70,135 @@ const PaginatedContentList = () => {
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [majorEventsHeight, setMajorEventsHeight] = useState(0);
 
-  // Animated scroll value for smooth animations
-  const scrollY = useRef(new Animated.Value(0)).current;
+  // Check if Major Events should be visible (only for business mode and no search query)
+  const shouldShowMajorEvents = mode === "business" && !searchQuery.trim();
 
-  // Major Events visibility with smooth animation
-  const majorEventsOpacity = scrollY.interpolate({
-    inputRange: [0, 50, 100],
-    outputRange: [1, 1, 0],
-    extrapolate: "clamp",
-  });
+  // === SCROLL ANIMATION STATE ===
+  const [isHeaderHidden, setIsHeaderHidden] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
-  // Major Events height animation to prevent gap
-  const majorEventsScaleY = scrollY.interpolate({
-    inputRange: [0, 50, 100],
-    outputRange: [1, 1, 0],
-    extrapolate: "clamp",
-  });
+  // Scroll tracking refs
+  const scrollYRef = useRef(0);
+  const lastScrollY = useRef(0);
 
-  // Major Events margin animation - use measured height
-  const majorEventsMarginAnim = scrollY.interpolate({
-    inputRange: [0, 50, 100],
-    outputRange: [0, 0, -majorEventsHeight], // Negative margin equal to actual height
-    extrapolate: "clamp",
-  });
+  // Reanimated values for smooth animations
+  const headerOpacity = useSharedValue(1);
+  const headerHeight = useSharedValue(1);
+  const contentMarginTop = useSharedValue(0);
 
-  // Check if Major Events should be visible (only for business mode)
-  const shouldShowMajorEvents = false; // Hidden for release
+  // === ANIMATED STYLES ===
+  const majorEventsAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: headerOpacity.value,
+    transform: [{ scaleY: headerHeight.value }],
+    overflow: "hidden" as const,
+  }));
 
-  // Bucket functionality state
+  const contentAnimatedStyle = useAnimatedStyle(() => ({
+    marginTop: contentMarginTop.value,
+  }));
+
+  // === SCROLL HANDLERS ===
+  // Animation helper function
+  const triggerHeaderAnimation = useCallback(
+    (shouldHide: boolean) => {
+      setIsHeaderHidden(shouldHide);
+
+      const animationConfig = {
+        duration: shouldHide ? 250 : 150, // Show faster than hide
+        easing: shouldHide ? Easing.out(Easing.quad) : Easing.out(Easing.cubic),
+      };
+
+      if (shouldHide) {
+        // Hide: fade out, scale down, move content up
+        headerOpacity.value = withTiming(0, animationConfig);
+        headerHeight.value = withTiming(0, animationConfig);
+        contentMarginTop.value = withTiming(
+          -majorEventsHeight,
+          animationConfig
+        );
+      } else {
+        // Show: fade in, scale up, move content down
+        headerOpacity.value = withTiming(1, animationConfig);
+        headerHeight.value = withTiming(1, animationConfig);
+        contentMarginTop.value = withTiming(0, animationConfig);
+      }
+    },
+    [headerOpacity, headerHeight, contentMarginTop, majorEventsHeight]
+  );
+
+  // Handle scroll events - track direction and immediate show near top
+  const handleScroll = useCallback(
+    (event: any) => {
+      // Only handle scroll animation if major events section is visible
+      if (!shouldShowMajorEvents) return;
+
+      const currentScrollY = Math.max(0, event.nativeEvent.contentOffset.y);
+      scrollYRef.current = currentScrollY;
+
+      lastScrollY.current = currentScrollY;
+
+      // Show immediately when at the top (0-5px) and not dragging
+      if (!isDragging && currentScrollY <= 5 && isHeaderHidden) {
+        triggerHeaderAnimation(false);
+      }
+    },
+    [isDragging, isHeaderHidden, triggerHeaderAnimation, shouldShowMajorEvents]
+  );
+
+  // Drag handlers
+  const handleScrollBeginDrag = useCallback(() => {
+    // Only set dragging state if major events section is visible
+    if (!shouldShowMajorEvents) return;
+    setIsDragging(true);
+  }, [shouldShowMajorEvents]);
+
+  // Check position and update header visibility
+  const checkScrollPosition = useCallback(() => {
+    // Only handle scroll position check if major events section is visible
+    if (!shouldShowMajorEvents) return;
+
+    const currentScrollY = Math.max(0, scrollYRef.current);
+
+    let shouldHide;
+    if (currentScrollY <= 5) {
+      shouldHide = false; // Show: when at the top
+    } else if (currentScrollY > 40) {
+      shouldHide = true; // Hide: when scrolled down significantly
+    } else {
+      shouldHide = isHeaderHidden; // Keep current state in transition zone (5-40px)
+    }
+
+    if (shouldHide !== isHeaderHidden) {
+      triggerHeaderAnimation(shouldHide);
+    }
+  }, [isHeaderHidden, triggerHeaderAnimation, shouldShowMajorEvents]);
+
+  const handleScrollEndDrag = useCallback(() => {
+    // Only handle drag end if major events section is visible
+    if (!shouldShowMajorEvents) return;
+    setIsDragging(false);
+    checkScrollPosition();
+  }, [checkScrollPosition, shouldShowMajorEvents]);
+
+  // Also check when momentum scroll ends
+  const handleMomentumScrollEnd = useCallback(() => {
+    // Only handle momentum scroll end if major events section is visible
+    if (!shouldShowMajorEvents) return;
+    checkScrollPosition();
+  }, [checkScrollPosition, shouldShowMajorEvents]);
+
+  // Reset animation values when major events are hidden (due to search)
+  useEffect(() => {
+    if (!shouldShowMajorEvents) {
+      // When major events are hidden, reset animation values to normal state
+      setIsHeaderHidden(false);
+      headerOpacity.value = withTiming(1, { duration: 0 });
+      headerHeight.value = withTiming(1, { duration: 0 });
+      contentMarginTop.value = withTiming(0, { duration: 0 });
+    }
+  }, [shouldShowMajorEvents, headerOpacity, headerHeight, contentMarginTop]);
+
+  // === BUCKET FUNCTIONALITY ===
   const [selectedLikeItemId, setSelectedLikeItemId] = useState<string | null>(
     null
   );
@@ -93,6 +212,9 @@ const PaginatedContentList = () => {
   // Mutation hooks for bucket functionality
   const addBucketMutation = useAddBucket();
   const createBucketMutation = useCreateBucket();
+
+  // Mutation hook for likes
+  const addLikeMutation = useAddLike();
 
   // Use infinite query - works with or without location
   // Get location params - only includes lat/lng if user chose "Current Location"
@@ -115,54 +237,70 @@ const PaginatedContentList = () => {
     type: mode, // Pass the current mode as type
   });
 
-  // Get all items - use proper FlatList virtualization instead of windowing
-  const allItems = data?.pages.flatMap((page) => page.items) ?? [];
+  // Get all items - memoized for performance
+  const allItems = useMemo(
+    () => data?.pages.flatMap((page) => page.items) ?? [],
+    [data?.pages]
+  );
 
-  // Transform data for MasonryGrid
-  const transformedData: LikeItem[] = allItems.map((item, index) => ({
-    id: item.id,
-    title: item.title,
-    category: item.category,
-    foodImage: item.internalImageUrls?.[0] || "", // Empty string will show SVG placeholder
-    landscapeImage: "",
-    hasIcon: true,
-    contentShareUrl: item.contentShareUrl,
-    height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall",
-  }));
+  // Transform data for MasonryGrid - memoized for performance
+  const transformedData: LikeItem[] = useMemo(
+    () =>
+      allItems.map((item, index) => ({
+        id: item.id,
+        title: item.title,
+        category: item.category,
+        foodImage: item.internalImageUrls?.[0] || "", // Empty string will show SVG placeholder
+        landscapeImage: "",
+        hasIcon: true,
+        contentShareUrl: item.contentShareUrl,
+        height: (index % 3 === 0 ? "tall" : "short") as "short" | "tall",
+      })),
+    [allItems]
+  );
 
-  // Sample major events data for business mode with state
-  const [majorEvents, setMajorEvents] = useState<MajorEventData[]>([
-    {
-      id: "web-summit-2025",
-      title: "WebSummit",
-      location: "Lisbon",
-      dateRange: "November 11 - 14, 2025",
-      eventCount: "100+ Events",
-      imageUrl:
-        "https://images.unsplash.com/photo-1515187029135-18ee286d815b?q=80&w=1000",
-      isLiked: true,
-    },
-    {
-      id: "tech-crunch-disrupt",
-      title: "TechCrunch Disrupt",
-      location: "San Francisco",
-      dateRange: "October 28 - 30, 2025",
-      eventCount: "50+ Events",
-      imageUrl:
-        "https://images.unsplash.com/photo-1531058020387-3be344556be6?q=80&w=1000",
-      isLiked: true,
-    },
-    {
-      id: "ces-2026",
-      title: "CES 2026",
-      location: "Las Vegas",
-      dateRange: "January 7 - 10, 2026",
-      eventCount: "200+ Events",
-      imageUrl:
-        "https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?q=80&w=1000",
-      isLiked: false,
-    },
-  ]);
+  // State for event type selection (nearby vs worldwide)
+  const [selectedEventType, setSelectedEventType] = useState<
+    "nearby" | "worldwide"
+  >("nearby");
+
+  // Use configurable hook that responds to selectedEventType changes
+  const {
+    data: businessEventsData,
+    isLoading: isBusinessEventsLoading,
+    isSuccess: isBusinessEventsSuccess,
+  } = useConfigurableBusinessEvents(selectedEventType, {
+    limit: 5,
+    radiusKm: 100,
+  });
+
+  // Transform API data to MajorEventData format and manage state
+  const [majorEvents, setMajorEvents] = useState<MajorEventData[]>([]);
+
+  // Update major events when API data loads
+  const transformedEvents = useMemo(() => {
+    if (!businessEventsData?.events) return [];
+
+    return businessEventsData.events
+      .slice(0, 5) // Limit to maximum 5 events
+      .map((event: BusinessEvent) => ({
+        id: event.id || event.contentId || "",
+        title: event.title || event.name || "",
+        location: event.addressShort || event.addressLong || "",
+        dateRange: formatBusinessEventDateRange(event),
+        eventCount: `${event.sideEventCount}+ Events`,
+        imageUrl: event.imageUrl || event.internalImageUrls?.[0] || undefined,
+        isLiked: event.userLiked || false,
+      }));
+  }, [businessEventsData?.events]);
+
+  useEffect(() => {
+    // Only update majorEvents if we have actual data or the query was successful
+    // This prevents clearing events when data is temporarily empty during loading
+    if (transformedEvents.length > 0 || isBusinessEventsSuccess) {
+      setMajorEvents(transformedEvents);
+    }
+  }, [transformedEvents, isBusinessEventsSuccess]);
 
   // Handle input change with debounce
   const handleInputChange = useCallback((text: string) => {
@@ -183,6 +321,14 @@ const PaginatedContentList = () => {
       clearTimeout(debounceTimeoutRef.current);
     }
     setSearchQuery(message);
+  }, []);
+
+  // Handle clear search
+  const handleClear = useCallback(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    setSearchQuery(""); // Reset to initial state without any params
   }, []);
 
   // Clean infinite pagination handler
@@ -217,7 +363,7 @@ const PaginatedContentList = () => {
           setIsBucketBottomSheetVisible(false);
           setSelectedLikeItemId(null);
           showToast("Added to bucket", "success");
-        } catch (error) {
+        } catch {
           showToast("Failed to add to bucket", "error");
         }
       }
@@ -245,7 +391,7 @@ const PaginatedContentList = () => {
           setIsCreateBucketBottomSheetVisible(false);
           setSelectedLikeItemId(null);
           showToast("Bucket created", "success");
-        } catch (error) {
+        } catch {
           showToast("Failed to create bucket", "error");
         }
       }
@@ -253,10 +399,12 @@ const PaginatedContentList = () => {
     [selectedLikeItemId, createBucketMutation, showToast]
   );
 
-  // Map navigation handler
+  // === NAVIGATION HANDLERS ===
   const handleOpenMap = useCallback(() => {
     router.push(
-      `/map-screen?source=content&query=${encodeURIComponent(searchQuery)}&type=${mode}`
+      `/map-screen?source=content&query=${encodeURIComponent(
+        searchQuery
+      )}&type=${mode}`
     );
   }, [router, searchQuery, mode]);
 
@@ -275,19 +423,42 @@ const PaginatedContentList = () => {
     [router]
   );
 
-  const handleMajorEventLike = useCallback((event: MajorEventData) => {
-    setMajorEvents((prevEvents) =>
-      prevEvents.map((e) =>
-        e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
-      )
-    );
-  }, []);
+  const handleMajorEventLike = useCallback(
+    (event: MajorEventData) => {
+      const likeData = {
+        contentIds: [event.id],
+      };
 
-  const handleViewAllMajorEvents = useCallback(() => {
-    // TODO: Navigate to all major events page
-  }, []);
+      // Optimistic update - immediately toggle the like state
+      setMajorEvents((prevEvents) =>
+        prevEvents.map((e) =>
+          e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
+        )
+      );
 
-  // Cleanup timeout on unmount
+      addLikeMutation.mutate(likeData, {
+        onSuccess: () => {
+          showToast(
+            "Liked! Finding you similar suggestions nearby.",
+            "success"
+          );
+        },
+        onError: (error) => {
+          console.error("Failed to add like:", error);
+          // Revert optimistic update on error
+          setMajorEvents((prevEvents) =>
+            prevEvents.map((e) =>
+              e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
+            )
+          );
+          showToast("Failed to like event", "error");
+        },
+      });
+    },
+    [addLikeMutation, showToast]
+  );
+
+  // === CLEANUP ===
   useEffect(() => {
     return () => {
       if (debounceTimeoutRef.current) {
@@ -296,8 +467,14 @@ const PaginatedContentList = () => {
     };
   }, []);
 
-  // Loading state
-  const isInitialLoading = isLoading && allItems.length === 0;
+  // === RENDER LOGIC ===
+  // Loading state - show full screen loader for initial load of content and major events
+  const isInitialLoading =
+    (isLoading && allItems.length === 0) ||
+    (shouldShowMajorEvents &&
+      isBusinessEventsLoading &&
+      majorEvents.length === 0 &&
+      allItems.length === 0);
 
   if (isInitialLoading) {
     return (
@@ -313,6 +490,8 @@ const PaginatedContentList = () => {
           <AskKevinSection
             onSend={handleSend}
             onInputChange={handleInputChange}
+            onClear={handleClear}
+            value={searchQuery}
           />
         </CustomView>
 
@@ -326,22 +505,41 @@ const PaginatedContentList = () => {
   // Error state
   if (isError) {
     return (
-      <CustomView bgColor={colors.background} style={styles.container}>
-        <AskKevinSection
-          onSend={handleSend}
-          onInputChange={handleInputChange}
-        />
-        <ErrorScreen
-          title="Failed to load content"
-          message={error?.message || "Please try again"}
-          onRetry={() => refetch()}
-        />
+      <>
+        <StatusBar style="dark" />
+        <CustomView bgColor={colors.background} style={styles.container}>
+          {/* Fixed header for both modes */}
+          <CustomView
+            style={[
+              styles.headerContainer,
+              { backgroundColor: colors.background },
+            ]}
+          >
+            <ModeHeader />
+            <AskKevinSection
+              onSend={handleSend}
+              onInputChange={handleInputChange}
+              onClear={handleClear}
+              value={searchQuery}
+            />
+          </CustomView>
 
-        {/* Floating Map Button - Only show if there's data available */}
-        {transformedData.length > 0 && (
-          <FloatingMapButton onPress={handleOpenMap} hasTabBar={true} />
-        )}
-      </CustomView>
+          {/* Error content */}
+          <CustomView style={styles.contentContainer}>
+            <ErrorScreen
+              title="Failed to load content"
+              message="Please check your connection and try again"
+              buttonText="Try Again"
+              onRetry={() => refetch()}
+            />
+          </CustomView>
+
+          {/* Floating Map Button - Only show if there's data available */}
+          {transformedData.length > 0 && (
+            <FloatingMapButton onPress={handleOpenMap} hasTabBar={true} />
+          )}
+        </CustomView>
+      </>
     );
   }
 
@@ -360,17 +558,14 @@ const PaginatedContentList = () => {
           <AskKevinSection
             onSend={handleSend}
             onInputChange={handleInputChange}
+            onClear={handleClear}
+            value={searchQuery}
           />
 
           {/* Major Events Section - Only show in business mode with smooth animation */}
           {shouldShowMajorEvents && (
             <Animated.View
-              style={{
-                opacity: majorEventsOpacity,
-                transform: [{ scaleY: majorEventsScaleY }],
-                marginBottom: majorEventsMarginAnim,
-                overflow: "hidden",
-              }}
+              style={majorEventsAnimatedStyle}
               onLayout={(event) => {
                 const { height } = event.nativeEvent.layout;
                 setMajorEventsHeight(height);
@@ -378,13 +573,20 @@ const PaginatedContentList = () => {
             >
               <MajorEventsSection
                 events={majorEvents}
+                selectedEventType={selectedEventType}
+                onEventTypeChange={setSelectedEventType}
                 onEventPress={handleMajorEventPress}
                 onLikePress={handleMajorEventLike}
-                onViewAllPress={handleViewAllMajorEvents}
+                isLoading={isBusinessEventsLoading}
+                isSuccess={isBusinessEventsSuccess}
+                location={userLocation?.displayName || "Current Location"}
               />
             </Animated.View>
           )}
+        </CustomView>
 
+        {/* Content section - animated to move up when header hides */}
+        <Animated.View style={[{ flex: 1 }, contentAnimatedStyle]}>
           <CustomView style={[styles.titleContainer]}>
             <CustomText
               fontFamily="Inter-SemiBold"
@@ -393,36 +595,39 @@ const PaginatedContentList = () => {
               Curated just for you today
             </CustomText>
           </CustomView>
-        </CustomView>
 
-        {/* Content grid */}
-        <CustomView style={styles.contentContainer}>
-          {transformedData.length > 0 ? (
-            <MasonryGrid
-              data={transformedData}
-              onBucketPress={handleBucketPress}
-              onItemPress={handleItemPress}
-              onLoadMore={handleLoadMore}
-              hasNextPage={hasNextPage}
-              isFetchingNextPage={isFetchingNextPage}
-              showVerticalScrollIndicator={false}
-              contentContainerStyle={styles.masonryContentContainer}
-              onScroll={
-                mode === "business"
-                  ? Animated.event(
-                      [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-                      { useNativeDriver: false }
-                    )
-                  : undefined
-              }
-            />
-          ) : (
-            <ErrorScreen
-              title={`No results found`}
-              message="Try searching for something else or changing mode"
-            />
-          )}
-        </CustomView>
+          {/* Content grid */}
+          <CustomView style={styles.contentContainer}>
+            {transformedData.length > 0 ? (
+              <MasonryGrid
+                data={transformedData}
+                onBucketPress={handleBucketPress}
+                onItemPress={handleItemPress}
+                onLoadMore={handleLoadMore}
+                hasNextPage={hasNextPage}
+                isFetchingNextPage={isFetchingNextPage}
+                showVerticalScrollIndicator={false}
+                contentContainerStyle={styles.masonryContentContainer}
+                onScroll={shouldShowMajorEvents ? handleScroll : undefined}
+                onScrollBeginDrag={
+                  shouldShowMajorEvents ? handleScrollBeginDrag : undefined
+                }
+                onScrollEndDrag={
+                  shouldShowMajorEvents ? handleScrollEndDrag : undefined
+                }
+                onMomentumScrollEnd={
+                  shouldShowMajorEvents ? handleMomentumScrollEnd : undefined
+                }
+                scrollEventThrottle={16}
+              />
+            ) : (
+              <ErrorScreen
+                title={`No results found`}
+                message="Try searching for something else or changing mode"
+              />
+            )}
+          </CustomView>
+        </Animated.View>
 
         {/* Bucket Bottom Sheets */}
         <BucketBottomSheet

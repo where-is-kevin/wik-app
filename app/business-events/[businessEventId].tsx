@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -19,6 +19,7 @@ import {
   verticalScale,
   scaleFontSize,
 } from "@/utilities/scaling";
+import AnimatedLoader from "@/components/Loader/AnimatedLoader";
 import { Ionicons } from "@expo/vector-icons";
 import {
   LocalEventCard,
@@ -29,6 +30,9 @@ import BackSvg from "@/components/SvgComponents/BackSvg";
 import PinBucketSvg from "@/components/SvgComponents/PinBucketSvg";
 import ShareButton from "@/components/Button/ShareButton";
 import SendSvgSmall from "@/components/SvgComponents/SendSvgSmall";
+import OptimizedImage, {
+  OptimizedImageBackground,
+} from "@/components/OptimizedImage/OptimizedImage";
 import CustomTouchable from "@/components/CustomTouchableOpacity";
 import {
   BucketBottomSheet,
@@ -39,68 +43,159 @@ import { useAddBucket, useCreateBucket } from "@/hooks/useBuckets";
 import FloatingMapButton from "@/components/FloatingMapButton";
 import { useToast } from "@/contexts/ToastContext";
 import * as Haptics from "expo-haptics";
+import { useBusinessEventById } from "@/hooks/useBusinessEvents";
+import { formatBusinessEventDateRange } from "@/utilities/eventHelpers";
+import { useAddLike } from "@/hooks/useLikes";
+import { useQueryClient } from "@tanstack/react-query";
+import LocationPinSvg from "@/components/SvgComponents/LocationPinSvg";
+import CalendarSvg from "@/components/SvgComponents/CalendarSvg";
+import { ErrorScreen } from "@/components/ErrorScreen/ErrorScreen";
+
+// Helper function to format event time
+const formatEventTime = (startDate?: string, endDate?: string) => {
+  if (!startDate) return "TBD";
+
+  const start = new Date(startDate);
+  const end = endDate ? new Date(endDate) : null;
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  if (end) {
+    // If it's the same day, show time range
+    if (start.toDateString() === end.toDateString()) {
+      return `${formatTime(start)} - ${formatTime(end)}`;
+    }
+    // If it spans multiple days but we still want to show a time range for the event,
+    // show the start and end times (this is common for recurring events)
+    else {
+      return `${formatTime(start)} - ${formatTime(end)}`;
+    }
+  }
+
+  return formatTime(start);
+};
+
+// Helper function to format date label with separate parts
+const formatDateLabel = (date: Date) => {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+
+  const dayNames = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const dateStr = `${monthNames[date.getMonth()]} ${date.getDate()}`;
+
+  let relativeDay = "";
+  if (date.toDateString() === today.toDateString()) {
+    relativeDay = "Today";
+  } else if (date.toDateString() === tomorrow.toDateString()) {
+    relativeDay = "Tomorrow";
+  } else {
+    relativeDay = dayNames[date.getDay()];
+  }
+
+  return {
+    date: dateStr,
+    relative: relativeDay,
+  };
+};
 
 const BusinessEventDetailsScreen = () => {
   const { colors } = useTheme();
   const router = useRouter();
   const scrollY = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const { businessEventId } = useLocalSearchParams<{
     businessEventId: string;
   }>();
 
-  const eventData = {
-    id: businessEventId || "1",
-    title: "WebSummit",
-    location: "Lisbon",
-    dateRange: "Sep 11-13, 2025",
-    description:
-      "Web Summit is the world's largest tech conference, uniting global leaders, startups, investors and media to shape technology's future.",
-    imageUrl: require("@/assets/images/websummit.png"),
-  };
+  // Fetch real business event data (businessEventId is actually the contentId)
+  const {
+    data: eventData,
+    isLoading,
+    error,
+  } = useBusinessEventById(businessEventId || "");
 
-  const [localEvents, setLocalEvents] = React.useState<LocalEventData[]>([
-    {
-      id: "1",
-      title: "WebSummit - Day 1",
-      time: "10:00 AM - 3:30 PM",
-      venue: "MEO Arena",
-      imageUrl: "https://images.unsplash.com/photo-1540575467063-178a50c2df87",
-      isLiked: false,
-    },
-    {
-      id: "2",
-      title: "WebSummit - Day 2",
-      time: "10:00 AM - 3:30 PM",
-      venue: "MEO Arena",
-      imageUrl: "https://images.unsplash.com/photo-1540575467063-178a50c2df87",
-      isLiked: false,
-    },
-    {
-      id: "3",
-      title: "Startup Pitch Competition",
-      time: "2:00 PM - 5:00 PM",
-      venue: "FIL Convention Center",
-      imageUrl: "https://images.unsplash.com/photo-1475721027785-f74eccf877e2",
-      isLiked: true,
-    },
-    {
-      id: "4",
-      title: "Startup Pitch Competition",
-      time: "2:00 PM - 5:00 PM",
-      venue: "FIL Convention Center",
-      imageUrl: "https://images.unsplash.com/photo-1475721027785-f74eccf877e2",
-      isLiked: true,
-    },
-    {
-      id: "5",
-      title: "Startup Pitch Competition",
-      time: "2:00 PM - 5:00 PM",
-      venue: "FIL Convention Center",
-      imageUrl: "https://images.unsplash.com/photo-1475721027785-f74eccf877e2",
-      isLiked: true,
-    },
-  ]);
+  // Transform side events from API to LocalEventData format
+  const sideEvents = React.useMemo(() => {
+    if (!eventData?.sideEvents) return [];
+
+    return eventData.sideEvents.map((sideEvent) => ({
+      id: sideEvent.id || sideEvent.contentId || '',
+      title: sideEvent.title || sideEvent.name || '',
+      time: formatEventTime(
+        sideEvent.eventDatetimeStart || undefined,
+        sideEvent.eventDatetimeEnd || undefined
+      ),
+      venue: sideEvent.addressShort || sideEvent.addressLong || "",
+      imageUrl: sideEvent.internalImageUrls?.[0] || "",
+      isLiked: sideEvent.userLiked || false,
+    }));
+  }, [eventData?.sideEvents]);
+
+  // Group side events by date
+  const groupedSideEvents = React.useMemo(() => {
+    const groups: {
+      [key: string]: {
+        date: string;
+        dateLabel: { date: string; relative: string };
+        events: LocalEventData[];
+      };
+    } = {};
+
+    sideEvents.forEach((event) => {
+      // Find the original side event to get the start date
+      const originalEvent = eventData?.sideEvents?.find(
+        (e) => (e.id || e.contentId) === event.id
+      );
+      if (!originalEvent?.eventDatetimeStart) return;
+
+      const eventDate = new Date(originalEvent.eventDatetimeStart);
+      const dateKey = eventDate.toISOString().split("T")[0]; // YYYY-MM-DD
+
+      if (!groups[dateKey]) {
+        groups[dateKey] = {
+          date: dateKey,
+          dateLabel: formatDateLabel(eventDate),
+          events: [],
+        };
+      }
+
+      groups[dateKey].events.push(event);
+    });
+
+    // Sort groups by date and return as array
+    return Object.values(groups).sort((a, b) => a.date.localeCompare(b.date));
+  }, [sideEvents, eventData?.sideEvents]);
 
   // Bucket functionality state
   const [isBucketBottomSheetVisible, setIsBucketBottomSheetVisible] =
@@ -116,8 +211,18 @@ const BusinessEventDetailsScreen = () => {
   const createBucketMutation = useCreateBucket();
   const { showToast } = useToast();
 
-  // State for interested button
+  // Mutation hook for likes
+  const addLikeMutation = useAddLike();
+
+  // Initialize interested state from API userLiked
   const [isInterested, setIsInterested] = useState(false);
+
+  // Sync isInterested with API userLiked when eventData changes
+  useEffect(() => {
+    if (eventData?.userLiked !== undefined) {
+      setIsInterested(eventData.userLiked);
+    }
+  }, [eventData?.userLiked]);
 
   const handleBackPress = () => {
     router.back();
@@ -189,38 +294,193 @@ const BusinessEventDetailsScreen = () => {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
 
+    const likeData = {
+      contentIds: [businessEventId || ""],
+    };
+
+    // Optimistic update - immediately toggle the interested state
     setIsInterested(!isInterested);
 
-    if (!isInterested) {
-      // Show toast when marking as interested
-      showToast(
-        "Interested! Finding you recommendations nearby.",
-        "success",
-        false
-      );
-    }
+    addLikeMutation.mutate(likeData, {
+      onSuccess: () => {
+        // Cache invalidation handled automatically by useAddLike hook
+
+        if (!isInterested) {
+          showToast(
+            "Interested! Finding you recommendations nearby.",
+            "success",
+            false
+          );
+        }
+      },
+      onError: (error) => {
+        console.error("Failed to add like:", error);
+        // Revert optimistic update on error
+        setIsInterested(!isInterested);
+        showToast("Failed to mark as interested", "error");
+      },
+    });
   };
 
   const handleMapPress = () => {
-    // TODO: Navigate to map screen
-    console.log("Map button pressed");
+    // Navigate to map screen with business events for this specific event
+    router.push(`/map-screen?source=business&type=details&eventId=${businessEventId}`);
   };
 
   const handleLocalEventPress = (event: LocalEventData) => {
+    // Navigate to side event details using the event details route
     router.push(`/event-details/${event.id}`);
   };
 
   const handleLocalEventLike = (event: LocalEventData) => {
-    setLocalEvents((prevEvents) =>
-      prevEvents.map((e) =>
-        e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
-      )
-    );
+    const likeData = {
+      contentIds: [event.id],
+    };
+
+    // Make API call to like/unlike the side event
+    addLikeMutation.mutate(likeData, {
+      onSuccess: () => {
+        // Cache invalidation handled automatically by useAddLike hook
+      },
+      onError: (error) => {
+        console.error("Failed to like side event:", error);
+        showToast("Failed to save your interest", "error");
+      },
+    });
   };
+
+  // Scroll handlers for snap-to behavior
+  const handleScrollBeginDrag = useCallback(() => {
+    // Can be used for future scroll state tracking if needed
+  }, []);
+
+  const handleScrollEndDrag = useCallback(() => {
+    // Add listener to get current scroll value and handle snap
+    const listener = scrollY.addListener(({ value }) => {
+      // Aggressive snap like ask-kevin to prevent intermediate states
+      const snapThreshold = 40; // Matches our header animation range
+
+      if (value > 0 && value < snapThreshold) {
+        // Snap to hidden or visible based on scroll position
+        const targetValue = value > 20 ? snapThreshold : 0; // Snap at 20px midpoint
+        Animated.spring(scrollY, {
+          toValue: targetValue,
+          useNativeDriver: false,
+          tension: 150, // Responsive
+          friction: 10,
+        }).start();
+      }
+      // Remove listener after handling
+      scrollY.removeListener(listener);
+    });
+  }, [scrollY]);
+
+  // Cleanup scroll listeners on unmount
+  useEffect(() => {
+    return () => {
+      scrollY.removeAllListeners();
+    };
+  }, [scrollY]);
+
+  // Show loading or handle no data
+  if (isLoading) {
+    return (
+      <View
+        style={[
+          styles.container,
+          { justifyContent: "center", alignItems: "center" },
+        ]}
+      >
+        <AnimatedLoader />
+      </View>
+    );
+  }
+
+  // Show error state for API failures
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <StatusBar
+          translucent
+          backgroundColor="transparent"
+          barStyle="light-content"
+        />
+
+        {/* Fixed Navigation Bar for Error State */}
+        <View style={styles.fixedNavBar}>
+          <View
+            style={[
+              styles.navBarBackground,
+              { backgroundColor: "#fff", opacity: 1 },
+            ]}
+          />
+          <SafeAreaView style={styles.navContainer}>
+            <View style={[styles.navBar, { paddingTop: verticalScale(6) }]}>
+              <TouchableOpacity
+                onPress={handleBackPress}
+                style={styles.backButton}
+              >
+                <BackSvg stroke="#000" width={17} height={27} />
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </View>
+
+        <View style={styles.errorContentContainer}>
+          <ErrorScreen
+            title="Failed to load business event"
+            message="Please check your connection and try again"
+            buttonText="Go Back"
+            onRetry={handleBackPress}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (!eventData) {
+    return (
+      <View style={styles.container}>
+        <StatusBar
+          translucent
+          backgroundColor="transparent"
+          barStyle="light-content"
+        />
+
+        {/* Fixed Navigation Bar for Error State */}
+        <View style={styles.fixedNavBar}>
+          <View
+            style={[
+              styles.navBarBackground,
+              { backgroundColor: "#fff", opacity: 1 },
+            ]}
+          />
+          <SafeAreaView style={styles.navContainer}>
+            <View style={[styles.navBar, { paddingTop: verticalScale(6) }]}>
+              <TouchableOpacity
+                onPress={handleBackPress}
+                style={styles.backButton}
+              >
+                <BackSvg stroke="#000" width={17} height={27} />
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </View>
+
+        <View style={styles.errorContentContainer}>
+          <ErrorScreen
+            title="Business event not found"
+            message="This event may have been removed or doesn't exist"
+            buttonText="Go Back"
+            onRetry={handleBackPress}
+          />
+        </View>
+      </View>
+    );
+  }
 
   const HEADER_HEIGHT = verticalScale(240);
   const NAVBAR_HEIGHT = verticalScale(40);
-  const HEADER_SCROLL_DISTANCE = HEADER_HEIGHT - NAVBAR_HEIGHT;
   const NAVBAR_BACKGROUND_HEIGHT = insets.top + NAVBAR_HEIGHT;
 
   // Header parallax effect
@@ -230,29 +490,29 @@ const BusinessEventDetailsScreen = () => {
     extrapolate: "clamp",
   });
 
-  // Background image opacity
+  // Background image opacity - immediate fade like ask-kevin
   const headerImageOpacity = scrollY.interpolate({
-    inputRange: [-50, 0, HEADER_HEIGHT * 0.2, HEADER_HEIGHT * 0.5],
-    outputRange: [0, 1, 0.3, 0],
+    inputRange: [-50, 0, 20, 40],
+    outputRange: [0, 1, 0.2, 0],
     extrapolate: "clamp",
   });
 
-  // Header container opacity
+  // Header container opacity - immediate fade like ask-kevin
   const headerContainerOpacity = scrollY.interpolate({
-    inputRange: [0, 50, 100],
-    outputRange: [1, 1, 0],
+    inputRange: [0, 20, 40],
+    outputRange: [1, 0.5, 0],
     extrapolate: "clamp",
   });
 
-  // Text slides up and fades
+  // Text slides up and fades - immediate like ask-kevin
   const headerTextTranslateY = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE],
-    outputRange: [0, -HEADER_SCROLL_DISTANCE],
+    inputRange: [0, 40],
+    outputRange: [0, -30],
     extrapolate: "clamp",
   });
 
   const headerTextOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE * 0.7, HEADER_SCROLL_DISTANCE],
+    inputRange: [0, 20, 40],
     outputRange: [1, 0.3, 0],
     extrapolate: "clamp",
   });
@@ -264,16 +524,16 @@ const BusinessEventDetailsScreen = () => {
     extrapolate: "clamp",
   });
 
-  // Icon opacity for white icons - sync with navbar background
+  // Icon opacity for white icons - immediate transition like ask-kevin
   const whiteIconOpacity = scrollY.interpolate({
-    inputRange: [0, 40],
+    inputRange: [0, 30],
     outputRange: [1, 0],
     extrapolate: "clamp",
   });
 
-  // Icon opacity for black icons - sync with navbar background
+  // Icon opacity for black icons - immediate transition like ask-kevin
   const blackIconOpacity = scrollY.interpolate({
-    inputRange: [0, 40],
+    inputRange: [0, 30],
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
@@ -281,9 +541,9 @@ const BusinessEventDetailsScreen = () => {
   // Fixed padding for navbar - no animation to prevent glitchy movement
   const navBarPaddingTop = verticalScale(6);
 
-  // Sticky title opacity - appears very early
+  // Sticky title opacity - appears immediately when scrolling starts
   const stickyTitleOpacity = scrollY.interpolate({
-    inputRange: [50, 100],
+    inputRange: [0, 10],
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
@@ -303,21 +563,38 @@ const BusinessEventDetailsScreen = () => {
           {
             transform: [{ translateY: headerTranslateY }],
             opacity: headerContainerOpacity,
+            height: verticalScale(264) + +insets.top,
           },
         ]}
         pointerEvents="none"
       >
         {/* Background Image with scale effect */}
-        <Animated.Image
-          source={eventData.imageUrl}
+        <Animated.View
           style={[
             styles.headerBackground,
             {
               opacity: headerImageOpacity,
               transform: [{ scale: headerImageScale }],
+              height: verticalScale(250) + +insets.top,
             },
           ]}
-        />
+        >
+          <OptimizedImageBackground
+            source={
+              eventData.image
+                ? {
+                    uri: eventData.image.startsWith("http")
+                      ? eventData.image
+                      : `https://wik-general-api-beta-408585232460.europe-west4.run.app/uploads/${eventData.image}`,
+                  }
+                : ""
+            }
+            style={{ height: verticalScale(250) + insets.top }}
+            contentFit="cover"
+            showLoadingIndicator={true}
+            showErrorFallback={true}
+          />
+        </Animated.View>
 
         {/* Gradient Overlay */}
         <LinearGradient
@@ -340,13 +617,21 @@ const BusinessEventDetailsScreen = () => {
             },
           ]}
         >
-          <View style={styles.logoContainer}>
-            <Animated.Image
-              source={require("@/assets/images/websummit-logo.png")}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </View>
+          {eventData.logoImage && (
+            <View style={styles.logoContainer}>
+              <OptimizedImage
+                source={{
+                  uri: eventData.logoImage.startsWith("http")
+                    ? eventData.logoImage
+                    : `https://wik-general-api-beta-408585232460.europe-west4.run.app/uploads/${eventData.logoImage}`,
+                }}
+                style={styles.logoImage}
+                contentFit="cover"
+                showLoadingIndicator={true}
+                showErrorFallback={true}
+              />
+            </View>
+          )}
 
           <CustomText
             fontFamily="Inter-SemiBold"
@@ -368,9 +653,11 @@ const BusinessEventDetailsScreen = () => {
         >
           <CustomText
             fontFamily="Inter-Bold"
-            style={[styles.largeTitle, { color: colors.light_blue }]}
+            style={[styles.largeTitle, { color: colors.label_dark }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
           >
-            {eventData.title}
+            {eventData.eventTitle || eventData.name}
           </CustomText>
         </Animated.View>
       </Animated.View>
@@ -383,8 +670,8 @@ const BusinessEventDetailsScreen = () => {
             styles.navBarBackground,
             {
               opacity: scrollY.interpolate({
-                inputRange: [0, 15, 40],
-                outputRange: [0, 0.7, 0.95],
+                inputRange: [0, 15, 30],
+                outputRange: [0, 0.8, 0.98],
                 extrapolate: "clamp",
               }),
               backgroundColor: "#fff",
@@ -404,11 +691,11 @@ const BusinessEventDetailsScreen = () => {
                 <Animated.View
                   style={{ opacity: whiteIconOpacity, position: "absolute" }}
                 >
-                  <BackSvg />
+                  <BackSvg width={17} height={27} />
                 </Animated.View>
                 {/* White icon for black navbar */}
                 <Animated.View style={{ opacity: blackIconOpacity }}>
-                  <BackSvg stroke="#000" />
+                  <BackSvg stroke="#000" width={17} height={27} />
                 </Animated.View>
               </View>
             </TouchableOpacity>
@@ -421,8 +708,10 @@ const BusinessEventDetailsScreen = () => {
                 <CustomText
                   fontFamily="Inter-Bold"
                   style={[styles.stickyTitleText, { color: colors.label_dark }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
                 >
-                  {eventData.title}
+                  {eventData.eventTitle || eventData.name}
                 </CustomText>
               </Animated.View>
             </View>
@@ -447,8 +736,16 @@ const BusinessEventDetailsScreen = () => {
                   style={styles.shareButton}
                 >
                   <ShareButton
-                    title={eventData.title}
-                    message={`Check out ${eventData.title} in ${eventData.location} happening ${eventData.dateRange}`}
+                    title={eventData.eventTitle || eventData.name}
+                    message={`Check out ${
+                      eventData.eventTitle || eventData.name
+                    } happening on ${
+                      eventData.eventDatetimeStart
+                        ? new Date(
+                            eventData.eventDatetimeStart
+                          ).toLocaleDateString()
+                        : "TBD"
+                    }`}
                     url=""
                     IconComponent={() => (
                       <SendSvgSmall width={18} height={18} stroke="#000" />
@@ -473,8 +770,16 @@ const BusinessEventDetailsScreen = () => {
                   style={styles.shareButton}
                 >
                   <ShareButton
-                    title={eventData.title}
-                    message={`Check out ${eventData.title} in ${eventData.location} happening ${eventData.dateRange}`}
+                    title={eventData.eventTitle || eventData.name}
+                    message={`Check out ${
+                      eventData.eventTitle || eventData.name
+                    } happening on ${
+                      eventData.eventDatetimeStart
+                        ? new Date(
+                            eventData.eventDatetimeStart
+                          ).toLocaleDateString()
+                        : "TBD"
+                    }`}
                     url=""
                     IconComponent={() => (
                       <SendSvgSmall width={18} height={18} stroke="#000" />
@@ -495,6 +800,8 @@ const BusinessEventDetailsScreen = () => {
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false }
         )}
+        onScrollBeginDrag={handleScrollBeginDrag}
+        onScrollEndDrag={handleScrollEndDrag}
         scrollEventThrottle={16}
         contentContainerStyle={styles.scrollContentContainer}
         bounces={false}
@@ -502,46 +809,58 @@ const BusinessEventDetailsScreen = () => {
         scrollEnabled={true}
       >
         {/* Header Spacer */}
-        <View style={styles.headerSpacer} />
+        <View
+          style={[
+            styles.headerSpacer,
+            { height: verticalScale(220) + insets.top },
+          ]}
+        />
 
         {/* Content Area */}
         <View style={styles.contentArea}>
           <View style={styles.section}>
             <View style={styles.eventMeta}>
+              {/* Location */}
+              {eventData.addressShort && (
+                <View style={styles.metaItem}>
+                  <LocationPinSvg fill="#A3A3A8" />
+                  <CustomText
+                    style={[styles.metaText, { color: colors.label_dark }]}
+                  >
+                    {eventData.addressShort}
+                  </CustomText>
+                </View>
+              )}
+
+              {/* Date */}
               <View style={styles.metaItem}>
-                <Ionicons
-                  name="location-outline"
-                  size={16}
-                  color={colors.event_gray}
-                />
+                <CalendarSvg />
                 <CustomText
-                  style={[styles.metaText, { color: colors.label_dark }]}
+                  style={[
+                    styles.metaText,
+                    { color: colors.label_dark, flex: 1 },
+                  ]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
                 >
-                  {eventData.location}
-                </CustomText>
-              </View>
-              <View style={styles.metaItem}>
-                <Ionicons
-                  name="calendar-outline"
-                  size={16}
-                  color={colors.event_gray}
-                />
-                <CustomText
-                  style={[styles.metaText, { color: colors.label_dark }]}
-                >
-                  {eventData.dateRange}
+                  {formatBusinessEventDateRange(eventData, {
+                    includeWeekday: false,
+                    includeYear: true,
+                  })}
                 </CustomText>
               </View>
             </View>
 
-            <CustomText
-              style={[
-                styles.description,
-                { color: colors.onboarding_option_dark },
-              ]}
-            >
-              {eventData.description}
-            </CustomText>
+            {eventData.description && (
+              <CustomText
+                style={[
+                  styles.description,
+                  { color: colors.onboarding_option_dark },
+                ]}
+              >
+                {eventData.description}
+              </CustomText>
+            )}
 
             <TouchableOpacity
               style={[
@@ -563,44 +882,53 @@ const BusinessEventDetailsScreen = () => {
             {/* Horizontal divider line */}
             <View style={styles.dividerLine} />
 
-            <CustomText
-              fontFamily="Inter-Bold"
-              style={[styles.sectionTitle, { color: colors.label_dark }]}
-            >
-              What's happening near you
-            </CustomText>
+            {groupedSideEvents.length > 0 && (
+              <>
+                <CustomText
+                  fontFamily="Inter-Bold"
+                  style={[styles.sectionTitle, { color: colors.label_dark }]}
+                >
+                  What's happening near you
+                </CustomText>
 
-            <View style={styles.dateHeader}>
-              <CustomText
-                fontFamily="Inter-SemiBold"
-                style={[styles.dateText, { color: colors.label_dark }]}
-              >
-                September 2
-              </CustomText>
-              <CustomText
-                style={[styles.dateSubtext, { color: colors.event_gray }]}
-              >
-                | Tomorrow
-              </CustomText>
-            </View>
+                {groupedSideEvents.map((group) => (
+                  <View key={group.date}>
+                    <View style={styles.dateHeader}>
+                      <CustomText
+                        fontFamily="Inter-SemiBold"
+                        style={[styles.dateText, { color: "#4A4A4F" }]}
+                      >
+                        {group.dateLabel.date}
+                      </CustomText>
+                      <CustomText
+                        fontFamily="Inter-Regular"
+                        style={[styles.relativeDayText, { color: "#A3A3A8" }]}
+                      >
+                        | {group.dateLabel.relative}
+                      </CustomText>
+                    </View>
 
-            <View style={styles.localEventsGrid}>
-              {localEvents.map((event) => (
-                <LocalEventCard
-                  key={event.id}
-                  event={event}
-                  onPress={handleLocalEventPress}
-                  onLikePress={handleLocalEventLike}
-                  hasTabBar={false}
-                />
-              ))}
-            </View>
+                    <View style={styles.localEventsGrid}>
+                      {group.events.map((event) => (
+                        <LocalEventCard
+                          key={event.id}
+                          event={event}
+                          onPress={handleLocalEventPress}
+                          onLikePress={handleLocalEventLike}
+                          hasTabBar={false}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                ))}
+              </>
+            )}
           </View>
         </View>
       </Animated.ScrollView>
 
-      {/* Floating Map Button - Only show if there are local events available */}
-      {localEvents.length > 0 && (
+      {/* Floating Map Button - Only show if there are side events available */}
+      {sideEvents.length > 0 && (
         <FloatingMapButton onPress={handleMapPress} hasTabBar={false} />
       )}
 
@@ -626,12 +954,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: horizontalScale(24),
+  },
+  errorContentContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: horizontalScale(24),
+    marginTop: verticalScale(60), // Account for the fixed nav bar
+  },
   animatedHeader: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: verticalScale(240),
+    height: verticalScale(264), // Container height as specified
     zIndex: 1,
   },
   fixedNavBar: {
@@ -653,8 +994,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    width: "100%",
-    height: 250,
+    height: verticalScale(250), // Fixed height as specified
     resizeMode: "cover",
   },
   headerGradient: {
@@ -668,6 +1008,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: verticalScale(10),
     left: horizontalScale(24),
+    right: horizontalScale(24),
   },
   largeTitle: {
     fontSize: scaleFontSize(42),
@@ -680,10 +1021,14 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     marginBottom: verticalScale(15),
+    width: 70,
+    height: 70,
   },
   logoImage: {
     width: 70,
     height: 70,
+    borderRadius: 12,
+    overflow: "hidden", // Ensure border radius is visible
   },
   eventSubtitle: {
     fontSize: scaleFontSize(16),
@@ -708,16 +1053,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   bucketButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 1000,
+    width: 35,
+    height: 35,
+    borderRadius: 23.375,
     justifyContent: "center",
     alignItems: "center",
   },
   shareButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 1000,
+    width: 35,
+    height: 35,
+    borderRadius: 23.375,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -729,7 +1074,7 @@ const styles = StyleSheet.create({
   stickyTitle: {
     position: "absolute",
     left: horizontalScale(16),
-    right: 0,
+    right: horizontalScale(16),
   },
   stickyTitleText: {
     fontSize: scaleFontSize(18),
@@ -754,8 +1099,8 @@ const styles = StyleSheet.create({
     marginTop: verticalScale(20),
   },
   eventMeta: {
-    flexDirection: "row",
-    gap: horizontalScale(15),
+    flexDirection: "column",
+    gap: horizontalScale(6),
     marginBottom: verticalScale(6),
   },
   metaItem: {
@@ -804,8 +1149,8 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: scaleFontSize(16),
   },
-  dateSubtext: {
-    fontSize: scaleFontSize(12),
+  relativeDayText: {
+    fontSize: scaleFontSize(16),
   },
   localEventsGrid: {
     gap: verticalScale(10),

@@ -34,9 +34,7 @@ export const ErrorScreen: React.FC<ErrorScreenProps> = ({
       >
         {title}
       </CustomText>
-      <CustomText
-        style={[styles.errorText, { color: colors.gray_regular }]}
-      >
+      <CustomText style={[styles.errorText, { color: colors.gray_regular }]}>
         {message}
       </CustomText>
       {onRetry && (
@@ -68,7 +66,7 @@ const styles = StyleSheet.create({
     lineHeight: scaleFontSize(20),
   },
   retryButton: {
-    backgroundColor: "#6C63FF",
+    backgroundColor: "#3C62FA",
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 12,
@@ -76,7 +74,7 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     color: "white",
-    fontSize: 16,
+    fontSize: scaleFontSize(16),
     fontWeight: "600",
     textAlign: "center",
   },

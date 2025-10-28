@@ -844,6 +844,11 @@ const OnboardingScreen = () => {
       } catch (error) {
         console.error("Failed to immediately save location preference:", error);
       }
+
+      // Auto-advance to next step when location is selected
+      setTimeout(() => {
+        setCurrentStepIndex(currentStepIndex + 1);
+      }, 300); // Small delay for better UX
     }
   };
 

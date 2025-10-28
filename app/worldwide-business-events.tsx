@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import {
   StyleSheet,
   View,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Animated,
   ScrollView,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import {
@@ -34,6 +35,19 @@ import { LinearGradient } from "expo-linear-gradient";
 import BackSvg from "@/components/SvgComponents/BackSvg";
 import { SectionHeader } from "@/components/Section/SectionHeader";
 import FloatingMapButton from "@/components/FloatingMapButton";
+import {
+  useWorldwideBusinessEvents,
+  BusinessEvent,
+} from "@/hooks/useBusinessEvents";
+import AnimatedLoader from "@/components/Loader/AnimatedLoader";
+import {
+  formatBusinessEventDateRange,
+  groupEventsByDate,
+  GroupedEvent,
+} from "@/utilities/eventHelpers";
+import { useAddLike } from "@/hooks/useLikes";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/contexts/ToastContext";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 interface WorldwideBusinessEventsScreenProps {}
@@ -44,35 +58,114 @@ const WorldwideBusinessEventsScreen: React.FC<
   const { colors } = useTheme();
   const router = useRouter();
   const scrollY = useRef(new Animated.Value(0)).current;
+  const queryClient = useQueryClient();
+  const addLikeMutation = useAddLike();
+  const { showToast } = useToast();
 
-  // Dynamic height measurements for precise animations
-  const [majorEventsSectionHeight, setMajorEventsSectionHeight] = useState(0);
-  const [citiesSectionHeight, setCitiesSectionHeight] = useState(0);
-  const [localEventsSectionHeight, setLocalEventsSectionHeight] = useState(0);
-  const [categoriesSectionHeight, setCategoriesSectionHeight] = useState(0);
+  // Remove unused state
   const insets = useSafeAreaInsets();
 
-  // Mock data for worldwide major events
-  const [majorEvents, setMajorEvents] = React.useState<MajorEventData[]>([
-    {
-      id: "1",
-      title: "WebSummit",
-      location: "Lisbon",
-      dateRange: "November 11 - 14, 2025",
-      eventCount: "100+ Events",
-      imageUrl: "https://images.unsplash.com/photo-1540575467063-178a50c2df87",
-      isLiked: true,
-    },
-    {
-      id: "2",
-      title: "WebSummit",
-      location: "Lisbon",
-      dateRange: "November 11 - 14, 2025",
-      eventCount: "100+ Events",
-      imageUrl: "https://images.unsplash.com/photo-1540575467063-178a50c2df87",
-      isLiked: true,
-    },
-  ]);
+  // Fetch worldwide business events from API
+  const {
+    data: businessEventsData,
+    isLoading: isBusinessEventsLoading,
+    isSuccess: isBusinessEventsSuccess,
+  } = useWorldwideBusinessEvents(20);
+
+  // Transform API data to MajorEventData format and manage state
+  const [majorEvents, setMajorEvents] = useState<MajorEventData[]>([]);
+  const [groupedLocalEvents, setGroupedLocalEvents] = useState<
+    GroupedEvent<LocalEventData>[]
+  >([]);
+
+  // State to track current section - moved before early returns
+  const [currentStickyTitle, setCurrentStickyTitle] = useState<'major' | 'local'>('major');
+
+  // Cleanup scroll listeners on unmount - moved before early returns
+  useEffect(() => {
+    return () => {
+      scrollY.removeAllListeners();
+    };
+  }, [scrollY]);
+
+  // Dynamic calculation of local events section position
+  const localEventsStart = useMemo(() => {
+    let offset = 200; // Base header height
+
+    // Add height for major events section
+    if (majorEvents.length > 0) {
+      offset += 80; // Section header height
+      // Each major event card is roughly 120px + spacing
+      const rows = Math.ceil(majorEvents.length / 1); // 1 card per row
+      offset += rows * 140; // Card height + spacing
+      offset += 28; // Margin between sections
+    }
+
+    return offset;
+  }, [majorEvents.length]);
+
+  // Update current section based on scroll position - moved before early returns
+  useEffect(() => {
+    const listener = scrollY.addListener(({ value }) => {
+      if (value < localEventsStart) {
+        setCurrentStickyTitle('major');
+      } else {
+        setCurrentStickyTitle('local');
+      }
+    });
+
+    return () => {
+      scrollY.removeListener(listener);
+    };
+  }, [scrollY, localEventsStart]);
+
+  // Update major events and local events when API data loads
+  useEffect(() => {
+    // Transform major events
+    if (businessEventsData?.events) {
+      const transformedEvents: MajorEventData[] = businessEventsData.events
+        // Sort by eventDatetimeStart before transforming
+        .sort((a, b) => {
+          const dateA = a.eventDatetimeStart ? new Date(a.eventDatetimeStart).getTime() : 0;
+          const dateB = b.eventDatetimeStart ? new Date(b.eventDatetimeStart).getTime() : 0;
+          return dateA - dateB; // Earliest events first
+        })
+        .map((event: BusinessEvent) => ({
+          id: event.id || event.contentId || "",
+          title: event.title || event.name || "",
+          location: event.addressShort || event.addressLong || "Worldwide",
+          dateRange: formatBusinessEventDateRange(event),
+          eventCount: `${event.sideEventCount}+ Events`,
+          imageUrl: event.imageUrl || event.internalImageUrls?.[0] || undefined,
+          isLiked: event.userLiked || false,
+        }));
+      setMajorEvents(transformedEvents);
+    }
+
+    // Transform local events from the new localEvents array
+    if (businessEventsData?.localEvents) {
+      const transformedLocalEvents: LocalEventData[] = businessEventsData.localEvents
+        // Sort by eventDatetimeStart before transforming
+        .sort((a, b) => {
+          const dateA = a.eventDatetimeStart ? new Date(a.eventDatetimeStart).getTime() : 0;
+          const dateB = b.eventDatetimeStart ? new Date(b.eventDatetimeStart).getTime() : 0;
+          return dateA - dateB; // Earliest events first
+        })
+        .map((event: BusinessEvent) => ({
+          id: event.id || event.contentId || "",
+          title: event.title || event.name || "",
+          time: formatBusinessEventDateRange(event),
+          date: event.eventDatetimeStart || undefined, // Add raw date for grouping
+          venue: event.addressShort || event.addressLong || "Global",
+          imageUrl: event.imageUrl || event.internalImageUrls?.[0] || undefined,
+          isLiked: event.userLiked || false,
+        }));
+
+      // Group local events by date
+      const grouped = groupEventsByDate(transformedLocalEvents);
+      setGroupedLocalEvents(grouped);
+    }
+  }, [businessEventsData]);
 
   // Mock cities data
   const [cities] = React.useState<CityData[]>([
@@ -100,33 +193,6 @@ const WorldwideBusinessEventsScreen: React.FC<
     { id: "3", name: "Travel", color: "#F84808", icon: "airplane-outline" },
   ]);
 
-  // Mock local events data
-  const [localEvents, setLocalEvents] = React.useState<LocalEventData[]>([
-    {
-      id: "le1",
-      title: "Toronto Tech Fest",
-      time: "September 10 - 13, 2025",
-      venue: "Toronto, Canada",
-      imageUrl: "https://images.unsplash.com/photo-1540575467063-178a50c2df87",
-      isLiked: false,
-    },
-    {
-      id: "le2",
-      title: "Toronto Tech Fest",
-      time: "September 10 - 13, 2025",
-      venue: "Toronto, Canada",
-      imageUrl: "https://images.unsplash.com/photo-1540575467063-178a50c2df87",
-      isLiked: true,
-    },
-    {
-      id: "le3",
-      title: "Toronto Tech Fest",
-      time: "September 10 - 13, 2025",
-      venue: "Toronto, Canada",
-      imageUrl: "https://images.unsplash.com/photo-1540575467063-178a50c2df87",
-      isLiked: false,
-    },
-  ]);
 
   const handleBackPress = () => {
     router.back();
@@ -137,15 +203,36 @@ const WorldwideBusinessEventsScreen: React.FC<
   };
 
   const handleLikePress = (event: MajorEventData) => {
+    const likeData = {
+      contentIds: [event.id],
+    };
+
+    // Optimistically update local state
     setMajorEvents((prevEvents) =>
       prevEvents.map((e) =>
         e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
       )
     );
+
+    // Make API call
+    addLikeMutation.mutate(likeData, {
+      onSuccess: () => {
+        // Cache invalidation handled automatically by useAddLike hook
+      },
+      onError: (error) => {
+        console.error("Failed to like event:", error);
+        // Revert optimistic update on error
+        setMajorEvents((prevEvents) =>
+          prevEvents.map((e) =>
+            e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
+          )
+        );
+        showToast("Failed to save your interest", "error");
+      },
+    });
   };
 
   const handleCityPress = (city: CityData) => {
-    console.log("Navigating to city:", city);
     router.push({
       pathname: `/major-events-nearby` as any,
       params: {
@@ -157,7 +244,6 @@ const WorldwideBusinessEventsScreen: React.FC<
   };
 
   const handleCategoryPress = (category: CategoryData) => {
-    console.log("Category pressed:", category);
     router.push({
       pathname: `/major-events-nearby` as any,
       params: {
@@ -169,204 +255,111 @@ const WorldwideBusinessEventsScreen: React.FC<
   };
 
   const handleMapPress = () => {
-    // TODO: Navigate to map screen
-    console.log("Map button pressed");
+    router.push(`/map-screen?source=business&type=worldwide`);
   };
 
   const handleLocalEventPress = (event: LocalEventData) => {
-    console.log("Local event pressed:", event);
-    // Navigate to event details
+    // Navigate to event details using the [eventId].tsx route
+    router.push(`/event-details/${event.id}`);
   };
 
   const handleLocalEventLike = (event: LocalEventData) => {
-    setLocalEvents((prevEvents) =>
-      prevEvents.map((e) =>
-        e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
-      )
+    const likeData = {
+      contentIds: [event.id],
+    };
+
+    // Optimistically update local state
+    setGroupedLocalEvents((prevGrouped) =>
+      prevGrouped.map((group) => ({
+        ...group,
+        events: group.events.map((e) =>
+          e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
+        ),
+      }))
     );
+
+    // Make API call
+    addLikeMutation.mutate(likeData, {
+      onSuccess: () => {
+        // Cache invalidation handled automatically by useAddLike hook
+      },
+      onError: (error) => {
+        console.error("Failed to like local event:", error);
+        // Revert optimistic update on error
+        setGroupedLocalEvents((prevGrouped) =>
+          prevGrouped.map((group) => ({
+            ...group,
+            events: group.events.map((e) =>
+              e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
+            ),
+          }))
+        );
+        showToast("Failed to save your interest", "error");
+      },
+    });
   };
 
-  const HEADER_HEIGHT = verticalScale(200);
+  // Simplified scroll handlers - no complex animations
+  const handleScrollBeginDrag = useCallback(() => {
+    // Keep for future if needed
+  }, []);
+
+  const handleScrollEndDrag = useCallback(() => {
+    // Keep for future if needed
+  }, []);
+
+  // Show full-screen loader while major events are loading
+  if (isBusinessEventsLoading && majorEvents.length === 0) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <StatusBar
+          translucent
+          backgroundColor="transparent"
+          barStyle="light-content"
+        />
+        <SafeAreaView style={styles.loadingContent}>
+          <TouchableOpacity
+            onPress={handleBackPress}
+            style={styles.loadingBackButton}
+          >
+            <BackSvg stroke={colors.label_dark} width={17} height={27} />
+          </TouchableOpacity>
+          <View style={styles.loadingCenter}>
+            <AnimatedLoader />
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
   const NAVBAR_HEIGHT = verticalScale(40);
-  const HEADER_SCROLL_DISTANCE = HEADER_HEIGHT - NAVBAR_HEIGHT;
   const NAVBAR_BACKGROUND_HEIGHT = insets.top + NAVBAR_HEIGHT;
 
-  // Calculate section positions using measured heights
-  const SECTION_GAP = verticalScale(20);
-  const CONTENT_AREA_TOP = verticalScale(-40);
-  const CONTENT_PADDING_TOP = verticalScale(25);
-  const CONTENT_START = HEADER_HEIGHT + CONTENT_AREA_TOP + CONTENT_PADDING_TOP;
-
-  // Calculate transition points using measured heights with safety checks
-  const CITIES_SECTION_START = Math.max(
-    CONTENT_START + majorEventsSectionHeight + SECTION_GAP,
-    CONTENT_START + 100 // Minimum fallback
-  );
-  const LOCAL_EVENTS_SECTION_START = Math.max(
-    CITIES_SECTION_START + citiesSectionHeight + SECTION_GAP,
-    CITIES_SECTION_START + 100 // Ensure it's always after cities
-  );
-  const CATEGORIES_SECTION_START = Math.max(
-    LOCAL_EVENTS_SECTION_START + localEventsSectionHeight + SECTION_GAP,
-    LOCAL_EVENTS_SECTION_START + 100 // Ensure it's always after local events
-  );
-
-  // Helper function to ensure monotonic inputRange
-  const createMonotonicInputRange = (
-    baseValue: number,
-    offset: number = 50
-  ) => {
-    const start = Math.max(baseValue - offset, 0);
-    const end = baseValue;
-    return start < end ? [start, end] : [start, start + 1]; // Ensure end > start
-  };
-
-  // Header parallax effect
-  const headerTranslateY = scrollY.interpolate({
-    inputRange: [0, HEADER_HEIGHT],
-    outputRange: [0, -HEADER_HEIGHT / 3],
+  // Simple navbar background opacity
+  const navBarBackgroundOpacity = scrollY.interpolate({
+    inputRange: [50, 100],
+    outputRange: [0, 0.98],
     extrapolate: "clamp",
   });
 
-  // Background image opacity
-  const headerImageOpacity = scrollY.interpolate({
-    inputRange: [-50, 0, HEADER_HEIGHT * 0.2, HEADER_HEIGHT * 0.5],
-    outputRange: [0, 1, 0.3, 0],
-    extrapolate: "clamp",
-  });
-
-  // Header container opacity
-  const headerContainerOpacity = scrollY.interpolate({
-    inputRange: [0, 50, 100],
-    outputRange: [1, 1, 0],
-    extrapolate: "clamp",
-  });
-
-  // Text slides up and fades
-  const headerTextTranslateY = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE],
-    outputRange: [0, -HEADER_SCROLL_DISTANCE],
-    extrapolate: "clamp",
-  });
-
-  const headerTextOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE * 0.7, HEADER_SCROLL_DISTANCE],
-    outputRange: [1, 0.3, 0],
-    extrapolate: "clamp",
-  });
-
-  // Scale effect for header image
-  const headerImageScale = scrollY.interpolate({
-    inputRange: [-100, 0, HEADER_HEIGHT],
-    outputRange: [1.3, 1, 1.1],
-    extrapolate: "clamp",
-  });
-
-  // Icon opacity for white icons - sync with navbar background
-  const whiteIconOpacity = scrollY.interpolate({
-    inputRange: [0, 40],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
-
-  // Icon opacity for black icons - sync with navbar background
-  const blackIconOpacity = scrollY.interpolate({
-    inputRange: [0, 40],
+  // Simple sticky header opacity
+  const stickyHeaderOpacity = scrollY.interpolate({
+    inputRange: [100, 150],
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
 
-  // Dynamic padding for navbar
-  const navBarPaddingTop = scrollY.interpolate({
-    inputRange: [
-      HEADER_HEIGHT - NAVBAR_HEIGHT - 30,
-      HEADER_HEIGHT - NAVBAR_HEIGHT - 10,
-    ],
-    outputRange: [verticalScale(10), verticalScale(2)],
+  // Icon opacity for white icons - visible at start, fades earlier
+  const whiteIconOpacity = scrollY.interpolate({
+    inputRange: [0, 50, 100],
+    outputRange: [1, 0.5, 0],
     extrapolate: "clamp",
   });
 
-  // Sticky header opacities for each section - smooth like business events with monotonic inputRanges
-  const majorEventsStickyOpacity =
-    majorEvents.length > 0
-      ? scrollY.interpolate({
-          inputRange: [
-            50,
-            100,
-            Math.max(CITIES_SECTION_START - NAVBAR_HEIGHT - 50, 150),
-            Math.max(CITIES_SECTION_START - NAVBAR_HEIGHT, 200),
-          ],
-          outputRange: [0, 1, 1, 0],
-          extrapolate: "clamp",
-        })
-      : new Animated.Value(0);
-
-  const citiesStickyOpacity = scrollY.interpolate({
-    inputRange: [
-      Math.max(CITIES_SECTION_START - NAVBAR_HEIGHT - 50, 150),
-      Math.max(CITIES_SECTION_START - NAVBAR_HEIGHT, 200),
-      Math.max(LOCAL_EVENTS_SECTION_START - NAVBAR_HEIGHT - 50, 250),
-      Math.max(LOCAL_EVENTS_SECTION_START - NAVBAR_HEIGHT, 300),
-    ],
-    outputRange: [0, 1, 1, 0],
-    extrapolate: "clamp",
-  });
-
-  const localEventsStickyOpacity = scrollY.interpolate({
-    inputRange: [
-      Math.max(LOCAL_EVENTS_SECTION_START - NAVBAR_HEIGHT - 50, 250),
-      Math.max(LOCAL_EVENTS_SECTION_START - NAVBAR_HEIGHT, 300),
-      Math.max(CATEGORIES_SECTION_START - NAVBAR_HEIGHT - 50, 350),
-      Math.max(CATEGORIES_SECTION_START - NAVBAR_HEIGHT, 400),
-    ],
-    outputRange: [0, 1, 1, 0],
-    extrapolate: "clamp",
-  });
-
-  const categoriesStickyOpacity = scrollY.interpolate({
-    inputRange: [
-      Math.max(CATEGORIES_SECTION_START - NAVBAR_HEIGHT - 50, 350),
-      Math.max(CATEGORIES_SECTION_START - NAVBAR_HEIGHT, 400),
-      Math.max(CATEGORIES_SECTION_START - NAVBAR_HEIGHT + 1000, 1400),
-    ],
-    outputRange: [0, 1, 1],
-    extrapolate: "clamp",
-  });
-
-  // Hide original titles when sticky appears
-  const originalMajorEventsOpacity = scrollY.interpolate({
-    inputRange: [
-      HEADER_HEIGHT - NAVBAR_HEIGHT - 20,
-      HEADER_HEIGHT - NAVBAR_HEIGHT,
-    ],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
-
-  const originalLocalEventsOpacity = scrollY.interpolate({
-    inputRange: [
-      LOCAL_EVENTS_SECTION_START - NAVBAR_HEIGHT - 1,
-      LOCAL_EVENTS_SECTION_START - NAVBAR_HEIGHT,
-    ],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
-
-  const originalCategoriesOpacity = scrollY.interpolate({
-    inputRange: [
-      CATEGORIES_SECTION_START - NAVBAR_HEIGHT - 1,
-      CATEGORIES_SECTION_START - NAVBAR_HEIGHT,
-    ],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
-
-  const originalCitiesOpacity = scrollY.interpolate({
-    inputRange: [
-      CITIES_SECTION_START - NAVBAR_HEIGHT - 1,
-      CITIES_SECTION_START - NAVBAR_HEIGHT,
-    ],
-    outputRange: [1, 0],
+  // Icon opacity for black icons - appears earlier
+  const blackIconOpacity = scrollY.interpolate({
+    inputRange: [0, 50, 100],
+    outputRange: [0, 0.5, 1],
     extrapolate: "clamp",
   });
 
@@ -378,79 +371,14 @@ const WorldwideBusinessEventsScreen: React.FC<
         barStyle="light-content"
       />
 
-      {/* Background Header with parallax */}
-      <Animated.View
-        style={[
-          styles.animatedHeader,
-          {
-            transform: [{ translateY: headerTranslateY }],
-            opacity: headerContainerOpacity,
-          },
-        ]}
-        pointerEvents="none"
-      >
-        {/* Background Image with scale effect */}
-        <Animated.Image
-          source={require("@/assets/images/business_events_global.png")}
-          style={[
-            styles.headerBackground,
-            {
-              opacity: headerImageOpacity,
-              transform: [{ scale: headerImageScale }],
-            },
-          ]}
-        />
-
-        {/* Gradient Overlay */}
-        <LinearGradient
-          colors={[
-            "rgba(217, 217, 217, 0.00)",
-            "rgba(236, 236, 236, 0.50)",
-            "#FFF",
-          ]}
-          locations={[0.1, 0.5089, 0.9089]}
-          style={styles.headerGradient}
-        />
-
-        {/* Header Text Content */}
-        <Animated.View
-          style={[
-            styles.headerTextContainer,
-            {
-              opacity: headerTextOpacity,
-              transform: [{ translateY: headerTextTranslateY }],
-            },
-          ]}
-        >
-          <CustomText
-            style={[
-              styles.headerSubtitle,
-              { color: colors.onboarding_option_dark },
-            ]}
-          >
-            Events happening
-          </CustomText>
-          <CustomText
-            fontFamily="Inter-Bold"
-            style={[styles.headerTitle, { color: colors.label_dark }]}
-          >
-            Worldwide
-          </CustomText>
-        </Animated.View>
-      </Animated.View>
-
-      {/* Fixed Navigation Bar */}
+      {/* Fixed Navigation Bar - Always on top */}
       <View style={styles.fixedNavBar}>
         {/* Solid background that appears when scrolled */}
         <Animated.View
           style={[
             styles.navBarBackground,
             {
-              opacity: scrollY.interpolate({
-                inputRange: [0, 15, 40],
-                outputRange: [0, 0.7, 0.95],
-                extrapolate: "clamp",
-              }),
+              opacity: navBarBackgroundOpacity,
               backgroundColor: "#fff",
               height: NAVBAR_BACKGROUND_HEIGHT,
             },
@@ -458,117 +386,49 @@ const WorldwideBusinessEventsScreen: React.FC<
         />
 
         <SafeAreaView style={styles.navContainer}>
-          <Animated.View
-            style={[styles.navBar, { paddingTop: navBarPaddingTop }]}
-          >
+          <View style={[styles.navBar, { paddingTop: verticalScale(10) }]}>
             <TouchableOpacity
               onPress={handleBackPress}
               style={styles.backButton}
             >
               <View style={{ position: "relative" }}>
-                {/* White icon */}
+                {/* White icon - visible at start */}
                 <Animated.View
                   style={{ opacity: whiteIconOpacity, position: "absolute" }}
                 >
-                  <BackSvg />
+                  <BackSvg width={17} height={27} />
                 </Animated.View>
-                {/* Black icon */}
+                {/* Black icon - visible when scrolled */}
                 <Animated.View style={{ opacity: blackIconOpacity }}>
-                  <BackSvg stroke={colors.label_dark} />
+                  <BackSvg stroke={colors.label_dark} width={17} height={27} />
                 </Animated.View>
               </View>
             </TouchableOpacity>
 
-            {/* Sticky Titles next to back button */}
-            <View style={styles.stickyTitleContainer} pointerEvents="none">
-              {/* Major events title */}
-              {majorEvents.length > 0 && (
-                <Animated.View
-                  style={[
-                    styles.absoluteTitle,
-                    { opacity: majorEventsStickyOpacity },
-                  ]}
-                >
-                  <CustomText
-                    fontFamily="Inter-Bold"
-                    style={[
-                      styles.stickyTitleText,
-                      { color: colors.label_dark },
-                    ]}
-                  >
-                    Major events
-                  </CustomText>
-                </Animated.View>
-              )}
-
-              {/* Cities title */}
-              <Animated.View
-                style={[styles.absoluteTitle, { opacity: citiesStickyOpacity }]}
-              >
+            {/* Dynamic sticky title based on current section */}
+            <Animated.View
+              style={[
+                styles.stickyTitleContainer,
+                {
+                  opacity: stickyHeaderOpacity,
+                },
+              ]}
+            >
+              <View style={styles.absoluteTitle}>
                 <CustomText
                   fontFamily="Inter-Bold"
                   style={[styles.stickyTitleText, { color: colors.label_dark }]}
                 >
-                  Cities
+                  {currentStickyTitle === 'major' && majorEvents.length > 0 && 'Major events'}
+                  {currentStickyTitle === 'local' && 'Popular global events'}
                 </CustomText>
-              </Animated.View>
-
-              {/* Local events title */}
-              <Animated.View
-                style={[
-                  styles.absoluteTitle,
-                  { opacity: localEventsStickyOpacity },
-                ]}
-              >
-                <CustomText
-                  fontFamily="Inter-Bold"
-                  style={[styles.stickyTitleText, { color: colors.label_dark }]}
-                >
-                  Popular local events
-                </CustomText>
-              </Animated.View>
-
-              {/* Categories title */}
-              <Animated.View
-                style={[
-                  styles.absoluteTitle,
-                  { opacity: categoriesStickyOpacity },
-                ]}
-              >
-                <CustomText
-                  fontFamily="Inter-Bold"
-                  style={[styles.stickyTitleText, { color: colors.label_dark }]}
-                >
-                  Categories
-                </CustomText>
-              </Animated.View>
-            </View>
-
-            <View style={styles.navIcons}>
-              <TouchableOpacity style={styles.iconButton}>
-                <View style={{ position: "relative" }}>
-                  {/* White icon */}
-                  <Animated.View
-                    style={{ opacity: whiteIconOpacity, position: "absolute" }}
-                  >
-                    <Ionicons name="search" size={25} color="white" />
-                  </Animated.View>
-                  {/* Black icon */}
-                  <Animated.View style={{ opacity: blackIconOpacity }}>
-                    <Ionicons
-                      name="search"
-                      size={25}
-                      color={colors.label_dark}
-                    />
-                  </Animated.View>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
+              </View>
+            </Animated.View>
+          </View>
         </SafeAreaView>
       </View>
 
-      {/* Scrollable Content */}
+      {/* Scrollable Content - Everything is scrollable */}
       <Animated.ScrollView
         style={styles.scrollableContent}
         showsVerticalScrollIndicator={false}
@@ -576,144 +436,237 @@ const WorldwideBusinessEventsScreen: React.FC<
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false }
         )}
+        onScrollBeginDrag={handleScrollBeginDrag}
+        onScrollEndDrag={handleScrollEndDrag}
         scrollEventThrottle={16}
         contentContainerStyle={styles.scrollContentContainer}
         bounces={false}
-        overScrollMode="never"
         scrollEnabled={true}
       >
-        {/* Header Spacer */}
-        <View style={styles.headerSpacer} />
+        {/* Scrollable Header */}
+        <View
+          style={[
+            styles.scrollableHeader,
+            {
+              height: verticalScale(200) + insets.top,
+              paddingTop: insets.top,
+            },
+          ]}
+        >
+          {/* Background Image */}
+          <Image
+            source={require("@/assets/images/business_events_global.png")}
+            style={[
+              styles.headerBackground,
+              {
+                height: verticalScale(200) + insets.top,
+              },
+            ]}
+            resizeMode="cover"
+          />
 
-        {/* White background content area */}
+          {/* Gradient Overlay */}
+          <LinearGradient
+            colors={[
+              "rgba(217, 217, 217, 0.00)",
+              "rgba(236, 236, 236, 0.50)",
+              "#FFF",
+            ]}
+            locations={[0, 0.3089, 0.8089]}
+            style={styles.headerGradient}
+          />
+
+          {/* Header Text Content */}
+          <View style={styles.headerTextContainer}>
+            <CustomText
+              style={[
+                styles.headerSubtitle,
+                { color: colors.onboarding_option_dark },
+              ]}
+            >
+              Events happening
+            </CustomText>
+            <CustomText
+              fontFamily="Inter-Bold"
+              style={[styles.headerTitle, { color: colors.label_dark }]}
+            >
+              Worldwide
+            </CustomText>
+          </View>
+        </View>
+
+        {/* Content area */}
         <View style={[styles.contentArea, { backgroundColor: "#ffffff" }]}>
-          {/* Major Events Section */}
-          <View
-            style={styles.section}
-            onLayout={(event) => {
-              const { height } = event.nativeEvent.layout;
-              setMajorEventsSectionHeight(height);
-            }}
-          >
-            <Animated.View style={{ opacity: originalMajorEventsOpacity }}>
-              <SectionHeader
-                title="Major events"
-                showViewAll={true}
-                onViewAllPress={() => router.push("/worldwide-major-events")}
-                containerStyle={{ marginBottom: verticalScale(12) }}
-              />
-            </Animated.View>
-
-            <View style={styles.eventsGrid}>
-              {majorEvents.map((event) => (
-                <MajorEventsCard
-                  key={event.id}
-                  event={event}
-                  onPress={handleEventPress}
-                  onLikePress={handleLikePress}
-                  style={styles.fullWidthCard}
-                  hasTabBar={false}
+          {/* Major Events Section - Only render if there are events */}
+          {majorEvents.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <SectionHeader
+                  title="Major events"
+                  showViewAll={false}
+                  containerStyle={{ marginBottom: 0 }}
                 />
-              ))}
+              </View>
+
+              <View style={styles.eventsGrid}>
+                {majorEvents.slice(0, 3).map((event) => (
+                  <MajorEventsCard
+                    key={event.id}
+                    event={event}
+                    onPress={handleEventPress}
+                    onLikePress={handleLikePress}
+                    style={styles.fullWidthCard}
+                    hasTabBar={false}
+                  />
+                ))}
+              </View>
             </View>
-          </View>
+          )}
 
-          {/* Cities Section */}
-          <View
-            style={styles.section}
-            onLayout={(event) => {
-              const { height } = event.nativeEvent.layout;
-              setCitiesSectionHeight(height);
-            }}
-          >
-            <Animated.View style={{ opacity: originalCitiesOpacity }}>
-              <SectionHeader
-                title="Cities"
-                showViewAll={true}
-                onViewAllPress={() => console.log("View all cities")}
-                containerStyle={{ marginBottom: verticalScale(12) }}
-              />
-            </Animated.View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalScrollContent}
-              style={styles.horizontalScroll}
+          {/* Cities Section - Hidden until API is ready */}
+          {false && (
+            <View
+              style={styles.section}
+              // onLayout={(event) => {
+              //   const { height } = event.nativeEvent.layout;
+              //   setCitiesSectionHeight(height);
+              // }}
             >
-              {cities.map((city) => (
-                <CityCard key={city.id} city={city} onPress={handleCityPress} />
-              ))}
-            </ScrollView>
-          </View>
-
-          {/* Local Events Section */}
-          <View
-            style={styles.section}
-            onLayout={(event) => {
-              const { height } = event.nativeEvent.layout;
-              setLocalEventsSectionHeight(height);
-            }}
-          >
-            <Animated.View style={{ opacity: originalLocalEventsOpacity }}>
-              <SectionHeader
-                title="Popular local events"
-                showViewAll={true}
-                onViewAllPress={() => console.log("View all local events")}
-                containerStyle={{ marginBottom: verticalScale(12) }}
-              />
-            </Animated.View>
-
-            <View style={styles.localEventsGrid}>
-              {localEvents.map((event) => (
-                <LocalEventCard
-                  key={event.id}
-                  event={event}
-                  onPress={handleLocalEventPress}
-                  onLikePress={handleLocalEventLike}
-                  hasTabBar={false}
+              {/* <Animated.View style={{ opacity: originalCitiesOpacity }}> */}
+                <SectionHeader
+                  title="Cities"
+                  showViewAll={true}
+                  onViewAllPress={() => {}}
+                  containerStyle={{ marginBottom: verticalScale(12) }}
                 />
-              ))}
+              {/* </Animated.View> */}
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalScrollContent}
+                style={styles.horizontalScroll}
+              >
+                {cities.map((city) => (
+                  <CityCard
+                    key={city.id}
+                    city={city}
+                    onPress={handleCityPress}
+                  />
+                ))}
+              </ScrollView>
             </View>
-          </View>
+          )}
 
-          {/* Categories Section */}
-          <View
-            style={styles.section}
-            onLayout={(event) => {
-              const { height } = event.nativeEvent.layout;
-              setCategoriesSectionHeight(height);
-            }}
-          >
-            <Animated.View style={{ opacity: originalCategoriesOpacity }}>
-              <SectionHeader
-                title="Categories"
-                showViewAll={true}
-                onViewAllPress={() => console.log("View all categories")}
-                containerStyle={{ marginBottom: verticalScale(12) }}
-              />
-            </Animated.View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalScrollContent}
-              style={styles.horizontalScroll}
+          {/* Local Events Section - Always render section */}
+          <View style={styles.section}>
+            <CustomText
+              fontFamily="Inter-Bold"
+              style={[
+                { fontSize: scaleFontSize(20) },
+                { color: colors.label_dark },
+              ]}
             >
-              {categories.map((category) => (
-                <CategoryCard
-                  key={category.id}
-                  category={category}
-                  onPress={handleCategoryPress}
-                />
-              ))}
-            </ScrollView>
+              Popular global events
+            </CustomText>
+
+            {groupedLocalEvents.length > 0 ? (
+              /* Render events grouped by date */
+              groupedLocalEvents.map((dateGroup, groupIndex) => (
+                <View
+                  key={dateGroup.date}
+                  style={{
+                    marginTop: groupIndex === 0 ? verticalScale(15) : 0,
+                    marginBottom:
+                      groupIndex < groupedLocalEvents.length - 1
+                        ? verticalScale(8)
+                        : 0,
+                  }}
+                >
+                  <View style={[
+                    styles.dateHeader,
+                    { marginTop: groupIndex === 0 ? verticalScale(15) : verticalScale(8) }
+                  ]}>
+                    <CustomText
+                      fontFamily="Inter-SemiBold"
+                      style={[
+                        styles.dateText,
+                        { color: colors.onboarding_option_dark },
+                      ]}
+                    >
+                      {dateGroup.dateLabel}
+                    </CustomText>
+                    <CustomText
+                      style={[styles.dateSubtext, { color: colors.event_gray }]}
+                    >
+                      | {dateGroup.relativeLabel}
+                    </CustomText>
+                  </View>
+
+                  <View style={styles.localEventsGrid}>
+                    {dateGroup.events.map((event) => (
+                      <LocalEventCard
+                        key={event.id}
+                        event={event}
+                        onPress={handleLocalEventPress}
+                        onLikePress={handleLocalEventLike}
+                        hasTabBar={false}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ))
+            ) : (
+              /* Empty state message */
+              <View style={styles.emptyLocalEvents}>
+                <CustomText
+                  style={[styles.emptyText, { color: colors.event_gray }]}
+                >
+                  No global events available at the moment
+                </CustomText>
+              </View>
+            )}
           </View>
+
+          {/* Categories Section - Hidden until API is ready */}
+          {false && (
+            <View
+              style={styles.section}
+              // onLayout={(event) => {
+              //   const { height } = event.nativeEvent.layout;
+              //   setCategoriesSectionHeight(height);
+              // }}
+            >
+              {/* <Animated.View style={{ opacity: originalCategoriesOpacity }}> */}
+                <SectionHeader
+                  title="Categories"
+                  showViewAll={true}
+                  onViewAllPress={() => {}}
+                  containerStyle={{ marginBottom: verticalScale(12) }}
+                />
+              {/* </Animated.View> */}
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalScrollContent}
+                style={styles.horizontalScroll}
+              >
+                {categories.map((category) => (
+                  <CategoryCard
+                    key={category.id}
+                    category={category}
+                    onPress={handleCategoryPress}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          )}
         </View>
       </Animated.ScrollView>
 
-      {/* Floating Map Button - Only show if there are any events or locations available */}
-      {(majorEvents.length > 0 || localEvents.length > 0 || cities.length > 0) && (
+      {/* Floating Map Button - Only show if there are any events available */}
+      {(majorEvents.length > 0 || groupedLocalEvents.length > 0) && (
         <FloatingMapButton onPress={handleMapPress} hasTabBar={false} />
       )}
     </View>
@@ -725,13 +678,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
-  animatedHeader: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: verticalScale(200),
-    zIndex: 1,
+  scrollableHeader: {
+    position: "relative",
+    width: "100%",
   },
   fixedNavBar: {
     position: "absolute",
@@ -752,7 +701,6 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: verticalScale(200),
     width: "100%",
     resizeMode: "cover",
   },
@@ -783,6 +731,9 @@ const styles = StyleSheet.create({
     left: horizontalScale(16),
     right: 0,
   },
+  sectionHeader: {
+    marginBottom: verticalScale(12),
+  },
   stickyTitleText: {
     fontSize: scaleFontSize(18),
   },
@@ -793,7 +744,7 @@ const styles = StyleSheet.create({
   iconButton: {},
   headerTextContainer: {
     position: "absolute",
-    bottom: verticalScale(24),
+    bottom: verticalScale(20),
     left: horizontalScale(24),
     right: horizontalScale(24),
     zIndex: 5,
@@ -803,19 +754,15 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   scrollContentContainer: {
-    backgroundColor: "transparent",
-  },
-  headerSpacer: {
-    height: verticalScale(200),
+    flexGrow: 1,
   },
   contentArea: {
     backgroundColor: "#fff",
-    marginTop: verticalScale(-40),
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: verticalScale(25),
-    paddingBottom: verticalScale(110),
-    minHeight: "100%",
+    paddingBottom: verticalScale(80),
+    marginTop: verticalScale(-40),
   },
   headerSubtitle: {
     fontSize: scaleFontSize(16),
@@ -845,6 +792,44 @@ const styles = StyleSheet.create({
   },
   localEventsGrid: {
     gap: verticalScale(10),
+  },
+  dateHeader: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: horizontalScale(8),
+    marginBottom: verticalScale(8),
+  },
+  dateText: {
+    fontSize: scaleFontSize(16),
+  },
+  dateSubtext: {
+    fontSize: scaleFontSize(14),
+  },
+  emptyLocalEvents: {
+    alignItems: "center",
+    paddingVertical: verticalScale(30),
+    marginTop: verticalScale(15),
+  },
+  emptyText: {
+    fontSize: scaleFontSize(14),
+    textAlign: "center",
+  },
+  loadingContainer: {
+    backgroundColor: "#fff",
+  },
+  loadingContent: {
+    flex: 1,
+    justifyContent: "space-between",
+  },
+  loadingBackButton: {
+    padding: horizontalScale(24),
+    paddingTop: verticalScale(10),
+  },
+  loadingCenter: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: [{ translateX: -40 }, { translateY: -40 }],
   },
 });
 

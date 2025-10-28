@@ -141,15 +141,13 @@ const LikesSection: React.FC<LikesSectionProps> = ({
           LIKES
         </CustomText>
         <CustomTouchable
-          bgColor={colors.opacity_lime}
-          style={styles.seeMoreButton}
           onPress={onSeeMorePress}
         >
           <CustomText
             fontFamily="Inter-SemiBold"
-            style={[styles.seeMoreText, { color: colors.profile_name_black }]}
+            style={[styles.seeMoreText, { color: colors.light_blue }]}
           >
-            See more
+            View all
           </CustomText>
         </CustomTouchable>
       </CustomView>

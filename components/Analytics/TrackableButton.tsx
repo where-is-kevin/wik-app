@@ -1,6 +1,12 @@
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, TouchableOpacityProps } from 'react-native';
-import { useAnalyticsContext } from '@/contexts/AnalyticsContext';
+import React from "react";
+import {
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  TouchableOpacityProps,
+} from "react-native";
+import { useAnalyticsContext } from "@/contexts/AnalyticsContext";
+import { scaleFontSize } from "@/utilities/scaling";
 
 interface TrackableButtonProps extends TouchableOpacityProps {
   title: string;
@@ -22,7 +28,7 @@ export const TrackableButton: React.FC<TrackableButtonProps> = ({
   const handlePress = async () => {
     // Track the button click
     await trackButtonClick(buttonName, analyticsParams);
-    
+
     // Call the original onPress handler
     if (onPress) {
       onPress();
@@ -42,16 +48,16 @@ export const TrackableButton: React.FC<TrackableButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: "#007AFF",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    color: "white",
+    fontSize: scaleFontSize(16),
+    fontWeight: "600",
   },
 });

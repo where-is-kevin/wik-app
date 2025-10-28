@@ -1,10 +1,5 @@
 import React from "react";
-import {
-  StyleSheet,
-  TouchableOpacity,
-  ImageBackground,
-  View,
-} from "react-native";
+import { StyleSheet, TouchableOpacity, View, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomText from "../CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -14,6 +9,7 @@ import {
   scaleFontSize,
 } from "@/utilities/scaling";
 import { HeartButton } from "../HeartButton/HeartButton";
+import { OptimizedImageBackground } from "../OptimizedImage/OptimizedImage";
 
 export interface MajorEventData {
   id: string;
@@ -54,10 +50,13 @@ export const MajorEventsCard: React.FC<MajorEventsCardProps> = ({
       onPress={() => onPress(event)}
       activeOpacity={0.8}
     >
-      <ImageBackground
-        source={{ uri: event.imageUrl }}
+      <OptimizedImageBackground
+        source={event.imageUrl ? { uri: event.imageUrl } : ""}
         style={styles.backgroundImage}
-        imageStyle={styles.imageStyle}
+        contentFit="cover"
+        borderRadius={8}
+        showLoadingIndicator={true}
+        showErrorFallback={true}
       >
         {/* Heart icon */}
         {onLikePress && (
@@ -75,11 +74,12 @@ export const MajorEventsCard: React.FC<MajorEventsCardProps> = ({
         {/* Linear gradient overlay */}
         <LinearGradient
           colors={[
-            "rgba(217, 217, 217, 0)",
-            "rgba(11, 46, 52, 0.6)",
-            "#0B2E34",
+            "rgba(242, 242, 243, 0)",
+            "rgba(130, 130, 131, 0.5)",
+            "rgba(75, 75, 76, 0.7)",
+            "#131314",
           ]}
-          locations={[0, 0.5, 1]}
+          locations={[0, 0.25, 0.5, 0.9]}
           style={styles.gradientOverlay}
         >
           <View style={styles.contentContainer}>
@@ -92,19 +92,27 @@ export const MajorEventsCard: React.FC<MajorEventsCardProps> = ({
             <CustomText
               fontFamily="Inter-Bold"
               style={[styles.titleText, { color: colors.text_white }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
-              {event.title || event.location || 'Event'}
+              {event.title || event.location || "Event"}
             </CustomText>
 
             {/* Location and count */}
             <CustomText
               style={[styles.locationText, { color: colors.text_white }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
-              {event.location} {event.eventCount && `• ${event.eventCount}`}
+              {event.location && event.location.trim() !== ""
+                ? `${event.location} ${
+                    event.eventCount ? `• ${event.eventCount}` : ""
+                  }`
+                : event.eventCount || ""}
             </CustomText>
           </View>
         </LinearGradient>
-      </ImageBackground>
+      </OptimizedImageBackground>
     </TouchableOpacity>
   );
 };
@@ -123,8 +131,12 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    // Android shadow
-    elevation: 5,
+    // Android: NO elevation to prevent white flash with shimmer
+    ...Platform.select({
+      android: {
+        elevation: 0,
+      },
+    }),
   },
   backgroundImage: {
     flex: 1,

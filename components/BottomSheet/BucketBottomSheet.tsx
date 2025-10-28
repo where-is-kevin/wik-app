@@ -245,7 +245,6 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
     }
   }, [insets?.top]);
 
-
   // Render bucket item for FlatList
   const renderBucketItem = ({ item }: { item: BucketItem }) => {
     if (!item || !item.id) return null;
@@ -306,20 +305,11 @@ export const BucketBottomSheet: React.FC<BucketBottomSheetProps> = ({
     }
   };
 
-
   const renderContent = () => {
     if (bucketsLoading && !bucketItems.length) {
       return (
         <CustomView style={styles.loadingContainer}>
           <AnimatedLoader />
-          <CustomText
-            style={[
-              styles.loadingText,
-              { color: colors?.gray_regular || "#666" },
-            ]}
-          >
-            Loading buckets...
-          </CustomText>
         </CustomView>
       );
     }

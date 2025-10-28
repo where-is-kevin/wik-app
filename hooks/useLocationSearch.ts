@@ -70,7 +70,7 @@ export const useLocationSearch = () => {
       // Add country header
       locationResults.push({
         id: `header_${groupIndex}`,
-        name: `${group.country}:`,
+        name: group.country,
         country: group.country,
         fullName: group.country,
         isHeader: true,

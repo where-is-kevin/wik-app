@@ -26,17 +26,31 @@ import CustomTouchable from "../CustomTouchableOpacity";
 type AskKevinSectionProps = {
   onSend?: (message: string) => void;
   onInputChange?: (text: string) => void;
+  onClear?: () => void;
+  value?: string;
 };
 
-const AskKevinSection = ({ onSend, onInputChange }: AskKevinSectionProps) => {
+const AskKevinSection = ({
+  onSend,
+  onInputChange,
+  onClear,
+  value,
+}: AskKevinSectionProps) => {
   const { colors } = useTheme();
   const { trackButtonClick, trackCustomEvent, trackSearch } =
     useAnalyticsContext();
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(value || "");
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isInputFocused, setIsInputFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
   // const screenHeight = Dimensions.get("window").height;
+
+  // Sync internal state with controlled value prop
+  useEffect(() => {
+    if (value !== undefined) {
+      setInput(value);
+    }
+  }, [value]);
 
   useEffect(() => {
     const keyboardWillShowListener = Keyboard.addListener(
@@ -85,7 +99,7 @@ const AskKevinSection = ({ onSend, onInputChange }: AskKevinSectionProps) => {
 
     Keyboard.dismiss();
     onSend?.(message);
-    setInput("");
+    // Don't clear input - keep the query visible
   };
 
   const handleInputFocus = () => {
@@ -103,6 +117,12 @@ const AskKevinSection = ({ onSend, onInputChange }: AskKevinSectionProps) => {
   const handleInputChange = (text: string) => {
     setInput(text);
     onInputChange?.(text);
+  };
+
+  const handleClear = () => {
+    setInput("");
+    onClear?.();
+    Keyboard.dismiss();
   };
 
   // Calculate the dynamic height when input is focused
@@ -143,6 +163,7 @@ const AskKevinSection = ({ onSend, onInputChange }: AskKevinSectionProps) => {
               styles.input,
               Platform.OS === "android" && styles.androidInput,
             ]}
+            autoCorrect={false}
             placeholder="Ask Kevin..."
             placeholderTextColor={colors.profile_name_black}
             value={input}
@@ -153,6 +174,16 @@ const AskKevinSection = ({ onSend, onInputChange }: AskKevinSectionProps) => {
             returnKeyType="send"
             multiline={false}
           />
+          {/* Clear button - only show when there's text */}
+          {input.trim().length > 0 && (
+            <TouchableOpacity onPress={handleClear} style={styles.clearButton}>
+              <MaterialCommunityIcons
+                name="close"
+                size={18}
+                color={colors.profile_name_black}
+              />
+            </TouchableOpacity>
+          )}
         </View>
       </CustomView>
     </CustomView>
@@ -204,6 +235,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     width: "100%",
+  },
+  clearButton: {
+    padding: 2,
+    borderRadius: 12,
+    borderWidth: 0.5,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 

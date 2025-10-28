@@ -1,10 +1,5 @@
 import React from "react";
-import {
-  StyleSheet,
-  TouchableOpacity,
-  ImageBackground,
-  View,
-} from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomText from "../CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -15,14 +10,16 @@ import {
 } from "@/utilities/scaling";
 import { Ionicons } from "@expo/vector-icons";
 import { HeartButton } from "../HeartButton/HeartButton";
+import { OptimizedImageBackground } from "../OptimizedImage/OptimizedImage";
 
 export interface LocalEventData {
   id: string;
   title: string;
   time: string;
   venue: string;
-  imageUrl: string;
+  imageUrl?: string;
   isLiked?: boolean;
+  date?: string; // Raw ISO date for grouping
 }
 
 interface LocalEventCardProps {
@@ -54,95 +51,94 @@ export const LocalEventCard: React.FC<LocalEventCardProps> = ({
       onPress={() => onPress(event)}
       activeOpacity={0.8}
     >
-      <LinearGradient
-        colors={["#CCFF3A", "#01DB87", "#3C62FA"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.borderGradient}
-      >
-        <View style={[styles.backgroundGradient, { backgroundColor: "#0B2E34" }]}>
-          {/* Heart button */}
-          {onLikePress && (
-            <View style={styles.heartContainer}>
-              <HeartButton
-                isLiked={event.isLiked || false}
-                onPress={handleLikePress}
-                size={24}
-                color={colors.lime}
-                hasTabBar={hasTabBar}
-              />
-            </View>
-          )}
-
-          <View style={styles.content}>
-            {/* Event Image */}
-            <ImageBackground
-              source={{ uri: event.imageUrl }}
-              style={styles.image}
-              imageStyle={styles.imageStyle}
+      <View style={styles.cardContainer}>
+        {/* Heart button */}
+        {onLikePress && (
+          <View style={styles.heartContainer}>
+            <HeartButton
+              isLiked={event.isLiked || false}
+              onPress={handleLikePress}
+              size={24}
+              color={colors.lime}
+              hasTabBar={hasTabBar}
+              useCustomSvg={true}
             />
+          </View>
+        )}
 
-            {/* Event Info */}
-            <View style={styles.info}>
-              <CustomText
-                fontFamily="Inter-Bold"
-                style={[styles.title, { color: colors.text_white }]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {event.title}
-              </CustomText>
+        <View style={styles.content}>
+          {/* Event Image */}
+          <OptimizedImageBackground
+            source={event.imageUrl ? { uri: event.imageUrl } : ""}
+            style={styles.image}
+            contentFit="cover"
+            borderRadius={5}
+            showLoadingIndicator={true}
+            showErrorFallback={true}
+          />
 
-              <View style={styles.details}>
-                {/* Time row */}
-                <View style={styles.detailRow}>
-                  <Ionicons
-                    name="time-outline"
-                    size={16}
-                    color={colors.text_white}
-                  />
-                  <CustomText
-                    style={[styles.detailText, { color: colors.text_white }]}
-                  >
-                    {event.time}
-                  </CustomText>
-                </View>
+          {/* Event Info */}
+          <View style={styles.info}>
+            <CustomText
+              fontFamily="Inter-Bold"
+              style={[styles.title, { color: colors.label_dark }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {event.title}
+            </CustomText>
 
-                {/* Venue row */}
-                <View style={styles.detailRow}>
-                  <Ionicons
-                    name="location-outline"
-                    size={16}
-                    color={colors.text_white}
-                  />
-                  <CustomText
-                    style={[styles.detailText, { color: colors.text_white }]}
-                  >
-                    {event.venue}
-                  </CustomText>
-                </View>
+            <View style={styles.details}>
+              {/* Time row */}
+              <View style={styles.detailRow}>
+                <Ionicons
+                  name="time-outline"
+                  size={16}
+                  color={colors.horizontal_line}
+                />
+                <CustomText
+                  style={[styles.detailText, { color: colors.horizontal_line }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {event.time}
+                </CustomText>
+              </View>
+
+              {/* Venue row */}
+              <View style={styles.detailRow}>
+                <Ionicons
+                  name="location-outline"
+                  size={16}
+                  color={colors.horizontal_line}
+                />
+                <CustomText
+                  style={[styles.detailText, { color: colors.horizontal_line }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {event.venue}
+                </CustomText>
               </View>
             </View>
           </View>
         </View>
-      </LinearGradient>
+      </View>
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 12,
+    borderRadius: 10,
     overflow: "hidden",
   },
-  borderGradient: {
+  cardContainer: {
     flex: 1,
-    padding: 2,
-    borderRadius: 12,
-  },
-  backgroundGradient: {
-    flex: 1,
+    backgroundColor: "white",
     borderRadius: 10,
+    borderWidth: 3,
+    borderColor: "#F2F2F3",
   },
   heartContainer: {
     position: "absolute",
@@ -163,26 +159,24 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: "hidden",
   },
-  imageStyle: {
-    borderRadius: 5,
-  },
   info: {
     flex: 1,
     paddingRight: horizontalScale(40), // Leave space for heart button
   },
   title: {
     fontSize: scaleFontSize(16),
-    marginBottom: verticalScale(8),
+    marginBottom: 6,
   },
   details: {
-    gap: verticalScale(5.5),
+    gap: 6,
   },
   detailRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: horizontalScale(10),
+    gap: horizontalScale(6),
   },
   detailText: {
     fontSize: scaleFontSize(14),
+    flex: 1,
   },
 });

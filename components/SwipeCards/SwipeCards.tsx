@@ -59,208 +59,75 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
   const { colors } = useTheme();
 
   const [isCompleting, setIsCompleting] = React.useState(false);
-  const [imagesLoaded, setImagesLoaded] = useState(false);
-  const [swiperReady, setSwiperReady] = useState(false);
-  const [loadedImageCount, setLoadedImageCount] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // Android-specific optimizations
   const isAndroid = Platform.OS === "android";
-  const preloadCount = isAndroid ? 1 : 2; // Further reduced for faster Android loading
 
   // Memoize data dependencies to avoid unnecessary re-renders
   const dataLength = data?.length || 0;
-  const firstItemId = data?.[0]?.id;
+
+  // FROM WORKING VERSION: Minimal preload but wait for first image
+  const preloadCount = isAndroid ? 1 : 2; // Key difference from working version
   const hasData = dataLength > 0;
 
-  // Track if we've already processed this data set
-  const lastProcessedDataRef = useRef<string>("");
-  const currentDataKey = `${dataLength}-${firstItemId}`;
+  // FROM FAST VERSION: Track image loading AND swiper ready state separately
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+  const [swiperReady, setSwiperReady] = useState(false);
+  const [loadedImageCount, setLoadedImageCount] = useState(0);
+  const requiredImageCount = Math.min(dataLength, isAndroid ? 1 : 2);
 
-  // Calculate how many images we need to wait for before showing cards (less than preloadCount for faster display)
-  const requiredImageCount = Math.min(dataLength, isAndroid ? 1 : 2); // Wait for at least 1 image to load before showing
-
-  // Use ref-based tracking to avoid state updates causing re-renders
-  const imageCountRef = useRef(0);
-  const hasTriggeredShowRef = useRef(false);
-
-  // Reset image loading state when data changes
+  // FROM FAST VERSION: Reset when data changes
   useEffect(() => {
-    if (currentDataKey !== lastProcessedDataRef.current) {
+    if (hasData) {
+      setImagesLoaded(false);
+      setSwiperReady(false);
       setLoadedImageCount(0);
-      imageCountRef.current = 0;
-      hasTriggeredShowRef.current = false;
+      fadeAnim.setValue(0);
     }
-  }, [currentDataKey]);
+  }, [hasData, fadeAnim]);
 
-  // Check if enough images are ready - be more lenient for faster loading
-  const areImagesReady =
-    loadedImageCount >= requiredImageCount ||
-    !hasData ||
-    (loadedImageCount > 0 && dataLength <= 2) ||
-    dataLength === 1; // For single cards, don't wait for image loading to show card
+  // FROM FAST VERSION: Show cards when enough images load OR fallback timeout
+  useEffect(() => {
+    if (!hasData) return;
 
-  // Track current fallback timer to clear it when images load
-  const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const areImagesReady = loadedImageCount >= requiredImageCount;
 
-  // Use refs to avoid stale closures and reduce dependencies
-  const stateRef = useRef({
-    imagesLoaded: false,
-    loadedImageCount: 0,
-    requiredImageCount,
+    if (areImagesReady && !imagesLoaded) {
+      setImagesLoaded(true);
+      setSwiperReady(true);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    } else if (!imagesLoaded) {
+      // Fallback timer from fast version
+      const timer = setTimeout(
+        () => {
+          setImagesLoaded(true);
+          setSwiperReady(true);
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }).start();
+        },
+        isAndroid ? 100 : 200
+      );
+
+      return () => clearTimeout(timer);
+    }
+  }, [
     hasData,
-    dataLength,
-  });
-
-  // Update ref values when they change
-  stateRef.current = {
-    imagesLoaded,
     loadedImageCount,
     requiredImageCount,
-    hasData,
-    dataLength,
-  };
-
-  // Optimized callback to show cards immediately when images are ready
-  const checkAndShowCards = useCallback(() => {
-    const {
-      imagesLoaded: currentImagesLoaded,
-      requiredImageCount: currentRequiredImageCount,
-      hasData: currentHasData,
-      dataLength: currentDataLength,
-    } = stateRef.current;
-    const currentLoadedImageCount = imageCountRef.current;
-
-    // Check current state values directly to avoid stale closures
-    const currentAreImagesReady =
-      currentLoadedImageCount >= currentRequiredImageCount ||
-      !currentHasData ||
-      (currentLoadedImageCount > 0 && currentDataLength <= 2) ||
-      currentDataLength === 1;
-
-    if (currentAreImagesReady && !currentImagesLoaded) {
-      // Clear the fallback timer since images are ready
-      if (fallbackTimerRef.current) {
-        clearTimeout(fallbackTimerRef.current);
-        fallbackTimerRef.current = null;
-      }
-
-      // Show cards immediately
-      setImagesLoaded(true);
-      setSwiperReady(true);
-
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [fadeAnim]);
-
-  // Optimized image loading callbacks that prevent excessive re-renders
-  const handleImageLoad = useCallback(() => {
-    imageCountRef.current += 1;
-    const newCount = imageCountRef.current;
-
-    // Only trigger checkAndShowCards once when requirements are met
-    if (
-      newCount >= requiredImageCount &&
-      !hasTriggeredShowRef.current &&
-      !imagesLoaded
-    ) {
-      hasTriggeredShowRef.current = true;
-      setTimeout(checkAndShowCards, 0);
-    }
-  }, [checkAndShowCards, requiredImageCount, imagesLoaded]);
-
-  // Image error callback with optimized updates
-  const handleImageError = useCallback(() => {
-    imageCountRef.current += 1;
-    const newCount = imageCountRef.current;
-
-    // Only trigger checkAndShowCards once when requirements are met
-    if (
-      newCount >= requiredImageCount &&
-      !hasTriggeredShowRef.current &&
-      !imagesLoaded
-    ) {
-      hasTriggeredShowRef.current = true;
-      setTimeout(checkAndShowCards, 0);
-    }
-  }, [checkAndShowCards, requiredImageCount, imagesLoaded]);
-
-  // Optimized loading state management - no polling
-  useEffect(() => {
-    // Skip if we've already processed this exact data set
-    if (
-      currentDataKey === lastProcessedDataRef.current &&
-      hasData &&
-      imagesLoaded
-    ) {
-      return;
-    }
-
-    lastProcessedDataRef.current = currentDataKey;
-
-    if (!data || data.length === 0) {
-      setImagesLoaded(true);
-      setSwiperReady(true);
-      fadeAnim.setValue(1);
-      return;
-    }
-
-    // Reset states for new data
-    fadeAnim.setValue(0);
-    setImagesLoaded(false);
-    setSwiperReady(false);
-
-    let hasShown = false;
-    const showCards = () => {
-      if (hasShown) return;
-      hasShown = true;
-
-      setImagesLoaded(true);
-      setSwiperReady(true);
-
-      // Immediate display
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    };
-
-    // Check immediately if images are already ready (cached images)
-    if (areImagesReady) {
-      showCards();
-      return;
-    }
-
-    // Single fallback timer - no polling interval needed
-    fallbackTimerRef.current = setTimeout(
-      () => {
-        if (!hasShown) {
-          showCards();
-        }
-      },
-      isAndroid ? 100 : 200
-    );
-
-    return () => {
-      if (fallbackTimerRef.current) {
-        clearTimeout(fallbackTimerRef.current);
-        fallbackTimerRef.current = null;
-      }
-    };
-  }, [
-    data,
-    currentDataKey,
-    hasData,
     imagesLoaded,
     fadeAnim,
     isAndroid,
-    areImagesReady,
   ]);
+
+  // All complex loading logic removed - cards show immediately with data
 
   const handleSwipeRight = (cardIndex: number) => {
     if (data && data[cardIndex]) {
@@ -298,8 +165,7 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
   const renderCard = useCallback(
     (card: CardData, index: number) => {
       const imageSource = getImageSource(card.imageUrl);
-      // For single cards, always treat as preload card; otherwise use preload count
-      const isPreloadCard = dataLength === 1 ? true : index < preloadCount;
+      const isPreloadCard = index < preloadCount;
 
       return (
         <View
@@ -315,17 +181,17 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
             priority={isPreloadCard ? "high" : "normal"}
             showLoadingIndicator={isPreloadCard}
             borderRadius={15}
+            cachePolicy="memory-disk"
             onLoad={() => {
               if (isPreloadCard) {
-                handleImageLoad();
+                setLoadedImageCount((prev) => prev + 1);
               }
             }}
             onError={() => {
               if (isPreloadCard) {
-                handleImageError();
+                setLoadedImageCount((prev) => prev + 1);
               }
             }}
-            cachePolicy="memory-disk"
           >
             <CardContentOverlay
               item={card}
@@ -338,17 +204,7 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
         </View>
       );
     },
-    [
-      colors,
-      onBucketPress,
-      hideButtons,
-      onCardTap,
-      preloadCount,
-      handleImageLoad,
-      handleImageError,
-      fullWidth,
-      dataLength,
-    ]
+    [colors, onBucketPress, hideButtons, onCardTap, fullWidth, preloadCount]
   );
 
   const OverlayLabelRight = useCallback(() => {
@@ -398,40 +254,24 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
     );
   }
 
-  // Show loader while initial data is loading OR while images are being preloaded OR while swiper is preparing
-  // For single cards, bypass complex loading logic
-  if (dataLength === 1) {
-    if (isLoading) {
-      return (
-        <View style={styles.container}>
-          <AnimatedLoader />
-        </View>
-      );
-    }
-  } else {
-    // Multi-card loading logic
-    if (isLoading || !imagesLoaded || !swiperReady) {
-      return (
-        <View style={styles.container}>
-          <AnimatedLoader />
-        </View>
-      );
-    }
+  if (isLoading || !imagesLoaded || !swiperReady) {
+    return (
+      <View style={styles.container}>
+        <AnimatedLoader />
+      </View>
+    );
   }
 
   // If no data, return null to let parent handle empty state
   if (!data || data.length === 0) {
     return null;
   }
-
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.subContainer, { opacity: fadeAnim }]}>
-        {!isCompleting && swiperReady && (
+        {!isCompleting && (
           <Swiper
-            key={`swiper-${data?.[0]?.id || "empty"}-${
-              areImagesReady ? "ready" : "loading"
-            }`}
+            key={`swiper-${data?.[0]?.id || "empty"}`}
             ref={ref}
             data={data}
             cardStyle={styles.cardStyle}
@@ -457,14 +297,8 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
               restDisplacementThreshold: 0.1, // Higher threshold for faster completion
               restSpeedThreshold: 0.1,
             }}
-            prerenderItems={
-              dataLength === 1
-                ? 1
-                : Math.max(2, Math.min(data.length - 1, isAndroid ? 3 : 4))
-            }
-            keyExtractor={(item, index) =>
-              `${item.id}-${index}-${currentDataKey}`
-            }
+            prerenderItems={isAndroid ? 2 : 3}
+            keyExtractor={(item, index) => `${item.id}-${index}`}
             // Configure overlay opacity ranges with much higher vertical threshold
             inputOverlayLabelRightOpacityRange={[30, 120]} // Horizontal right range
             outputOverlayLabelRightOpacityRange={[0, 1]}

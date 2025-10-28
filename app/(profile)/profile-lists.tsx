@@ -284,10 +284,10 @@ const ProfileListsScreen = () => {
           setIsCreateBucketBottomSheetVisible(false);
           setActiveTab("buckets");
           setSelectedLikeItemId(null);
-          showToast("Bucket created", "success", false);
+          // Success toast is now handled in CreateBucketBottomSheet
         } catch (error) {
           console.error("Failed to create bucket:", error);
-          showToast("Failed to create bucket", "error", false);
+          // Error handling is now done in CreateBucketBottomSheet
         }
       }
     },

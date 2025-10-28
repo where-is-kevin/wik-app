@@ -1,10 +1,17 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   StyleSheet,
   View,
   StatusBar,
   TouchableOpacity,
   Animated,
+  Image,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
@@ -18,7 +25,6 @@ import {
   verticalScale,
   scaleFontSize,
 } from "@/utilities/scaling";
-import { Ionicons } from "@expo/vector-icons";
 import {
   MajorEventsCard,
   MajorEventData,
@@ -31,8 +37,18 @@ import { LinearGradient } from "expo-linear-gradient";
 import BackSvg from "@/components/SvgComponents/BackSvg";
 import { SectionHeader } from "@/components/Section/SectionHeader";
 import FloatingMapButton from "@/components/FloatingMapButton";
+import { useNearbyBusinessEvents } from "@/hooks/useBusinessEvents";
+import AnimatedLoader from "@/components/Loader/AnimatedLoader";
+import {
+  groupEventsByDate,
+  GroupedEvent,
+  formatBusinessEventDateRange,
+} from "@/utilities/eventHelpers";
+import { useUserLocation } from "@/contexts/UserLocationContext";
+import { useAddLike } from "@/hooks/useLikes";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/contexts/ToastContext";
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
 interface EventsScreenProps {
   // Empty interface for future props
 }
@@ -41,10 +57,12 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
   const { colors } = useTheme();
   const router = useRouter();
   const scrollY = useRef(new Animated.Value(0)).current;
+  const { userLocation } = useUserLocation();
+  const queryClient = useQueryClient();
+  const addLikeMutation = useAddLike();
+  const { showToast } = useToast();
 
-  // Dynamic height measurements for precise animations
-  const [majorEventsSectionHeight, setMajorEventsSectionHeight] = useState(0);
-  const [localEventsSectionHeight, setLocalEventsSectionHeight] = useState(0);
+  // Remove unused state
   const insets = useSafeAreaInsets();
   const { id, cityName, categoryName, type } = useLocalSearchParams<{
     id?: string;
@@ -52,118 +70,165 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
     categoryName?: string;
     type?: "city" | "category";
   }>();
-  const [displayName, setDisplayName] = useState("Lisbon");
+  const getLocationDisplayName = (location: any) => {
+    if (!location?.displayName) return "My Location";
+
+    // Replace "Current Location" with "My Location"
+    if (location.displayName === "Current Location") return "My Location";
+
+    // Extract city name (first part before comma) for other locations
+    return location.displayName.split(",")[0] || location.displayName;
+  };
+
+  const [displayName, setDisplayName] = useState(
+    getLocationDisplayName(userLocation)
+  );
   const [headerSubtitle, setHeaderSubtitle] = useState("Events happening in");
 
-  useEffect(() => {
-    console.log("Route params:", {
-      id,
-      cityName,
-      categoryName,
-      type,
-    });
+  // Fetch nearby business events from API - MUST be called before any conditional returns
+  const { data: businessEventsData, isLoading: isBusinessEventsLoading } =
+    useNearbyBusinessEvents(100, 20);
 
+  // Transform API data to MajorEventData format and manage state
+  const [majorEvents, setMajorEvents] = useState<MajorEventData[]>([]);
+
+  useEffect(() => {
     if (type === "category" && categoryName) {
       const decodedName = decodeURIComponent(categoryName);
-      console.log("Setting category name to:", decodedName);
       setDisplayName(decodedName);
       setHeaderSubtitle("Events happening in");
     } else if (type === "city" && cityName) {
       const decodedName = decodeURIComponent(cityName);
-      console.log("Setting city name to:", decodedName);
       setDisplayName(decodedName);
       setHeaderSubtitle("Events happening in");
+    } else {
+      // No specific route params, use user location
+      const locationDisplayName = getLocationDisplayName(userLocation);
+      setDisplayName(locationDisplayName);
+      setHeaderSubtitle("Events happening in");
     }
-  }, [id, cityName, categoryName, type]);
+  }, [id, cityName, categoryName, type, userLocation]);
 
-  // Mock data - replace with actual data from your API
-  const [majorEvents, setMajorEvents] = React.useState<MajorEventData[]>([
-    {
-      id: "1",
-      title: "WebSummit",
-      location: "Lisbon",
-      dateRange: "November 11 - 14, 2025",
-      eventCount: "100+ Events",
-      imageUrl: "https://images.unsplash.com/photo-1540575467063-178a50c2df87",
-      isLiked: false,
-    },
-    {
-      id: "2",
-      title: "WebSummit",
-      location: "Lisbon",
-      dateRange: "November 11 - 14, 2025",
-      eventCount: "100+ Events",
-      imageUrl: "https://images.unsplash.com/photo-1540575467063-178a50c2df87",
-      isLiked: true,
-    },
-  ]);
+  // Update major events and local events when API data loads
+  useEffect(() => {
+    if (businessEventsData?.events) {
+      const transformedEvents: MajorEventData[] = businessEventsData.events.map(
+        (event) => ({
+          id: event.id || event.contentId || "",
+          title: event.title || event.name || "",
+          location: event.addressShort || event.addressLong || "Location",
+          dateRange: formatBusinessEventDateRange(event),
+          eventCount: `${event.sideEventCount}+ Events`,
+          imageUrl: event.imageUrl || event.internalImageUrls?.[0] || undefined,
+          isLiked: event.userLiked || false,
+        })
+      );
+      setMajorEvents(transformedEvents);
 
-  const [localEvents, setLocalEvents] = React.useState<LocalEventData[]>([
-    {
-      id: "3",
-      title: "WebSummit - Day 1",
-      time: "10:00 AM - 3:30 PM",
-      venue: "MEO Arena",
-      imageUrl: "https://images.unsplash.com/photo-1540575467063-178a50c2df87",
-      isLiked: false,
-    },
-    {
-      id: "4",
-      title: "Startup Pitch Competition",
-      time: "2:00 PM - 5:00 PM",
-      venue: "FIL Convention Center",
-      imageUrl: "https://images.unsplash.com/photo-1475721027785-f74eccf877e2",
-      isLiked: true,
-    },
-    {
-      id: "5",
-      title: "Tech Networking Mixer",
-      time: "6:30 PM - 9:00 PM",
-      venue: "Rooftop Bar Silk Club",
-      imageUrl: "https://images.unsplash.com/photo-1511578314322-379afb476865",
-      isLiked: false,
-    },
-    {
-      id: "6",
-      title: "AI & Machine Learning Workshop",
-      time: "9:00 AM - 12:00 PM",
-      venue: "Lisbon Tech Hub",
-      imageUrl: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e",
-      isLiked: false,
-    },
-    {
-      id: "7",
-      title: "Digital Marketing Summit",
-      time: "1:00 PM - 6:00 PM",
-      venue: "Centro Cultural de Belém",
-      imageUrl: "https://images.unsplash.com/photo-1559223607-a43c990c692c",
-      isLiked: true,
-    },
-    {
-      id: "8",
-      title: "Blockchain & Crypto Meetup",
-      time: "7:00 PM - 10:00 PM",
-      venue: "Impact Hub Lisbon",
-      imageUrl: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0",
-      isLiked: false,
-    },
-  ]);
+      // Use the new localEvents array from API instead of side events
+      const allLocalEvents: LocalEventData[] = [];
+
+      // First, add events from the new localEvents array
+      if (businessEventsData.localEvents) {
+        businessEventsData.localEvents.forEach((event) => {
+          allLocalEvents.push({
+            id: event.id || event.contentId || "",
+            title: event.title || event.name || "Local Event",
+            time: formatBusinessEventDateRange(event),
+            date: event.eventDatetimeStart || undefined, // Add raw date for grouping
+            venue: event.addressShort || event.addressLong || "Venue TBD",
+            imageUrl: event.imageUrl || event.internalImageUrls?.[0],
+            isLiked: event.userLiked || false,
+          });
+        });
+      }
+
+      // Fallback: Extract side events from all business events if localEvents is empty
+      if (allLocalEvents.length === 0) {
+        businessEventsData.events.forEach((event) => {
+          if (event.sideEvents && Array.isArray(event.sideEvents)) {
+            event.sideEvents.forEach((sideEvent: any, index: number) => {
+              allLocalEvents.push({
+                id: `${event.contentId}-side-${index}`,
+                title: sideEvent.title || sideEvent.name || "Local Event",
+                time: formatBusinessEventDateRange(event), // Use formatted parent event date instead of raw side event time
+                date: event.eventDatetimeStart || undefined, // Add raw date for grouping
+                venue:
+                  sideEvent.venue ||
+                  sideEvent.location ||
+                  event.addressShort ||
+                  "Venue TBD",
+                imageUrl:
+                  sideEvent.imageUrl ||
+                  sideEvent.image ||
+                  event.internalImageUrls?.[0],
+                isLiked: event.userLiked || false,
+              });
+            });
+          }
+        });
+      }
+
+      // Group local events by date
+      const grouped = groupEventsByDate(allLocalEvents);
+      setGroupedLocalEvents(grouped);
+    }
+  }, [businessEventsData]);
+
+  // Cleanup scroll listeners on unmount
+  useEffect(() => {
+    return () => {
+      scrollY.removeAllListeners();
+    };
+  }, [scrollY]);
+
+  const [groupedLocalEvents, setGroupedLocalEvents] = useState<
+    GroupedEvent<LocalEventData>[]
+  >([]);
 
   const handleBackPress = () => {
     router.back();
   };
 
   const handleLocalEventPress = (event: LocalEventData) => {
-    console.log("Local event pressed:", event);
-    // Navigate to event details
+    // Navigate to event details using the [eventId].tsx route
+    router.push(`/event-details/${event.id}`);
   };
 
   const handleLocalEventLike = (event: LocalEventData) => {
-    setLocalEvents((prevEvents) =>
-      prevEvents.map((e) =>
-        e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
-      )
+    const likeData = {
+      contentIds: [event.id],
+    };
+
+    // Optimistically update local state
+    setGroupedLocalEvents((prevGrouped) =>
+      prevGrouped.map((group) => ({
+        ...group,
+        events: group.events.map((e) =>
+          e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
+        ),
+      }))
     );
+
+    // Make API call
+    addLikeMutation.mutate(likeData, {
+      onSuccess: () => {
+        // Cache invalidation handled automatically by useAddLike hook
+      },
+      onError: (error) => {
+        console.error("Failed to like local event:", error);
+        // Revert optimistic update on error
+        setGroupedLocalEvents((prevGrouped) =>
+          prevGrouped.map((group) => ({
+            ...group,
+            events: group.events.map((e) =>
+              e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
+            ),
+          }))
+        );
+        showToast("Failed to save your interest", "error");
+      },
+    });
   };
 
   const handleEventPress = (event: MajorEventData) => {
@@ -172,132 +237,161 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
   };
 
   const handleLikePress = (event: MajorEventData) => {
+    const likeData = {
+      contentIds: [event.id],
+    };
+
+    // Optimistically update local state
     setMajorEvents((prevEvents) =>
       prevEvents.map((e) =>
         e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
       )
     );
+
+    // Make API call
+    addLikeMutation.mutate(likeData, {
+      onSuccess: () => {
+        // Cache invalidation handled automatically by useAddLike hook
+      },
+      onError: (error) => {
+        console.error("Failed to like event:", error);
+        // Revert optimistic update on error
+        setMajorEvents((prevEvents) =>
+          prevEvents.map((e) =>
+            e.id === event.id ? { ...e, isLiked: !e.isLiked } : e
+          )
+        );
+        showToast("Failed to save your interest", "error");
+      },
+    });
   };
 
   const handleMapPress = () => {
-    // TODO: Navigate to map screen
-    console.log("Map button pressed");
+    router.push(`/map-screen?source=business&type=nearby`);
   };
 
-  const HEADER_HEIGHT = verticalScale(200);
+  // Simplified scroll handlers - no complex animations
+  const handleScrollBeginDrag = useCallback(() => {
+    // Keep for future if needed
+  }, []);
+
+  const handleScrollEndDrag = useCallback(() => {
+    // Keep for future if needed
+  }, []);
+
   const NAVBAR_HEIGHT = verticalScale(40);
-  const HEADER_SCROLL_DISTANCE = HEADER_HEIGHT - NAVBAR_HEIGHT;
   const NAVBAR_BACKGROUND_HEIGHT = insets.top + NAVBAR_HEIGHT;
 
-  // Header parallax effect - moves slower than scroll
-  const headerTranslateY = scrollY.interpolate({
-    inputRange: [0, HEADER_HEIGHT],
-    outputRange: [0, -HEADER_HEIGHT / 3],
+  // Simple navbar background opacity - appears earlier
+  const navBarBackgroundOpacity = scrollY.interpolate({
+    inputRange: [50, 100],
+    outputRange: [0, 0.98],
     extrapolate: "clamp",
   });
 
-  // Background image opacity - fades more aggressively to prevent dark line
-  const headerImageOpacity = scrollY.interpolate({
-    inputRange: [-50, 0, HEADER_HEIGHT * 0.2, HEADER_HEIGHT * 0.5],
-    outputRange: [0, 1, 0.3, 0],
-    extrapolate: "clamp",
-  });
+  // State to track current section
+  const [currentStickyTitle, setCurrentStickyTitle] = useState<
+    "location" | "major" | "local"
+  >("location");
 
-  // Header container opacity - disappears completely when scrolled
-  const headerContainerOpacity = scrollY.interpolate({
-    inputRange: [0, 50, 100],
-    outputRange: [1, 1, 0],
-    extrapolate: "clamp",
-  });
+  // Dynamic calculation of section scroll positions based on content
+  const majorEventsStart = useMemo(() => {
+    // Base offset for location section + header
+    let offset = 200; // Approximate height of location section
 
-  // Text slides up and fades
-  const headerTextTranslateY = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE],
-    outputRange: [0, -HEADER_SCROLL_DISTANCE],
-    extrapolate: "clamp",
-  });
+    // Add space if there are major events to show
+    if (isBusinessEventsLoading || majorEvents.length > 0) {
+      // This is when we want to show "Major events" in sticky header
+      // Should be when the major events section title is about to scroll out of view
+      return offset;
+    }
 
-  const headerTextOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE * 0.7, HEADER_SCROLL_DISTANCE],
-    outputRange: [1, 0.3, 0],
-    extrapolate: "clamp",
-  });
+    return offset;
+  }, [isBusinessEventsLoading, majorEvents.length]);
 
-  // Scale effect for header image
-  const headerImageScale = scrollY.interpolate({
-    inputRange: [-100, 0, HEADER_HEIGHT],
-    outputRange: [1.3, 1, 1.1],
-    extrapolate: "clamp",
-  });
+  const localEventsStart = useMemo(() => {
+    let offset = 200; // Base location section height
 
-  // Calculate section positions dynamically using measured heights
-  const MAJOR_EVENTS_SECTION_END = HEADER_HEIGHT + majorEventsSectionHeight;
-  const LOCAL_EVENTS_HEADER_POSITION =
-    MAJOR_EVENTS_SECTION_END + verticalScale(28);
+    if (isBusinessEventsLoading || majorEvents.length > 0) {
+      // Add height for major events section
+      offset += 80; // Section header height
+      if (majorEvents.length > 0) {
+        // Each major event card is roughly 120px + spacing
+        const rows = Math.ceil(majorEvents.length / 1); // 1 card per row
+        offset += rows * 140; // Card height + spacing
+      } else if (isBusinessEventsLoading) {
+        offset += 100; // Loading state height
+      }
+      offset += 28; // Margin between sections
+    }
 
-  // Use measured height for precise transition point
-  const titleTransitionPoint =
-    LOCAL_EVENTS_HEADER_POSITION - NAVBAR_HEIGHT - verticalScale(50);
+    return offset;
+  }, [isBusinessEventsLoading, majorEvents.length]);
 
-  // Sticky header opacity for Major events - smooth like business events
-  const majorEventsStickyOpacity =
-    majorEvents.length > 0
-      ? scrollY.interpolate({
-          inputRange: [
-            50,
-            100,
-            titleTransitionPoint - 50,
-            titleTransitionPoint,
-          ],
-          outputRange: [0, 1, 1, 0],
-          extrapolate: "clamp",
-        })
-      : new Animated.Value(0);
+  // Update current section based on scroll position
+  useEffect(() => {
+    const listener = scrollY.addListener(({ value }) => {
+      if (value < 100) {
+        // Not showing any sticky title yet
+        return;
+      } else if (value < majorEventsStart) {
+        setCurrentStickyTitle("location");
+      } else if (value < localEventsStart) {
+        setCurrentStickyTitle("major");
+      } else {
+        setCurrentStickyTitle("local");
+      }
+    });
 
-  // Sticky header opacity for Local events - smooth transition
-  const localEventsStickyOpacity = scrollY.interpolate({
-    inputRange: [
-      titleTransitionPoint,
-      titleTransitionPoint + 50,
-      titleTransitionPoint + 1000, // Keep showing for a long scroll
-    ],
-    outputRange: [0, 1, 1],
-    extrapolate: "clamp",
-  });
+    return () => {
+      scrollY.removeListener(listener);
+    };
+  }, [scrollY, majorEventsStart, localEventsStart]);
 
-  // Hide original Major events title when sticky appears
-  const originalTitleOpacity = scrollY.interpolate({
-    inputRange: [
-      HEADER_HEIGHT - NAVBAR_HEIGHT - 20,
-      HEADER_HEIGHT - NAVBAR_HEIGHT,
-    ],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
-
-  // Icon opacity for white icons - sync with navbar background
-  const whiteIconOpacity = scrollY.interpolate({
-    inputRange: [0, 40],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
-
-  // Icon opacity for black icons - sync with navbar background
-  const blackIconOpacity = scrollY.interpolate({
-    inputRange: [0, 40],
+  // Simple sticky header opacity - just fade in/out
+  const stickyHeaderOpacity = scrollY.interpolate({
+    inputRange: [100, 150],
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
 
-  // Dynamic padding for navbar - more at start, less when sticky
-  const navBarPaddingTop = scrollY.interpolate({
-    inputRange: [
-      HEADER_HEIGHT - NAVBAR_HEIGHT - 30,
-      HEADER_HEIGHT - NAVBAR_HEIGHT - 10,
-    ],
-    outputRange: [verticalScale(10), verticalScale(2)],
+  // Icon opacity for white icons - visible at start, fades earlier
+  const whiteIconOpacity = scrollY.interpolate({
+    inputRange: [0, 50, 100],
+    outputRange: [1, 0.5, 0],
     extrapolate: "clamp",
   });
+
+  // Icon opacity for black icons - appears earlier
+  const blackIconOpacity = scrollY.interpolate({
+    inputRange: [0, 50, 100],
+    outputRange: [0, 0.5, 1],
+    extrapolate: "clamp",
+  });
+
+  // Show full-screen loader while major events are loading
+  if (isBusinessEventsLoading && majorEvents.length === 0) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <StatusBar
+          translucent
+          backgroundColor="transparent"
+          barStyle="light-content"
+        />
+        <SafeAreaView style={styles.loadingContent}>
+          <TouchableOpacity
+            onPress={handleBackPress}
+            style={styles.loadingBackButton}
+          >
+            <BackSvg stroke={colors.label_dark} width={17} height={27} />
+          </TouchableOpacity>
+          <View style={styles.loadingCenter}>
+            <AnimatedLoader />
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -307,67 +401,6 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
         barStyle="light-content"
       />
 
-      {/* Background Header with parallax */}
-      <Animated.View
-        style={[
-          styles.animatedHeader,
-          {
-            transform: [{ translateY: headerTranslateY }],
-            opacity: headerContainerOpacity,
-          },
-        ]}
-        pointerEvents="none"
-      >
-        {/* Background Image with scale effect */}
-        <Animated.Image
-          source={require("@/assets/images/business_events_city.png")}
-          style={[
-            styles.headerBackground,
-            {
-              opacity: headerImageOpacity,
-              transform: [{ scale: headerImageScale }],
-            },
-          ]}
-        />
-
-        {/* Gradient Overlay */}
-        <LinearGradient
-          colors={[
-            "rgba(217, 217, 217, 0.00)",
-            "rgba(236, 236, 236, 0.50)",
-            "#FFF",
-          ]}
-          locations={[0.1, 0.5089, 0.9089]}
-          style={styles.headerGradient}
-        />
-
-        {/* Header Text Content with separate animation */}
-        <Animated.View
-          style={[
-            styles.headerTextContainer,
-            {
-              opacity: headerTextOpacity,
-              transform: [{ translateY: headerTextTranslateY }],
-            },
-          ]}
-        >
-          <CustomText
-            style={[
-              styles.headerSubtitle,
-              { color: colors.onboarding_option_dark },
-            ]}
-          >
-            {headerSubtitle}
-          </CustomText>
-          <CustomText
-            fontFamily="Inter-Bold"
-            style={[styles.headerTitle, { color: colors.light_blue }]}
-          >
-            {displayName}
-          </CustomText>
-        </Animated.View>
-      </Animated.View>
-
       {/* Fixed Navigation Bar - Always on top */}
       <View style={styles.fixedNavBar}>
         {/* Solid background that appears when scrolled */}
@@ -375,11 +408,7 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
           style={[
             styles.navBarBackground,
             {
-              opacity: scrollY.interpolate({
-                inputRange: [0, 15, 40],
-                outputRange: [0, 0.7, 0.95],
-                extrapolate: "clamp",
-              }),
+              opacity: navBarBackgroundOpacity,
               backgroundColor: "#fff",
               height: NAVBAR_BACKGROUND_HEIGHT,
             },
@@ -387,94 +416,52 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
         />
 
         <SafeAreaView style={styles.navContainer}>
-          <Animated.View
-            style={[styles.navBar, { paddingTop: navBarPaddingTop }]}
-          >
+          <View style={[styles.navBar, { paddingTop: verticalScale(10) }]}>
             <TouchableOpacity
               onPress={handleBackPress}
               style={styles.backButton}
             >
               <View style={{ position: "relative" }}>
-                {/* White icon */}
+                {/* White icon - visible at start */}
                 <Animated.View
                   style={{ opacity: whiteIconOpacity, position: "absolute" }}
                 >
-                  <BackSvg />
+                  <BackSvg width={17} height={27} />
                 </Animated.View>
-                {/* Black icon */}
+                {/* Black icon - visible when scrolled */}
                 <Animated.View style={{ opacity: blackIconOpacity }}>
-                  <BackSvg stroke={colors.label_dark} />
+                  <BackSvg stroke={colors.label_dark} width={17} height={27} />
                 </Animated.View>
               </View>
             </TouchableOpacity>
 
-            {/* Sticky Titles next to back button */}
-            <View style={styles.stickyTitleContainer} pointerEvents="none">
-              {/* Major events title - only show if there are major events */}
-              {majorEvents.length > 0 && (
-                <Animated.View
-                  style={[
-                    styles.absoluteTitle,
-                    {
-                      opacity: majorEventsStickyOpacity,
-                    },
-                  ]}
-                >
-                  <CustomText
-                    fontFamily="Inter-Bold"
-                    style={[
-                      styles.stickyTitleText,
-                      { color: colors.label_dark },
-                    ]}
-                  >
-                    Major events
-                  </CustomText>
-                </Animated.View>
-              )}
-
-              {/* Local events title - only show when scrolling past its section header */}
-              <Animated.View
-                style={[
-                  styles.absoluteTitle,
-                  {
-                    opacity: localEventsStickyOpacity,
-                  },
-                ]}
-              >
+            {/* Dynamic sticky title based on current section */}
+            <Animated.View
+              style={[
+                styles.stickyTitleContainer,
+                {
+                  opacity: stickyHeaderOpacity,
+                },
+              ]}
+            >
+              <View style={styles.absoluteTitle}>
                 <CustomText
                   fontFamily="Inter-Bold"
                   style={[styles.stickyTitleText, { color: colors.label_dark }]}
                 >
-                  Local events
+                  {currentStickyTitle === "location" && displayName}
+                  {currentStickyTitle === "major" &&
+                    majorEvents.length > 0 &&
+                    "Major events"}
+                  {currentStickyTitle === "local" && "Local events"}
                 </CustomText>
-              </Animated.View>
-            </View>
-
-            <View style={styles.navIcons}>
-              <TouchableOpacity style={styles.iconButton}>
-                <View style={{ position: "relative" }}>
-                  {/* White icon */}
-                  <Animated.View
-                    style={{ opacity: whiteIconOpacity, position: "absolute" }}
-                  >
-                    <Ionicons name="search" size={26} color="white" />
-                  </Animated.View>
-                  {/* Black icon */}
-                  <Animated.View style={{ opacity: blackIconOpacity }}>
-                    <Ionicons
-                      name="search"
-                      size={26}
-                      color={colors.label_dark}
-                    />
-                  </Animated.View>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
+              </View>
+            </Animated.View>
+          </View>
         </SafeAreaView>
       </View>
 
-      {/* Scrollable Content */}
+      {/* Scrollable Content - Everything is scrollable */}
       <Animated.ScrollView
         style={styles.scrollableContent}
         showsVerticalScrollIndicator={false}
@@ -482,58 +469,111 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false }
         )}
+        onScrollBeginDrag={handleScrollBeginDrag}
+        onScrollEndDrag={handleScrollEndDrag}
         scrollEventThrottle={16}
         contentContainerStyle={styles.scrollContentContainer}
         bounces={false}
-        overScrollMode="never"
         scrollEnabled={true}
       >
-        {/* Header Spacer */}
+        {/* Scrollable Header */}
         <View
-          style={[styles.headerSpacer, { backgroundColor: "transparent" }]}
-        />
+          style={[
+            styles.scrollableHeader,
+            {
+              height: verticalScale(200) + insets.top,
+              paddingTop: insets.top,
+            },
+          ]}
+        >
+          {/* Background Image */}
+          <Image
+            source={require("@/assets/images/business_events_city.png")}
+            style={[
+              styles.headerBackground,
+              {
+                height: verticalScale(200) + insets.top,
+              },
+            ]}
+            resizeMode="cover"
+          />
 
-        {/* White background content area */}
-        <View style={[styles.contentArea, { backgroundColor: "#ffffff" }]}>
-          {/* Major Events Section - Only render if there are events */}
-          {majorEvents.length > 0 && (
-            <View
-              style={styles.section}
-              onLayout={(event) => {
-                const { height } = event.nativeEvent.layout;
-                setMajorEventsSectionHeight(height);
-              }}
+          {/* Gradient Overlay */}
+          <LinearGradient
+            colors={[
+              "rgba(217, 217, 217, 0.00)",
+              "rgba(236, 236, 236, 0.50)",
+              "#FFF",
+            ]}
+            locations={[0, 0.3089, 0.8089]}
+            style={styles.headerGradient}
+          />
+
+          {/* Header Text Content */}
+          <View style={styles.headerTextContainer}>
+            <CustomText
+              style={[
+                styles.headerSubtitle,
+                { color: colors.onboarding_option_dark },
+              ]}
             >
-              <Animated.View
-                style={[
-                  styles.sectionHeader,
-                  { opacity: originalTitleOpacity },
-                ]}
-              >
+              {headerSubtitle}
+            </CustomText>
+            <CustomText
+              fontFamily="Inter-Bold"
+              style={[styles.headerTitle, { color: colors.label_dark }]}
+            >
+              {displayName}
+            </CustomText>
+          </View>
+        </View>
+
+        {/* Content area */}
+        <View style={[styles.contentArea, { backgroundColor: "#ffffff" }]}>
+          {/* Major Events Section - Show loading, events, or don't render if no data */}
+          {(isBusinessEventsLoading || majorEvents.length > 0) && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
                 <SectionHeader
                   title="Major events"
-                  showViewAll={majorEvents.length >= 2}
-                  onViewAllPress={() => router.push("/worldwide-major-events")}
+                  showViewAll={false}
                   containerStyle={{ marginBottom: 0 }}
                 />
-              </Animated.View>
-
-              <View style={styles.eventsGrid}>
-                {majorEvents.map((event) => (
-                  <MajorEventsCard
-                    key={event.id}
-                    event={event}
-                    onPress={handleEventPress}
-                    onLikePress={handleLikePress}
-                    style={styles.fullWidthCard}
-                    hasTabBar={false}
-                  />
-                ))}
               </View>
+
+              {/* Loading state or events grid */}
+              {isBusinessEventsLoading ? (
+                <View style={styles.loadingSection}>
+                  <AnimatedLoader
+                    customAnimationStyle={{ width: 80, height: 80 }}
+                  />
+                </View>
+              ) : majorEvents.length > 0 ? (
+                <View style={styles.eventsGrid}>
+                  {majorEvents.map((event) => (
+                    <MajorEventsCard
+                      key={event.id}
+                      event={event}
+                      onPress={handleEventPress}
+                      onLikePress={handleLikePress}
+                      style={styles.fullWidthCard}
+                      hasTabBar={false}
+                    />
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptySection}>
+                  <CustomText
+                    style={[styles.emptyText, { color: colors.event_gray }]}
+                  >
+                    No major events found in this area
+                  </CustomText>
+                </View>
+              )}
             </View>
           )}
 
-          {/* Local Events Section */}
+          {/* Local Events Section - Always render section */}
           <View
             style={[
               styles.section,
@@ -545,10 +585,6 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
                 paddingTop: majorEvents.length > 0 ? 0 : verticalScale(15),
               },
             ]}
-            onLayout={(event) => {
-              const { height } = event.nativeEvent.layout;
-              setLocalEventsSectionHeight(height);
-            }}
           >
             <CustomText
               fontFamily="Inter-Bold"
@@ -560,40 +596,74 @@ const EventsScreen: React.FC<EventsScreenProps> = () => {
               Local events
             </CustomText>
 
-            <View style={styles.dateHeader}>
-              <CustomText
-                fontFamily="Inter-SemiBold"
-                style={[
-                  styles.dateText,
-                  { color: colors.onboarding_option_dark },
-                ]}
-              >
-                September 2
-              </CustomText>
-              <CustomText
-                style={[styles.dateSubtext, { color: colors.event_gray }]}
-              >
-                | Tomorrow
-              </CustomText>
-            </View>
+            {groupedLocalEvents.length > 0 ? (
+              /* Render events grouped by date */
+              groupedLocalEvents.map((dateGroup, groupIndex) => (
+                <View
+                  key={dateGroup.date}
+                  style={{
+                    marginBottom:
+                      groupIndex < groupedLocalEvents.length - 1
+                        ? verticalScale(8)
+                        : 0,
+                  }}
+                >
+                  <View
+                    style={[
+                      styles.dateHeader,
+                      {
+                        marginTop:
+                          groupIndex === 0
+                            ? verticalScale(15)
+                            : verticalScale(8),
+                      },
+                    ]}
+                  >
+                    <CustomText
+                      fontFamily="Inter-SemiBold"
+                      style={[
+                        styles.dateText,
+                        { color: colors.onboarding_option_dark },
+                      ]}
+                    >
+                      {dateGroup.dateLabel}
+                    </CustomText>
+                    <CustomText
+                      style={[styles.dateSubtext, { color: colors.event_gray }]}
+                    >
+                      | {dateGroup.relativeLabel}
+                    </CustomText>
+                  </View>
 
-            <View style={styles.localEventsGrid}>
-              {localEvents.map((event) => (
-                <LocalEventCard
-                  key={event.id}
-                  event={event}
-                  onPress={handleLocalEventPress}
-                  onLikePress={handleLocalEventLike}
-                  hasTabBar={false}
-                />
-              ))}
-            </View>
+                  <View style={styles.localEventsGrid}>
+                    {dateGroup.events.map((event) => (
+                      <LocalEventCard
+                        key={event.id}
+                        event={event}
+                        onPress={handleLocalEventPress}
+                        onLikePress={handleLocalEventLike}
+                        hasTabBar={false}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ))
+            ) : (
+              /* Empty state message */
+              <View style={styles.emptyLocalEvents}>
+                <CustomText
+                  style={[styles.emptyText, { color: colors.event_gray }]}
+                >
+                  No local events available at the moment
+                </CustomText>
+              </View>
+            )}
           </View>
         </View>
       </Animated.ScrollView>
 
       {/* Floating Map Button - Only show if there are events available */}
-      {(majorEvents.length > 0 || localEvents.length > 0) && (
+      {(majorEvents.length > 0 || groupedLocalEvents.length > 0) && (
         <FloatingMapButton onPress={handleMapPress} hasTabBar={false} />
       )}
     </View>
@@ -605,13 +675,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
-  animatedHeader: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: verticalScale(200),
-    zIndex: 1,
+  scrollableHeader: {
+    position: "relative",
+    width: "100%",
   },
   fixedNavBar: {
     position: "absolute",
@@ -632,7 +698,6 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: verticalScale(200),
     width: "100%",
     resizeMode: "cover",
   },
@@ -683,19 +748,15 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   scrollContentContainer: {
-    backgroundColor: "transparent",
-  },
-  headerSpacer: {
-    height: verticalScale(200),
+    flexGrow: 1,
   },
   contentArea: {
     backgroundColor: "#fff",
-    marginTop: verticalScale(-40),
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: verticalScale(25),
-    paddingBottom: verticalScale(110),
-    minHeight: "100%",
+    paddingBottom: verticalScale(80),
+    marginTop: verticalScale(-40),
   },
   headerSubtitle: {
     fontSize: scaleFontSize(16),
@@ -719,8 +780,8 @@ const styles = StyleSheet.create({
   },
   fullWidthCard: {
     width: "100%",
-    height: verticalScale(100),
     marginRight: 0,
+    height: verticalScale(100),
   },
   localEventsGrid: {
     gap: verticalScale(10),
@@ -730,13 +791,47 @@ const styles = StyleSheet.create({
     alignItems: "baseline",
     gap: horizontalScale(8),
     marginBottom: verticalScale(8),
-    marginTop: verticalScale(15),
   },
   dateText: {
     fontSize: scaleFontSize(16),
   },
   dateSubtext: {
     fontSize: scaleFontSize(14),
+  },
+  loadingSection: {
+    alignItems: "center",
+    paddingVertical: verticalScale(40),
+  },
+  emptySection: {
+    alignItems: "center",
+    paddingVertical: verticalScale(30),
+  },
+  emptyText: {
+    fontSize: scaleFontSize(14),
+    textAlign: "center",
+  },
+  emptyLocalEvents: {
+    alignItems: "center",
+    paddingVertical: verticalScale(30),
+    marginTop: verticalScale(15),
+  },
+  loadingContainer: {
+    backgroundColor: "#fff",
+  },
+  loadingContent: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  loadingBackButton: {
+    position: "absolute",
+    top: verticalScale(10),
+    left: horizontalScale(24),
+    zIndex: 10,
+  },
+  loadingCenter: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 
