@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomText from "../CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -131,8 +131,12 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    // Android shadow
-    elevation: 5,
+    // Android: NO elevation to prevent white flash with shimmer
+    ...Platform.select({
+      android: {
+        elevation: 0,
+      },
+    }),
   },
   backgroundImage: {
     flex: 1,

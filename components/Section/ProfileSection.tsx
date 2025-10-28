@@ -85,15 +85,33 @@ const ProfileSection: React.FC<ProfileSectionProps> = React.memo(
         const initialDelay = 300; // 300ms delay to let the screen render first
 
         // Bouncy spring animations with staggered timing
-        profileImageY.value = withDelay(initialDelay, withSpring(0, bouncySpringConfig));
-        profileImageOpacity.value = withDelay(initialDelay, withSpring(1, bouncySpringConfig));
+        profileImageY.value = withDelay(
+          initialDelay,
+          withSpring(0, bouncySpringConfig)
+        );
+        profileImageOpacity.value = withDelay(
+          initialDelay,
+          withSpring(1, bouncySpringConfig)
+        );
 
         // Staggered animations with longer delays
-        nameY.value = withDelay(initialDelay + 80, withSpring(0, bouncySpringConfig));
-        nameOpacity.value = withDelay(initialDelay + 80, withSpring(1, bouncySpringConfig));
+        nameY.value = withDelay(
+          initialDelay + 80,
+          withSpring(0, bouncySpringConfig)
+        );
+        nameOpacity.value = withDelay(
+          initialDelay + 80,
+          withSpring(1, bouncySpringConfig)
+        );
 
-        locationY.value = withDelay(initialDelay + 160, withSpring(0, bouncySpringConfig));
-        locationOpacity.value = withDelay(initialDelay + 160, withSpring(1, bouncySpringConfig));
+        locationY.value = withDelay(
+          initialDelay + 160,
+          withSpring(0, bouncySpringConfig)
+        );
+        locationOpacity.value = withDelay(
+          initialDelay + 160,
+          withSpring(1, bouncySpringConfig)
+        );
       } else {
         // Reset animation values when user is null
         profileImageY.value = -60;
@@ -285,7 +303,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
-    elevation: 6, // For Android shadow
+    elevation: 4, // For Android shadow
   },
   locationText: {
     fontSize: scaleFontSize(12),

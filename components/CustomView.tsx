@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React, { ReactNode, memo } from "react";
 import { View, ViewProps } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -7,23 +7,34 @@ interface CustomViewProps extends ViewProps {
   children?: ReactNode;
 }
 
-const CustomView = ({
+const CustomView = memo<CustomViewProps>(({
   bgColor,
   style,
   children,
   ...props
-}: CustomViewProps) => {
+}) => {
   const { colors } = useTheme();
-  const backgroundColor = bgColor !== undefined ? bgColor : colors.background;
+
+  const finalStyle = React.useMemo(() => {
+    const backgroundColor = bgColor !== undefined ? bgColor : colors.background;
+    return [backgroundColor !== null && { backgroundColor }, style];
+  }, [bgColor, colors.background, style]);
 
   return (
     <View
-      style={[backgroundColor !== null && { backgroundColor }, style]}
+      style={finalStyle}
       {...props}
     >
       {children}
     </View>
   );
-};
+}, (prevProps, nextProps) => {
+  // Strict equality check for better performance
+  return (
+    prevProps.bgColor === nextProps.bgColor &&
+    prevProps.style === nextProps.style &&
+    prevProps.children === nextProps.children
+  );
+});
 
 export default CustomView;

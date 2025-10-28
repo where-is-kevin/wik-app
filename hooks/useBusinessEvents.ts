@@ -202,7 +202,10 @@ const fetchBusinessEventById = async (
 };
 
 // Hook for fetching business events list
-export function useBusinessEvents(params: BusinessEventsParams, enabled: boolean = true) {
+export function useBusinessEvents(
+  params: BusinessEventsParams,
+  enabled: boolean = true
+) {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken || null;
@@ -233,13 +236,16 @@ export function useBusinessEvents(params: BusinessEventsParams, enabled: boolean
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    refetchOnMount: false, // Enable refetch when component mounts (navigation)
     networkMode: "offlineFirst",
   });
 }
 
 // Hook for fetching business event by ID
-export function useBusinessEventById(contentId: string, enabled: boolean = true) {
+export function useBusinessEventById(
+  contentId: string,
+  enabled: boolean = true
+) {
   const queryClient = useQueryClient();
   const authData = queryClient.getQueryData<{ accessToken?: string }>(["auth"]);
   const jwt = authData?.accessToken || null;
@@ -264,15 +270,21 @@ export function useConfigurableBusinessEvents(
 ) {
   const { limit = 20, radiusKm = 100, enabled = true } = options;
 
-  return useBusinessEvents({
-    type,
-    radius_km: type === "nearby" ? radiusKm : undefined,
-    limit,
-  }, enabled);
+  return useBusinessEvents(
+    {
+      type,
+      radius_km: type === "nearby" ? radiusKm : undefined,
+      limit,
+    },
+    enabled
+  );
 }
 
 // Hook for worldwide business events (no auth required)
-export function useWorldwideBusinessEvents(limit: number = 20, enabled: boolean = true) {
+export function useWorldwideBusinessEvents(
+  limit: number = 20,
+  enabled: boolean = true
+) {
   return useConfigurableBusinessEvents("worldwide", { limit, enabled });
 }
 

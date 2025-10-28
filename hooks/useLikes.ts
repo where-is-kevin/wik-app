@@ -149,14 +149,16 @@ export function useAddLike() {
       return addLike(input, jwt);
     },
     onSuccess: () => {
-      // Invalidate all queries that could contain like states
-      // Using refetchType: 'all' to force immediate refetch without duplicate calls
-      queryClient.invalidateQueries({
+      // Invalidate likes queries
+      queryClient.invalidateQueries({ queryKey: ["likes"] });
+
+      // Force refetch ALL business events queries to ensure cross-section sync
+      queryClient.refetchQueries({
         predicate: (query) => {
           const key = query.queryKey[0] as string;
-          return key === 'content' || key === 'businessEvents' || key === 'businessEvent' || key === 'likes';
+          return key === "businessEvents" || key === "businessEvent";
         },
-        refetchType: 'all' // Force refetch all matching queries immediately
+        // No type restriction - refetch ALL business events queries
       });
     },
   });

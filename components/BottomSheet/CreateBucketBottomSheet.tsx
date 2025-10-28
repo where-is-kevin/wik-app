@@ -1,38 +1,33 @@
 // CreateBucketBottomSheet.tsx
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  useMemo,
+} from "react";
 import { StyleSheet } from "react-native";
-import { useTheme } from "@/contexts/ThemeContext";
-import { useToast } from "@/contexts/ToastContext";
-import CustomText from "@/components/CustomText";
-import CustomView from "@/components/CustomView";
-import { scaleFontSize, verticalScale } from "@/utilities/scaling";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   BottomSheetModal,
   BottomSheetView,
   BottomSheetBackdrop,
 } from "@gorhom/bottom-sheet";
 import { ScrollView } from "react-native";
-import CustomTextInput from "../TextInput/CustomTextInput";
-import NextButton from "../Button/NextButton";
+import BucketNameInput from "./BucketNameInput";
+import SheetHeader from "./SheetHeader";
+import CreateButton from "./CreateButton";
 
 interface CreateBucketBottomSheetProps {
   isVisible: boolean;
   onClose: () => void;
-  onCreateBucket: (bucketName: string) => Promise<void>; // Updated to return Promise
-  isLoading?: boolean; // Add loading state prop
+  onCreateBucket: (bucketName: string) => Promise<void>;
+  isLoading?: boolean;
 }
 
 const CreateBucketBottomSheetComponent: React.FC<
   CreateBucketBottomSheetProps
 > = ({ isVisible, onClose, onCreateBucket, isLoading = false }) => {
-  const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
-  const { showToast } = useToast();
-  const [bucketName, setBucketName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-
-  // Bottom sheet ref
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
   // Handle visibility changes
@@ -44,86 +39,94 @@ const CreateBucketBottomSheetComponent: React.FC<
     }
   }, [isVisible]);
 
-  // Render backdrop callback
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
+  // Memoized backdrop component
+  const renderBackdrop = useMemo(
+    () => (props: any) =>
+      (
+        <BottomSheetBackdrop
+          {...props}
+          disappearsOnIndex={-1}
+          appearsOnIndex={0}
+        />
+      ),
     []
   );
 
+  // Memoized handlers
   const handleCreateBucket = useCallback(async () => {
-    if (bucketName.trim()) {
+    const text = textRef.current;
+    if (text.trim()) {
       setIsCreating(true);
       try {
-        await onCreateBucket(bucketName.trim());
-        setBucketName(""); // Clear input after successful creation
-        showToast("Bucket created successfully", "success", false);
-        // Small delay to ensure state updates complete before parent closes modal
-        setTimeout(() => {
-          setIsCreating(false);
-        }, 100);
+        await onCreateBucket(text.trim());
+        textRef.current = "";
+        setHasText(false);
+
+        // Immediate closing - let the parent handle the timing
+        setIsCreating(false);
+        onClose(); // Close the bottom sheet immediately
       } catch (error: any) {
         console.error("Error creating bucket:", error);
         setIsCreating(false);
-        // Extract specific error message from API response
-        const errorMessage = error?.detail ||
-                            error?.message ||
-                            error?.response?.detail ||
-                            error?.response?.message ||
-                            "Failed to create bucket";
-        showToast(errorMessage, "error", false);
       }
     }
-  }, [bucketName, onCreateBucket, showToast]);
+  }, [onCreateBucket, onClose]);
 
   const handleClose = useCallback(() => {
     if (!isCreating) {
-      // Prevent closing while creating
-      setBucketName("");
+      textRef.current = "";
+      setHasText(false);
       onClose();
     }
   }, [isCreating, onClose]);
 
-  const handleTextChange = useCallback((text: string) => {
-    setBucketName(text);
-  }, []);
+  // CRITICAL: Use a ref to track text without causing re-renders
+  const textRef = useRef("");
+  const [hasText, setHasText] = useState(false);
 
-  const isButtonDisabled = !bucketName.trim() || isCreating || isLoading;
+  const handleTextChange = useCallback(
+    (text: string) => {
+      textRef.current = text;
+      // Only update boolean for button state, not the full text
+      const hasTextNow = text.trim().length > 0;
+      if (hasTextNow !== hasText) {
+        setHasText(hasTextNow);
+      }
+    },
+    [hasText]
+  );
+
+  // Memoized disabled state - uses boolean instead of text
+  const isButtonDisabled = useMemo(() => {
+    return !hasText || isCreating || isLoading;
+  }, [hasText, isCreating, isLoading]);
 
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
       index={0}
-      snapPoints={["70%"]}
+      snapPoints={["60%"]}
       onDismiss={handleClose}
       backdropComponent={renderBackdrop}
       backgroundStyle={{
-        backgroundColor: colors.background,
+        backgroundColor: "#fff",
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0
       }}
-      handleIndicatorStyle={{
-        backgroundColor: colors.indicator_gray || "#F2F2F7",
-      }}
-      enablePanDownToClose={!isCreating} // Disable pan to close while creating
+      handleIndicatorStyle={{ backgroundColor: "#F2F2F7" }}
+      enablePanDownToClose={!isCreating}
       enableDismissOnClose={true}
       enableDynamicSizing={false}
       android_keyboardInputMode="adjustResize"
-      keyboardBehavior="interactive"
+      keyboardBehavior="extend"
       keyboardBlurBehavior="restore"
+      animateOnMount={false}
+      enableContentPanningGesture={false}
+      enableOverDrag={false}
+      overDragResistanceFactor={0}
     >
       <BottomSheetView style={styles.container}>
-        <CustomView style={styles.header}>
-          <CustomText
-            fontFamily="Inter-SemiBold"
-            style={[styles.title, { color: colors.label_dark }]}
-          >
-            Create bucket
-          </CustomText>
-        </CustomView>
+        <SheetHeader title="Create bucket" />
 
         <ScrollView
           style={styles.scrollContainer}
@@ -131,36 +134,17 @@ const CreateBucketBottomSheetComponent: React.FC<
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <CustomTextInput
-            label="Name"
-            value={bucketName}
-            onChangeText={handleTextChange}
-            placeholder="Enter bucket name..."
-            autoCapitalize="words"
-            editable={!isCreating} // Disable input while creating
-            autoFocus={true}
-            blurOnSubmit={true}
-            returnKeyType="done"
+          <BucketNameInput
+            onTextChange={handleTextChange}
+            disabled={isCreating}
           />
         </ScrollView>
 
-        {/* Fixed bottom section for Create Button */}
-        <CustomView
-          style={[
-            styles.bottomSection,
-            {
-              borderTopColor: colors.onboarding_gray,
-              paddingBottom: insets.bottom + 12, // Add 12pt base + safe area
-            },
-          ]}
-        >
-          <NextButton
-            title={isCreating ? "Creating..." : "Create Bucket"}
-            onPress={handleCreateBucket}
-            disabled={isButtonDisabled}
-            bgColor={colors.lime}
-          />
-        </CustomView>
+        <CreateButton
+          disabled={isButtonDisabled}
+          isCreating={isCreating}
+          onPress={handleCreateBucket}
+        />
       </BottomSheetView>
     </BottomSheetModal>
   );
@@ -170,25 +154,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    alignItems: "center",
-    marginTop: verticalScale(4),
-    marginBottom: 32,
-    paddingHorizontal: 24,
-  },
-  title: {
-    fontSize: scaleFontSize(16),
-  },
   scrollContainer: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 24,
   },
-  bottomSection: {
-    paddingBottom: verticalScale(12),
-    paddingHorizontal: 24,
-  },
 });
 
-export const CreateBucketBottomSheet = React.memo(CreateBucketBottomSheetComponent);
+export const CreateBucketBottomSheet = React.memo(
+  CreateBucketBottomSheetComponent,
+  (prevProps, nextProps) => {
+    // Only re-render if meaningful props have changed
+    return (
+      prevProps.isVisible === nextProps.isVisible &&
+      prevProps.isLoading === nextProps.isLoading
+    );
+  }
+);
+
+CreateBucketBottomSheet.displayName = "CreateBucketBottomSheet";

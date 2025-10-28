@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     lineHeight: scaleFontSize(20),
   },
   retryButton: {
-    backgroundColor: "#6C63FF",
+    backgroundColor: "#3C62FA",
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 12,

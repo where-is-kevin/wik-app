@@ -165,15 +165,15 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: scaleFontSize(16),
-    marginBottom: verticalScale(8),
+    marginBottom: 6,
   },
   details: {
-    gap: verticalScale(5.5),
+    gap: 6,
   },
   detailRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: horizontalScale(10),
+    gap: horizontalScale(6),
   },
   detailText: {
     fontSize: scaleFontSize(14),

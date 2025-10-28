@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, DimensionValue, StyleSheet } from "react-native";
+import { Animated, DimensionValue, StyleSheet, Platform, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -21,7 +21,7 @@ const ShimmerLoader: React.FC<ShimmerLoaderProps> = ({
     const animation = Animated.loop(
       Animated.timing(animatedValue, {
         toValue: 1,
-        duration: 1200, // Faster animation - more responsive feel
+        duration: Platform.OS === 'android' ? 1500 : 1200, // Slower on Android to reduce flash
         useNativeDriver: true,
       })
     );
@@ -38,6 +38,23 @@ const ShimmerLoader: React.FC<ShimmerLoaderProps> = ({
     outputRange: [-400, 400], // Wider sweep for smoother effect
   });
 
+  if (Platform.OS === 'android') {
+    // Android: Use static placeholder - no animation to prevent ANY flash
+    return (
+      <View
+        style={[
+          {
+            width,
+            height,
+            borderRadius,
+            backgroundColor: colors.border_gray || "#F0F0F0",
+          },
+        ]}
+      />
+    );
+  }
+
+  // iOS: Use original gradient approach (works fine)
   return (
     <Animated.View
       style={[
@@ -80,6 +97,12 @@ const ShimmerLoader: React.FC<ShimmerLoaderProps> = ({
 const styles = StyleSheet.create({
   container: {
     overflow: "hidden",
+    ...Platform.select({
+      android: {
+        // Remove any background properties that might cause flash
+        // Let the parent container handle the background
+      },
+    }),
   },
   shimmerOverlay: {
     position: "absolute",

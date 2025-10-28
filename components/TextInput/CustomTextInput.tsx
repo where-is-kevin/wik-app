@@ -33,7 +33,6 @@ interface CustomTextInputProps {
   fixedHeight?: number;
   customTextStyles?: TextStyle | TextStyle[]; // Add custom text styles prop
   autoFocus?: boolean;
-  blurOnSubmit?: boolean;
   returnKeyType?: "done" | "go" | "next" | "search" | "send" | "default";
 }
 
@@ -53,15 +52,14 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
   fixedHeight,
   customTextStyles,
   autoFocus = false,
-  blurOnSubmit = false,
   returnKeyType = "default",
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
   const { colors } = useTheme();
 
-  // Helper function to create proper style array
-  const getContainerStyles = (): ViewStyle[] => {
+  // Memoize container styles to prevent recalculation on every render
+  const containerStyles = React.useMemo((): ViewStyle[] => {
     const baseStyles: ViewStyle[] = [
       styles.inputContainer,
       isFocused && editable !== false ? styles.inputContainerFocused : {},
@@ -75,14 +73,23 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
     }
 
     return baseStyles;
-  };
+  }, [isFocused, editable, multiline, fixedHeight]);
 
-  const getInputStyles = (): TextStyle[] => {
+  // Memoize color to avoid recalculation on every render
+  const textColor = React.useMemo(() => {
+    return editable === false ? colors.gray_regular : colors.label_dark;
+  }, [editable, colors.gray_regular, colors.label_dark]);
+
+  // Memoize input styles to prevent recalculation on every render
+  const inputStyles = React.useMemo((): TextStyle[] => {
     const baseStyles: TextStyle[] = [
       styles.input,
-      { color: editable === false ? colors.gray_regular : colors.label_dark },
-      multiline ? styles.multilineInput : {},
+      { color: textColor },
     ];
+
+    if (multiline) {
+      baseStyles.push(styles.multilineInput);
+    }
 
     // Only add fixed height if it exists and is greater than 0
     if (fixedHeight && fixedHeight > 0) {
@@ -99,7 +106,7 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
     }
 
     return baseStyles;
-  };
+  }, [textColor, multiline, fixedHeight, customTextStyles]);
 
   return (
     <CustomView>
@@ -112,28 +119,31 @@ const CustomTextInput: React.FC<CustomTextInputProps> = ({
           {label}
         </CustomText>
       )}
-      <CustomView style={getContainerStyles()}>
+      <CustomView style={containerStyles}>
         <TextInput
-          style={getInputStyles()}
+          style={inputStyles}
           numberOfLines={numOfLines}
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           autoCapitalize={autoCapitalize}
-          autoCorrect={autoCorrect}
+          autoCorrect={false}
           keyboardType={keyboardType}
           placeholder={placeholder}
           placeholderTextColor={colors.gray_regular}
-          onFocus={() => setIsFocused(true)}
+          onFocus={React.useCallback(() => setIsFocused(true), [])}
           editable={editable}
-          onBlur={() => setIsFocused(false)}
+          onBlur={React.useCallback(() => setIsFocused(false), [])}
           multiline={multiline}
           textAlignVertical={multiline ? "top" : "center"}
           maxLength={maxLength}
           scrollEnabled={multiline}
           autoFocus={autoFocus}
-          blurOnSubmit={blurOnSubmit}
           returnKeyType={returnKeyType}
+          textContentType="none"
+          importantForAutofill="no"
+          spellCheck={false}
+          clearButtonMode="never"
         />
         {secureTextEntry && (
           <CustomTouchable
@@ -212,4 +222,20 @@ const styles = StyleSheet.create({
   },
 });
 
-export default memo(CustomTextInput);
+export default memo(CustomTextInput, (prevProps, nextProps) => {
+  // Only re-render if meaningful props have changed
+  return (
+    prevProps.value === nextProps.value &&
+    prevProps.placeholder === nextProps.placeholder &&
+    prevProps.editable === nextProps.editable &&
+    prevProps.autoFocus === nextProps.autoFocus &&
+    prevProps.maxLength === nextProps.maxLength &&
+    prevProps.multiline === nextProps.multiline &&
+    prevProps.secureTextEntry === nextProps.secureTextEntry &&
+    prevProps.onChangeText === nextProps.onChangeText &&
+    prevProps.label === nextProps.label &&
+    prevProps.keyboardType === nextProps.keyboardType &&
+    prevProps.autoCapitalize === nextProps.autoCapitalize &&
+    prevProps.returnKeyType === nextProps.returnKeyType
+  );
+});

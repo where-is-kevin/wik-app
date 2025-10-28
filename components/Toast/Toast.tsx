@@ -2,13 +2,8 @@ import React, { useEffect, useRef } from "react";
 import { Animated, StyleSheet, Platform, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  horizontalScale,
-  scaleFontSize,
-  verticalScale,
-} from "@/utilities/scaling";
+import { scaleFontSize, verticalScale } from "@/utilities/scaling";
 import CustomText from "../CustomText";
-import SuccessToastSvg from "../SvgComponents/SuccessToastSvg";
 import { useTheme } from "@/contexts/ThemeContext";
 import HeartFullSvg from "../SvgComponents/HeartFullSvg";
 
@@ -30,7 +25,10 @@ const Toast: React.FC<ToastProps> = ({
   hasTabBar = true,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(50)).current;
+  // For Android, start with smaller translateY to reduce flash
+  const translateY = useRef(
+    new Animated.Value(Platform.OS === "android" ? 20 : 50)
+  ).current;
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
 
@@ -50,12 +48,12 @@ const Toast: React.FC<ToastProps> = ({
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
-        duration: 200,
+        duration: Platform.OS === "android" ? 250 : 200,
         useNativeDriver: true,
       }),
       Animated.timing(translateY, {
-        toValue: 50,
-        duration: 200,
+        toValue: Platform.OS === "android" ? 20 : 50,
+        duration: Platform.OS === "android" ? 250 : 200,
         useNativeDriver: true,
       }),
     ]).start(() => {
@@ -84,12 +82,12 @@ const Toast: React.FC<ToastProps> = ({
         Animated.parallel([
           Animated.timing(fadeAnim, {
             toValue: 0,
-            duration: 300,
+            duration: Platform.OS === "android" ? 200 : 300,
             useNativeDriver: true,
           }),
           Animated.timing(translateY, {
-            toValue: 50,
-            duration: 300,
+            toValue: Platform.OS === "android" ? 20 : 50,
+            duration: Platform.OS === "android" ? 200 : 300,
             useNativeDriver: true,
           }),
         ]).start(() => {
@@ -148,6 +146,16 @@ const styles = StyleSheet.create({
     right: 10,
     alignItems: "center",
     zIndex: 9999,
+    // Prevent Android flash issues
+    ...Platform.select({
+      android: {
+        // Completely remove background on container
+        // Let the toast handle its own background
+      },
+      ios: {
+        // iOS can handle transparency better
+      },
+    }),
   },
   toast: {
     backgroundColor: "#FFF",
@@ -166,7 +174,16 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
       },
       android: {
-        elevation: 4,
+        // NO elevation - causes white flash with animations
+        elevation: 0,
+        shadowOpacity: 0,
+        // Use only border for definition
+        borderWidth: 1,
+        borderColor: "rgba(0, 0, 0, 0.15)",
+        // Force solid background with no transparency
+        backgroundColor: "#FFFFFF",
+        // Critical: prevent any overflow compositing
+        overflow: "hidden",
       },
     }),
   },
