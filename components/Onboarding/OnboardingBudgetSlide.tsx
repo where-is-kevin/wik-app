@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, TextInput } from "react-native";
+import { StyleSheet, TextInput, Keyboard, TouchableWithoutFeedback } from "react-native";
 import {
   PanGestureHandler,
   GestureHandlerRootView,
@@ -41,6 +41,9 @@ export const OnboardingBudgetSlide: React.FC<OnboardingBudgetSlideProps> = ({
 }) => {
   const { colors } = useTheme();
   const [budget, setBudget] = useState<BudgetRange>(initialBudget);
+  const [focusedInput, setFocusedInput] = useState<'min' | 'max' | null>(null);
+  const [minInputValue, setMinInputValue] = useState(initialBudget.min.toString());
+  const [maxInputValue, setMaxInputValue] = useState(initialBudget.max.toString());
 
   const SLIDER_WIDTH = horizontalScale(240);
   const MIN_VALUE = 0;
@@ -70,6 +73,8 @@ export const OnboardingBudgetSlide: React.FC<OnboardingBudgetSlideProps> = ({
 
   const updateBudget = (newBudget: BudgetRange) => {
     setBudget(newBudget);
+    setMinInputValue(newBudget.min.toString());
+    setMaxInputValue(newBudget.max.toString());
     onBudgetChange(newBudget);
   };
 
@@ -139,26 +144,88 @@ export const OnboardingBudgetSlide: React.FC<OnboardingBudgetSlideProps> = ({
   });
 
   const handleMinInputChange = (text: string) => {
-    const value = Math.max(0, Math.min(parseInt(text) || 0, MAX_VALUE));
-    if (value <= budget.max) {
-      const newBudget = { min: value, max: budget.max };
+    // Allow any text input but filter to numbers for processing
+    setMinInputValue(text);
+
+    // Only allow numeric input for actual value
+    const numericText = text.replace(/[^0-9]/g, '');
+
+    if (numericText === '') {
+      // Don't update budget if empty, just show empty input
+      return;
+    }
+
+    const value = parseInt(numericText);
+    const clampedValue = Math.max(0, Math.min(value, MAX_VALUE));
+
+    // Ensure min doesn't exceed max
+    if (clampedValue <= budget.max) {
+      const newBudget = { min: clampedValue, max: budget.max };
       updateBudget(newBudget);
-      minThumbPosition.value = valueToPosition(value) - THUMB_SIZE / 2;
+      minThumbPosition.value = valueToPosition(clampedValue) - THUMB_SIZE / 2;
+    } else {
+      // If min would exceed max, set max to be equal to min
+      const newBudget = { min: clampedValue, max: clampedValue };
+      updateBudget(newBudget);
+      minThumbPosition.value = valueToPosition(clampedValue) - THUMB_SIZE / 2;
+      maxThumbPosition.value = valueToPosition(clampedValue) - THUMB_SIZE / 2;
     }
   };
 
   const handleMaxInputChange = (text: string) => {
-    const value = Math.max(0, Math.min(parseInt(text) || 0, MAX_VALUE));
-    if (value >= budget.min) {
-      const newBudget = { min: budget.min, max: value };
-      updateBudget(newBudget);
-      maxThumbPosition.value = valueToPosition(value) - THUMB_SIZE / 2;
+    // Allow any text input but filter to numbers for processing
+    setMaxInputValue(text);
+
+    // Only allow numeric input for actual value
+    const numericText = text.replace(/[^0-9]/g, '');
+
+    if (numericText === '') {
+      // Don't update budget if empty, just show empty input
+      return;
     }
+
+    const value = parseInt(numericText);
+    const clampedValue = Math.max(0, Math.min(value, MAX_VALUE));
+
+    // Ensure max doesn't go below min
+    if (clampedValue >= budget.min) {
+      const newBudget = { min: budget.min, max: clampedValue };
+      updateBudget(newBudget);
+      maxThumbPosition.value = valueToPosition(clampedValue) - THUMB_SIZE / 2;
+    } else {
+      // If max would go below min, set min to be equal to max
+      const newBudget = { min: clampedValue, max: clampedValue };
+      updateBudget(newBudget);
+      minThumbPosition.value = valueToPosition(clampedValue) - THUMB_SIZE / 2;
+      maxThumbPosition.value = valueToPosition(clampedValue) - THUMB_SIZE / 2;
+    }
+  };
+
+  const handleMinBlur = () => {
+    setFocusedInput(null);
+    // Ensure valid value on blur
+    if (minInputValue === '' || parseInt(minInputValue) === 0) {
+      setMinInputValue(budget.min.toString());
+    }
+  };
+
+  const handleMaxBlur = () => {
+    setFocusedInput(null);
+    // Ensure valid value on blur
+    if (maxInputValue === '' || parseInt(maxInputValue) === 0) {
+      setMaxInputValue(budget.max.toString());
+    }
+  };
+
+  const dismissKeyboard = () => {
+    Keyboard.dismiss();
+    setFocusedInput(null);
   };
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <CustomView style={commonOnboardingStyles.content}>
+      <TouchableWithoutFeedback onPress={dismissKeyboard}>
+        <CustomView style={commonOnboardingStyles.content}>
         <CustomText
           fontFamily="Inter-SemiBold"
           style={[commonOnboardingStyles.title, { color: colors.label_dark }]}
@@ -222,7 +289,12 @@ export const OnboardingBudgetSlide: React.FC<OnboardingBudgetSlideProps> = ({
               >
                 Minimum
               </CustomText>
-              <CustomView style={styles.inputWrapper}>
+              <CustomView style={[
+                styles.inputWrapper,
+                {
+                  borderColor: focusedInput === 'min' ? colors.light_blue : colors.onboarding_gray,
+                }
+              ]}>
                 <CustomText
                   style={[styles.dollarSign, { color: colors.label_dark }]}
                 >
@@ -233,11 +305,14 @@ export const OnboardingBudgetSlide: React.FC<OnboardingBudgetSlideProps> = ({
                     styles.input,
                     {
                       color: colors.onboarding_option_dark,
-                      borderColor: colors.onboarding_gray,
                     },
                   ]}
-                  value={budget.min.toString()}
+                  value={minInputValue}
                   onChangeText={handleMinInputChange}
+                  onFocus={() => setFocusedInput('min')}
+                  onBlur={handleMinBlur}
+                  onSubmitEditing={dismissKeyboard}
+                  returnKeyType="done"
                   keyboardType="numeric"
                   maxLength={3}
                 />
@@ -250,7 +325,12 @@ export const OnboardingBudgetSlide: React.FC<OnboardingBudgetSlideProps> = ({
               >
                 Maximum
               </CustomText>
-              <CustomView style={styles.inputWrapper}>
+              <CustomView style={[
+                styles.inputWrapper,
+                {
+                  borderColor: focusedInput === 'max' ? colors.light_blue : colors.onboarding_gray,
+                }
+              ]}>
                 <CustomText
                   style={[styles.dollarSign, { color: colors.label_dark }]}
                 >
@@ -261,11 +341,14 @@ export const OnboardingBudgetSlide: React.FC<OnboardingBudgetSlideProps> = ({
                     styles.input,
                     {
                       color: colors.onboarding_option_dark,
-                      borderColor: colors.onboarding_gray,
                     },
                   ]}
-                  value={budget.max.toString()}
+                  value={maxInputValue}
                   onChangeText={handleMaxInputChange}
+                  onFocus={() => setFocusedInput('max')}
+                  onBlur={handleMaxBlur}
+                  onSubmitEditing={dismissKeyboard}
+                  returnKeyType="done"
                   keyboardType="numeric"
                   maxLength={3}
                 />
@@ -274,6 +357,7 @@ export const OnboardingBudgetSlide: React.FC<OnboardingBudgetSlideProps> = ({
           </CustomView>
         </CustomView>
       </CustomView>
+      </TouchableWithoutFeedback>
     </GestureHandlerRootView>
   );
 };

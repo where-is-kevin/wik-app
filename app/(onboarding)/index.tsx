@@ -106,6 +106,7 @@ const OnboardingScreen = () => {
       industry: [],
       stage: "",
     });
+  const locationProcessingRef = useRef<boolean>(false);
 
   // Helper function to save location preference based on onboarding selection
   const saveLocationPreference = useCallback(async () => {
@@ -136,7 +137,7 @@ const OnboardingScreen = () => {
           }
         }
 
-        if (locationToSave.isCurrentLocation) {
+        if ("isCurrentLocation" in locationToSave && locationToSave.isCurrentLocation) {
           // User selected "Current Location" - save as current location type
           const locationData = createCurrentLocationPreference(
             deviceLat,
@@ -754,7 +755,22 @@ const OnboardingScreen = () => {
         // Remove if already selected
         newSelections = currentSelections.filter((i) => i !== index);
       } else {
-        // Add if not selected
+        // Add if not selected, but check maximum limit based on step
+        let maxSelections = 10; // Default maximum
+
+        // Set specific limits for different steps
+        if (stepData.key === 'businessConnections') {
+          maxSelections = 5; // "Select your top 5 so we can connect you with the right people"
+        } else if (stepData.key === 'businessIndustries') {
+          maxSelections = 5; // "Select up to 5 industries"
+        } else if (stepData.key === 'personalTravelFrequency') {
+          maxSelections = 10; // "Select up to 10 things that matter to you most"
+        }
+
+        if (currentSelections.length >= maxSelections) {
+          // Don't add more if already at maximum for this step
+          return;
+        }
         newSelections = [...currentSelections, index];
       }
 
@@ -800,14 +816,28 @@ const OnboardingScreen = () => {
   const handleLocationSelect = async (location: LocationData | undefined) => {
     if (!stepData) return;
 
+    // Prevent multiple rapid selections using ref for immediate protection
+    if (locationProcessingRef.current) {
+      return;
+    }
+
+    locationProcessingRef.current = true;
+
+    // Update UI state immediately and reset ref after UI updates
     setSelectedLocation(location);
     setSelections((prev) => ({
       ...prev,
       [stepData.key]: location,
     }));
 
-    // Save location preference immediately when selected
+    // Reset ref immediately after UI state updates to allow new selections
+    locationProcessingRef.current = false;
+
+    // Auto-advance to next step immediately
     if (location) {
+      setCurrentStepIndex(currentStepIndex + 1);
+
+      // Save location preference in background (don't block UI)
       try {
         // Always try to get device location first
         const { status } = await Location.getForegroundPermissionsAsync();
@@ -842,13 +872,8 @@ const OnboardingScreen = () => {
           await setUserLocation(locationData);
         }
       } catch (error) {
-        console.error("Failed to immediately save location preference:", error);
+        console.error("Failed to save location preference in background:", error);
       }
-
-      // Auto-advance to next step when location is selected
-      setTimeout(() => {
-        setCurrentStepIndex(currentStepIndex + 1);
-      }, 300); // Small delay for better UX
     }
   };
 
