@@ -75,7 +75,7 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const [swiperReady, setSwiperReady] = useState(false);
   const [loadedImageCount, setLoadedImageCount] = useState(0);
-  const requiredImageCount = Math.min(dataLength, isAndroid ? 1 : 2);
+  const requiredImageCount = Math.min(dataLength, isAndroid ? 1 : 2); // Wait for 1 image on Android, 2 on iOS
 
   // FROM FAST VERSION: Reset when data changes
   useEffect(() => {
@@ -86,6 +86,7 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
       fadeAnim.setValue(0);
     }
   }, [hasData, fadeAnim]);
+
 
   // FROM FAST VERSION: Show cards when enough images load OR fallback timeout
   useEffect(() => {
@@ -181,7 +182,7 @@ const SwipeCards: React.FC<SwipeCardsProps> = ({
             priority={isPreloadCard ? "high" : "normal"}
             showLoadingIndicator={isPreloadCard}
             borderRadius={15}
-            cachePolicy="memory-disk"
+            cachePolicy={isAndroid ? "disk" : "memory-disk"}
             onLoad={() => {
               if (isPreloadCard) {
                 setLoadedImageCount((prev) => prev + 1);
