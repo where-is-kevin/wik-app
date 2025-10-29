@@ -13,11 +13,13 @@ interface OnboardingTravelEmailSlideProps {
   email: string;
   onEmailChange: (email: string) => void;
   firstName?: string;
+  onContinue?: () => void;
+  isValid?: boolean;
 }
 
 export const OnboardingTravelEmailSlide: React.FC<
   OnboardingTravelEmailSlideProps
-> = ({ stepData, email, onEmailChange, firstName }) => {
+> = ({ stepData, email, onEmailChange, firstName, onContinue, isValid = true }) => {
   const { colors } = useTheme();
   const [emailError, setEmailError] = useState<string>("");
   const [hasInteracted, setHasInteracted] = useState<boolean>(false);
@@ -47,6 +49,12 @@ export const OnboardingTravelEmailSlide: React.FC<
     setHasInteracted(true);
     const error = validateEmail(email);
     setEmailError(error);
+  };
+
+  const handleDonePress = () => {
+    if (isValid && onContinue) {
+      onContinue();
+    }
   };
 
   useEffect(() => {
@@ -86,6 +94,8 @@ export const OnboardingTravelEmailSlide: React.FC<
         showIcon={false}
         hasError={!!emailError}
         errorMessage={emailError}
+        showDoneButton={true}
+        onContinue={handleDonePress}
       />
       </CustomView>
     </TouchableWithoutFeedback>

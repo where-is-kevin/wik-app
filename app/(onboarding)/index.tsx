@@ -1222,6 +1222,8 @@ const OnboardingScreen = () => {
         email={travelEmail}
         onEmailChange={setTravelEmail}
         firstName={firstName}
+        onContinue={handleNext}
+        isValid={!isNextButtonDisabled()}
       />
     );
   };
@@ -1233,6 +1235,8 @@ const OnboardingScreen = () => {
         stepData={stepData}
         name={travelName}
         onNameChange={setTravelName}
+        onContinue={handleNext}
+        isValid={!isNextButtonDisabled()}
       />
     );
   };
@@ -1405,7 +1409,8 @@ const OnboardingScreen = () => {
       >
         {stepData &&
           stepData.type !== "logo-selection" &&
-          stepData.type !== "card-swipe" && (
+          stepData.type !== "card-swipe" &&
+          stepData.type !== "location-selection" && (
             <NextButton
               onPress={handleNext}
               customStyles={

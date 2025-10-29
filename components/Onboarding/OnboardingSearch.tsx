@@ -30,76 +30,89 @@ interface OnboardingSearchProps {
   errorMessage?: string;
   customStyles?: ViewStyle;
   editable?: boolean;
+  onContinue?: () => void;
+  showDoneButton?: boolean;
 }
 
-export const OnboardingSearch = forwardRef<TextInput, OnboardingSearchProps>(({
-  value,
-  onChangeText,
-  placeholder,
-  keyboardType = "default",
-  autoCapitalize = "none",
-  autoCorrect = false,
-  spellCheck = false,
-  autoFocus = false,
-  showIcon = true,
-  onBlur,
-  hasError = false,
-  errorMessage,
-  customStyles,
-  editable = true,
-}, ref) => {
-  const { colors } = useTheme();
-  const [isFocused, setIsFocused] = React.useState(false);
+export const OnboardingSearch = forwardRef<TextInput, OnboardingSearchProps>(
+  (
+    {
+      value,
+      onChangeText,
+      placeholder,
+      keyboardType = "default",
+      autoCapitalize = "none",
+      autoCorrect = false,
+      spellCheck = false,
+      autoFocus = false,
+      showIcon = true,
+      onBlur,
+      hasError = false,
+      errorMessage,
+      customStyles,
+      editable = true,
+      onContinue,
+      showDoneButton = false,
+    },
+    ref
+  ) => {
+    const { colors } = useTheme();
+    const [isFocused, setIsFocused] = React.useState(false);
 
-  return (
-    <CustomView style={[styles.container, customStyles]}>
-      <CustomView
-        style={[
-          styles.searchContainer,
-          !showIcon && { paddingVertical: 15.5 },
-          {
-            borderColor: hasError
-              ? "#FF3B30"
-              : isFocused
-              ? "#3C62FA"
-              : colors.input_border,
-          },
-        ]}
-      >
-        {showIcon && (
-          <CustomView style={styles.searchIconContainer}>
-            <OnboardingSearchSvg />
-          </CustomView>
+    return (
+      <CustomView style={[styles.container, customStyles]}>
+        <CustomView
+          style={[
+            styles.searchContainer,
+            !showIcon && { paddingVertical: 15.5 },
+            {
+              borderColor: hasError
+                ? "#FF3B30"
+                : isFocused
+                ? "#3C62FA"
+                : colors.input_border,
+            },
+          ]}
+        >
+          {showIcon && (
+            <CustomView style={styles.searchIconContainer}>
+              <OnboardingSearchSvg />
+            </CustomView>
+          )}
+          <TextInput
+            ref={ref}
+            style={[styles.searchInput, { color: colors.label_dark }]}
+            placeholder={placeholder}
+            placeholderTextColor={colors.gray_regular}
+            value={value}
+            onChangeText={onChangeText}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => {
+              setIsFocused(false);
+              onBlur?.();
+            }}
+            keyboardType={keyboardType}
+            autoCapitalize={autoCapitalize}
+            autoCorrect={autoCorrect}
+            spellCheck={spellCheck}
+            autoFocus={autoFocus}
+            editable={editable}
+            returnKeyType={showDoneButton ? "done" : "default"}
+            onSubmitEditing={showDoneButton ? onContinue : undefined}
+          />
+        </CustomView>
+
+        {errorMessage && (
+          <CustomText style={[styles.errorText, { color: "#FF3B30" }]}>
+            {errorMessage}
+          </CustomText>
         )}
-        <TextInput
-          ref={ref}
-          style={[styles.searchInput, { color: colors.label_dark }]}
-          placeholder={placeholder}
-          placeholderTextColor={colors.gray_regular}
-          value={value}
-          onChangeText={onChangeText}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => {
-            setIsFocused(false);
-            onBlur?.();
-          }}
-          keyboardType={keyboardType}
-          autoCapitalize={autoCapitalize}
-          autoCorrect={autoCorrect}
-          spellCheck={spellCheck}
-          autoFocus={autoFocus}
-          editable={editable}
-        />
       </CustomView>
+    );
+  }
+);
 
-      {errorMessage && (
-        <CustomText style={[styles.errorText, { color: "#FF3B30" }]}>
-          {errorMessage}
-        </CustomText>
-      )}
-    </CustomView>
-  );
-});
+OnboardingSearch.displayName = "OnboardingSearch";
 
 const styles = StyleSheet.create({
   container: {

@@ -12,12 +12,20 @@ interface OnboardingTravelNameSlideProps {
   stepData: OnboardingStep;
   name: string;
   onNameChange: (name: string) => void;
+  onContinue?: () => void;
+  isValid?: boolean;
 }
 
 export const OnboardingTravelNameSlide: React.FC<
   OnboardingTravelNameSlideProps
-> = ({ stepData, name, onNameChange }) => {
+> = ({ stepData, name, onNameChange, onContinue, isValid = true }) => {
   const { colors } = useTheme();
+
+  const handleDonePress = () => {
+    if (isValid && onContinue) {
+      onContinue();
+    }
+  };
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -45,6 +53,8 @@ export const OnboardingTravelNameSlide: React.FC<
         autoCorrect={false}
         autoFocus={true}
         showIcon={false}
+        showDoneButton={true}
+        onContinue={handleDonePress}
       />
       </CustomView>
     </TouchableWithoutFeedback>

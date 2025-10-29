@@ -2,7 +2,11 @@ import React from "react";
 import { StyleSheet, TouchableOpacity, View, Platform } from "react-native";
 import CustomText from "../CustomText";
 import { useTheme } from "@/contexts/ThemeContext";
-import { horizontalScale, scaleFontSize } from "@/utilities/scaling";
+import {
+  horizontalScale,
+  scaleFontSize,
+  verticalScale,
+} from "@/utilities/scaling";
 
 interface OnboardingTagProps {
   number: number;
@@ -65,7 +69,8 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 9.5,
+    paddingVertical: verticalScale(9),
+    paddingHorizontal: horizontalScale(12),
     borderRadius: 28,
     borderWidth: 1,
   },
